@@ -20,10 +20,25 @@
     .chart-area { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 13px; color: #888; }
+    .bubble-label { pointer-events: none; text-anchor: middle; dominant-baseline: middle; font-family: 'Roboto', sans-serif; }
+    .tooltip {
+      position: absolute;
+      background: rgba(22,119,188,0.92);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      max-width: 220px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
 <div id="loading">Loading data...</div>
+<div id="tooltip" class="tooltip"></div>
 <div id="app" style="display:none">
   <div id="nav">
     <button class="nav-btn active" onclick="showChart(0)">Habitat Types</button>
@@ -37,8 +52,8 @@
       <div class="chart-area" id="upset-chart"></div>
     </div>
     <div class="chart-panel" id="panel-1">
-      <div class="chart-title">Number of NRU Projects by Site / Long-Term Project Name</div>
-      <div class="chart-subtitle">Count of distinct NRU project titles per site, where GBEP award amount is greater than $0.</div>
+      <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
+      <div class="chart-subtitle">Each bubble represents a site. Bubble size = number of distinct NRU projects with GBEP funding. Hover for details.</div>
       <div class="chart-area" id="site-chart"></div>
     </div>
     <div class="chart-panel" id="panel-2">
@@ -53,8 +68,11 @@
   const LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   const C1 = "#1677bc";
   const C2 = "#54a9ad";
+  const C3 = "#25b7d3";
+  const C4 = "#54c6c7";
   const EMPTY = "#e0e0e0";
   const FONT = "Roboto, sans-serif";
+  const PALETTE = [C1, C2, C3, C4, "#b2ebf2"];
 
   let allData = [];
   const chartDrawn = [false, false, false];
@@ -64,6 +82,19 @@
       .replace(/Submerged Aquatic Vegetati\w*/i, "Submerged Aquatic Veg.")
       .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
   };
+
+  const tooltip = document.getElementById("tooltip");
+
+  function showTooltip(evt, html) {
+    tooltip.innerHTML = html;
+    tooltip.style.opacity = 1;
+    tooltip.style.left = (evt.pageX + 12) + "px";
+    tooltip.style.top = (evt.pageY - 28) + "px";
+  }
+
+  function hideTooltip() {
+    tooltip.style.opacity = 0;
+  }
 
   function showChart(i) {
     document.querySelectorAll('.chart-panel').forEach(function(p, j) { p.classList.toggle('active', i === j); });
@@ -82,6 +113,142 @@
     const res = await fetch(url);
     const json = await res.json();
     return json.features.map(function(f) { return f.attributes; });
+  }
+
+  function drawBubbleChart(counts, containerId) {
+    const el = document.getElementById(containerId);
+    const width = el.clientWidth || window.innerWidth;
+    const height = el.clientHeight || (window.innerHeight - 80);
+    if (!counts || counts.length === 0) return;
+
+    const maxCount = d3.max(counts, function(d) { return d.count; }) || 1;
+    const minR = 30;
+    const maxR = Math.min(width, height) * 0.18;
+    const rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, maxR]);
+
+    const nodes = counts.map(function(d, i) {
+      return {
+        label: d.label,
+        count: d.count,
+        r: rScale(d.count),
+        color: PALETTE[i % PALETTE.length]
+      };
+    });
+
+    d3.select("#" + containerId).select("svg").remove();
+    const svg = d3.select("#" + containerId).append("svg")
+      .attr("width", width).attr("height", height);
+
+    const simulation = d3.forceSimulation(nodes)
+      .force("charge", d3.forceManyBody().strength(5))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(function(d) { return d.r + 3; }).strength(0.9))
+      .stop();
+
+    for (let i = 0; i < 300; i++) simulation.tick();
+
+    const node = svg.selectAll("g")
+      .data(nodes).enter().append("g")
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+      .on("mousemove", function(event, d) {
+        showTooltip(event, "<strong>" + d.label + "</strong><br>" + d.count + " NRU project" + (d.count !== 1 ? "s" : ""));
+      })
+      .on("mouseleave", hideTooltip);
+
+    node.append("circle")
+      .attr("r", function(d) { return d.r; })
+      .attr("fill", function(d) { return d.color; })
+      .attr("opacity", 0.88)
+      .attr("stroke", "white")
+      .attr("stroke-width", 2);
+
+    node.each(function(d) {
+      const g = d3.select(this);
+      const words = d.label.split(/[\s,\/]+/);
+      const lineHeight = 14;
+      const maxWidth = d.r * 1.6;
+      const fontSize = Math.max(8, Math.min(13, d.r / 3.5));
+
+      // Wrap text into lines
+      let lines = [];
+      let current = "";
+      words.forEach(function(word) {
+        const test = current ? current + " " + word : word;
+        if (test.length * fontSize * 0.55 > maxWidth && current) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = test;
+        }
+      });
+      if (current) lines.push(current);
+
+      // Truncate if too many lines
+      const maxLines = Math.floor((d.r * 1.4) / lineHeight);
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        if (lines[lines.length - 1].length > 8) {
+          lines[lines.length - 1] = lines[lines.length - 1].slice(0, 7) + "...";
+        }
+      }
+
+      const totalH = lines.length * lineHeight;
+      lines.forEach(function(line, li) {
+        g.append("text")
+          .attr("x", 0)
+          .attr("y", -totalH / 2 + li * lineHeight + lineHeight / 2)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("font-size", fontSize)
+          .attr("font-family", FONT)
+          .attr("fill", "white")
+          .attr("font-weight", "500")
+          .text(line);
+      });
+
+      // Show count at bottom of bubble
+      if (d.r > 35) {
+        g.append("text")
+          .attr("x", 0)
+          .attr("y", d.r - 12)
+          .attr("text-anchor", "middle")
+          .attr("font-size", Math.max(9, fontSize - 1))
+          .attr("font-family", FONT)
+          .attr("fill", "rgba(255,255,255,0.8)")
+          .text(d.count);
+      }
+    });
+  }
+
+  function drawSiteChart() {
+    const funded = allData.filter(function(d) {
+      return d.gbep_award_amount > 0
+        && d.site_name_long_term_project_nam
+        && d.site_name_long_term_project_nam.trim() !== ""
+        && d.nru_project_title
+        && d.nru_project_title.trim() !== "";
+    });
+    const grouped = d3.rollups(funded,
+      function(v) { return new Set(v.map(function(d) { return d.nru_project_title; })).size; },
+      function(d) { return d.site_name_long_term_project_nam; }
+    );
+    const counts = grouped.map(function(r) { return { label: r[0], count: r[1] }; })
+      .sort(function(a, b) { return b.count - a.count; });
+    drawBubbleChart(counts, "site-chart");
+  }
+
+  function drawOrgChart() {
+    const funded = allData.filter(function(d) {
+      return d.gbep_award_amount > 0
+        && d.lead_organization_name
+        && d.lead_organization_name.trim() !== "";
+    });
+    const grouped = d3.rollups(funded,
+      function(v) { return v.length; },
+      function(d) { return d.lead_organization_name; }
+    );
+    const counts = grouped.map(function(r) { return { label: r[0], count: r[1] }; });
+    drawHorizontalBar(counts, "org-chart", C2);
   }
 
   function drawHorizontalBar(counts, containerId, color) {
@@ -108,7 +275,7 @@
     const g = svg.append("g").attr("transform", "translate(" + marginLeft + "," + marginTop + ")");
 
     g.append("g")
-      .call(d3.axisBottom(xScale).ticks(5).tickFormat(d3.format("d")))
+      .call(d3.axisBottom(xScale).ticks(Math.min(xMax, 8)).tickFormat(d3.format("d")))
       .attr("transform", "translate(0," + barAreaHeight + ")")
       .call(function(gr) { gr.select(".domain").remove(); })
       .call(function(gr) {
@@ -131,36 +298,6 @@
     });
   }
 
-  function drawSiteChart() {
-    const funded = allData.filter(function(d) {
-      return d.gbep_award_amount > 0
-        && d.site_name_long_term_project_nam
-        && d.site_name_long_term_project_nam.trim() !== ""
-        && d.nru_project_title
-        && d.nru_project_title.trim() !== "";
-    });
-    const grouped = d3.rollups(funded,
-      function(v) { return new Set(v.map(function(d) { return d.nru_project_title; })).size; },
-      function(d) { return d.site_name_long_term_project_nam; }
-    );
-    const counts = grouped.map(function(r) { return { label: r[0], count: r[1] }; });
-    drawHorizontalBar(counts, "site-chart", C1);
-  }
-
-  function drawOrgChart() {
-    const funded = allData.filter(function(d) {
-      return d.gbep_award_amount > 0
-        && d.lead_organization_name
-        && d.lead_organization_name.trim() !== "";
-    });
-    const grouped = d3.rollups(funded,
-      function(v) { return v.length; },
-      function(d) { return d.lead_organization_name; }
-    );
-    const counts = grouped.map(function(r) { return { label: r[0], count: r[1] }; });
-    drawHorizontalBar(counts, "org-chart", C2);
-  }
-
   function drawUpset(data, container) {
     const el = document.getElementById(container);
     const width = el.clientWidth;
@@ -177,7 +314,9 @@
     });
     const sortedCombos = Array.from(comboMap, function(e) { return { key: e[0], count: e[1] }; })
       .sort(function(a, b) { return b.count - a.count; });
+
     if (sortedCombos.length === 0) return;
+
     const allTypes = Array.from(new Set(rawCombinations.reduce(function(a, b) { return a.concat(b); }, []))).sort();
 
     const typeTotals = new Map();
@@ -207,7 +346,7 @@
       .call(function(g) { g.select(".domain").remove(); })
       .call(function(g) { g.selectAll("text").style("font-size", "14px"); });
 
-    barG.append("text").attr("transform", "rotate(-90)").attr("x", -barHeight / 2).attr("y", -42)
+    barG.append("text").attr("transform", "rotate(-90)").attr("x", -barHeight / 2).attr("y", -52)
       .attr("text-anchor", "middle").attr("font-size", 14).attr("fill", "#555").text("Number of Projects");
 
     sortedCombos.forEach(function(d, i) {
@@ -227,7 +366,7 @@
         .attr("font-size", 14).attr("fill", "#333").text(cleanLabel(type));
     });
 
-    for (let ri = 0; ri <= allTypes.length; ri++) {
+    for (var ri = 0; ri <= allTypes.length; ri++) {
       dotG.append("line").attr("x1", 0).attr("x2", sortedCombos.length * colWidth)
         .attr("y1", ri * rowHeight).attr("y2", ri * rowHeight).attr("stroke", "#eee").attr("stroke-width", 1);
     }
