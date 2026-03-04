@@ -6,28 +6,55 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: white; font-family: 'Roboto', sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: 'Roboto', sans-serif; }
     #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
-    #nav { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; background: white; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; flex-wrap: wrap; }
-    .nav-btn { padding: 5px 14px; border: 1.5px solid #1677bc; border-radius: 20px; background: white; color: #1677bc; font-family: 'Roboto', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    #nav {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 8px 16px;
+      background: white;
+      border-bottom: 2px solid #e8f0fe;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .nav-btn {
+      padding: 5px 14px;
+      border: 1.5px solid #1677bc;
+      border-radius: 20px;
+      background: white; color: #1677bc;
+      font-family: 'Roboto', sans-serif; font-size: 11px; font-weight: 500;
+      cursor: pointer; transition: all 0.18s; white-space: nowrap;
+    }
     .nav-btn:hover { background: #e8f4fb; }
-    .nav-btn.active { background: #1677bc; color: white; }
+    .nav-btn.active { background: #1677bc; color: white; box-shadow: 0 2px 8px rgba(22,119,188,0.25); }
     #charts { flex: 1; overflow: hidden; position: relative; }
-    .chart-panel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; display: none; padding: 12px 16px; }
+    .chart-panel {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      overflow: hidden; display: none; padding: 16px 20px;
+      background: #f8fafc;
+    }
     .chart-panel.active { display: flex; flex-direction: column; }
-    .chart-title { font-size: 19px; font-weight: 700; color: #1677bc; margin-bottom: 4px; flex-shrink: 0; }
-    .chart-subtitle { font-size: 17px; color: #666; margin-bottom: 8px; flex-shrink: 0; }
-    .chart-area { flex: 1; overflow: hidden; min-height: 0; }
-    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; width: 100%; height: 100%; }
-    .grid-cell { overflow: hidden; position: relative; }
-    .grid-cell-title { font-size: 12px; font-weight: 700; padding: 4px 8px 2px; flex-shrink: 0; }
+    .chart-title { font-size: 19px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
+    .chart-subtitle { font-size: 13px; color: #888; margin-bottom: 10px; flex-shrink: 0; }
+    .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
+    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; width: 100%; height: 100%; }
+    .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
+    .grid-cell-title { font-size: 11px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
-    #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 13px; color: #888; }
-    .tooltip { position: absolute; background: rgba(30,30,30,0.88); color: white; padding: 6px 10px; border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s; max-width: 220px; line-height: 1.4; z-index: 999; }
+    #loading {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      font-size: 14px; color: #1677bc; font-weight: 500; letter-spacing: 0.5px;
+    }
+    .tooltip {
+      position: absolute; background: rgba(15,23,42,0.92); color: white;
+      padding: 7px 11px; border-radius: 7px; font-size: 12px;
+      pointer-events: none; opacity: 0; transition: opacity 0.15s;
+      max-width: 240px; line-height: 1.5; z-index: 999;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
-<div id="loading">Loading data...</div>
+<div id="loading">Loading data…</div>
 <div id="tooltip" class="tooltip"></div>
 <div id="app" style="display:none">
   <div id="nav">
@@ -35,434 +62,572 @@
     <button class="nav-btn" onclick="showChart(1)">Projects by Site</button>
     <button class="nav-btn" onclick="showChart(2)">Projects by Organization</button>
     <button class="nav-btn" onclick="showChart(3)">Plan Priorities</button>
+    <button class="nav-btn" onclick="showChart(4)">Funding by Fiscal Year</button>
+    <button class="nav-btn" onclick="showChart(5)">Org × Priority Heatmap</button>
   </div>
   <div id="charts">
+
+    <!-- 0: UPSET -->
     <div class="chart-panel active" id="panel-0">
       <div class="chart-title">Project Habitat Type Combinations</div>
-      <div class="chart-subtitle">Each column shows a unique combination of habitat types. Bar height = number of projects with that combination. Right bars = total projects per habitat type.</div>
+      <div class="chart-subtitle">Each column = a unique habitat combination. Bar height = projects with that combination. Right bars = total projects per habitat type.</div>
       <div class="chart-area" id="upset-chart"></div>
     </div>
+
+    <!-- 1: BUBBLES -->
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
-      <div class="chart-subtitle">Each bubble represents a site. Bubble size = number of distinct NRU projects with GBEP funding. Hover for details.</div>
+      <div class="chart-subtitle">Bubble size = number of distinct NRU projects with GBEP funding. Hover for details.</div>
       <div class="chart-area" id="site-chart"></div>
     </div>
+
+    <!-- 2: ORG BAR -->
     <div class="chart-panel" id="panel-2">
-      <div class="chart-title">Number of Projects by Lead Organization</div>
+      <div class="chart-title">Projects by Lead Organization</div>
       <div class="chart-subtitle">Count of GBEP-funded projects per lead organization.</div>
       <div class="chart-area" id="org-chart"></div>
     </div>
+
+    <!-- 3: PLAN PRIORITIES 2x2 -->
     <div class="chart-panel" id="panel-3">
       <div class="chart-title">GBEP Funding by Plan Priority</div>
       <div class="chart-subtitle">Total GBEP award dollars by activity group and subcategory for each plan priority.</div>
-      <div class="chart-area">
+      <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;">
         <div class="grid-2x2">
-          <div class="grid-cell" id="pp1-cell">
-            <div class="grid-cell-title" style="color:#1677bc">Plan Priority 1 — Watershed &amp; Planning Foundations</div>
-            <div id="pp1-chart" style="width:100%;height:calc(100% - 22px)"></div>
+          <div class="grid-cell">
+            <div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div>
+            <div class="grid-chart" id="pp1-chart"></div>
           </div>
-          <div class="grid-cell" id="pp2-cell">
+          <div class="grid-cell">
             <div class="grid-cell-title" style="color:#2e7d32">Plan Priority 2 — Habitat, Stewardship &amp; Field Work</div>
-            <div id="pp2-chart" style="width:100%;height:calc(100% - 22px)"></div>
+            <div class="grid-chart" id="pp2-chart"></div>
           </div>
-          <div class="grid-cell" id="pp3-cell">
+          <div class="grid-cell">
             <div class="grid-cell-title" style="color:#6a1b9a">Plan Priority 3 — Outreach, Education &amp; Partnerships</div>
-            <div id="pp3-chart" style="width:100%;height:calc(100% - 22px)"></div>
+            <div class="grid-chart" id="pp3-chart"></div>
           </div>
-          <div class="grid-cell" id="pp4-cell">
+          <div class="grid-cell">
             <div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Restoration, Sustainability &amp; Capacity</div>
-            <div id="pp4-chart" style="width:100%;height:calc(100% - 22px)"></div>
+            <div class="grid-chart" id="pp4-chart"></div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 4: FISCAL YEAR -->
+    <div class="chart-panel" id="panel-4">
+      <div class="chart-title">GBEP Funding by Fiscal Year</div>
+      <div class="chart-subtitle">Total GBEP award dollars and project count per fiscal year of award.</div>
+      <div class="chart-area" id="fy-chart"></div>
+    </div>
+
+    <!-- 5: HEATMAP -->
+    <div class="chart-panel" id="panel-5">
+      <div class="chart-title">Lead Organization × Plan Priority</div>
+      <div class="chart-subtitle">Number of projects per organization per plan priority. Darker = more projects. Hover for details.</div>
+      <div class="chart-area" id="heatmap-chart"></div>
+    </div>
+
   </div>
 </div>
 
 <script>
-  const LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
-  const C1 = "#1677bc"; const C2 = "#54a9ad"; const C3 = "#25b7d3"; const C4 = "#54c6c7";
-  const EMPTY = "#e0e0e0"; const FONT = "Roboto, sans-serif";
-  const PALETTE = [C1, C2, C3, C4, "#b2ebf2"];
+  var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+  var C1="#1677bc", C2="#54a9ad", C3="#25b7d3", C4="#54c6c7", EMPTY="#e0e0e0";
+  var FONT="Roboto, sans-serif";
+  var PALETTE=[C1,C2,C3,C4,"#90caf9","#b2ebf2","#80deea","#4dd0e1"];
 
-  // Plan priority color palettes
-  const PP_PALETTES = {
-    1: ["#1565c0","#1976d2","#1e88e5","#42a5f5","#90caf9","#bbdefb","#e3f2fd","#1677bc","#0d47a1","#2196f3","#64b5f6","#b3e5fc"],
-    2: ["#1b5e20","#2e7d32","#388e3c","#43a047","#66bb6a","#a5d6a7","#c8e6c9","#4caf50","#81c784"],
-    3: ["#4a148c","#6a1b9a","#7b1fa2","#8e24aa","#ab47bc","#ce93d8","#e1bee7","#9c27b0","#ba68c8"],
-    4: ["#bf360c","#d84315","#e64a19","#f4511e","#ff7043","#ffab91","#fbe9e7","#ff5722","#ff8a65","#ffccbc","#e65100"]
+  var PP_PALETTES = {
+    1:["#1565c0","#1976d2","#1e88e5","#42a5f5","#90caf9","#bbdefb","#e3f2fd","#1677bc","#0d47a1","#2196f3","#64b5f6","#b3e5fc"],
+    2:["#1b5e20","#2e7d32","#388e3c","#43a047","#66bb6a","#a5d6a7","#c8e6c9","#4caf50","#81c784"],
+    3:["#4a148c","#6a1b9a","#7b1fa2","#8e24aa","#ab47bc","#ce93d8","#e1bee7","#9c27b0","#ba68c8"],
+    4:["#bf360c","#d84315","#e64a19","#f4511e","#ff7043","#ffab91","#fbe9e7","#ff5722","#ff8a65","#ffccbc","#e65100"]
   };
 
-  const PLAN_DEFS = {
-    1: [
-      {field:"nps_1", group:"NPS", label:"NPS-1"},{field:"nps_2", group:"NPS", label:"NPS-2"},
-      {field:"nps_3", group:"NPS", label:"NPS-3"},{field:"nps_4", group:"NPS", label:"NPS-4"},
-      {field:"ps_1",  group:"PS",  label:"PS-1"}, {field:"ps_2",  group:"PS",  label:"PS-2"},
-      {field:"ps_3",  group:"PS",  label:"PS-3"},
-      {field:"pha_1", group:"PHA", label:"PHA-1"},{field:"pha_2", group:"PHA", label:"PHA-2"},
-      {field:"pha_3", group:"PHA", label:"PHA-3"},{field:"pha_4", group:"PHA", label:"PHA-4"},
-      {field:"pha_5", group:"PHA", label:"PHA-5"}
+  var PLAN_DEFS = {
+    1:[
+      {field:"nps_1",group:"NPS",label:"NPS-1"},{field:"nps_2",group:"NPS",label:"NPS-2"},
+      {field:"nps_3",group:"NPS",label:"NPS-3"},{field:"nps_4",group:"NPS",label:"NPS-4"},
+      {field:"ps_1",group:"PS",label:"PS-1"},{field:"ps_2",group:"PS",label:"PS-2"},{field:"ps_3",group:"PS",label:"PS-3"},
+      {field:"pha_1",group:"PHA",label:"PHA-1"},{field:"pha_2",group:"PHA",label:"PHA-2"},
+      {field:"pha_3",group:"PHA",label:"PHA-3"},{field:"pha_4",group:"PHA",label:"PHA-4"},{field:"pha_5",group:"PHA",label:"PHA-5"}
     ],
-    2: [
-      {field:"hc_1",  group:"HC",  label:"HC-1"}, {field:"hc_2",  group:"HC",  label:"HC-2"},
-      {field:"hc_3",  group:"HC",  label:"HC-3"},
-      {field:"sc_1",  group:"SC",  label:"SC-1"}, {field:"sc_2",  group:"SC",  label:"SC-2"},
-      {field:"fwi_1", group:"FWI", label:"FWI-1"},{field:"fwi_2", group:"FWI", label:"FWI-2"},
-      {field:"fwi_3", group:"FWI", label:"FWI-3"}
+    2:[
+      {field:"hc_1",group:"HC",label:"HC-1"},{field:"hc_2",group:"HC",label:"HC-2"},{field:"hc_3",group:"HC",label:"HC-3"},
+      {field:"sc_1",group:"SC",label:"SC-1"},{field:"sc_2",group:"SC",label:"SC-2"},
+      {field:"fwi_1",group:"FWI",label:"FWI-1"},{field:"fwi_2",group:"FWI",label:"FWI-2"},{field:"fwi_3",group:"FWI",label:"FWI-3"}
     ],
-    3: [
-      {field:"spo_1", group:"SPO", label:"SPO-1"},{field:"spo_2", group:"SPO", label:"SPO-2"},
-      {field:"spo_3", group:"SPO", label:"SPO-3"},{field:"spo_4", group:"SPO", label:"SPO-4"},
-      {field:"pea_1", group:"PEA", label:"PEA-1"},{field:"pea_2", group:"PEA", label:"PEA-2"},
-      {field:"pea_3", group:"PEA", label:"PEA-3"}
+    3:[
+      {field:"spo_1",group:"SPO",label:"SPO-1"},{field:"spo_2",group:"SPO",label:"SPO-2"},
+      {field:"spo_3",group:"SPO",label:"SPO-3"},{field:"spo_4",group:"SPO",label:"SPO-4"},
+      {field:"pea_1",group:"PEA",label:"PEA-1"},{field:"pea_2",group:"PEA",label:"PEA-2"},{field:"pea_3",group:"PEA",label:"PEA-3"}
     ],
-    4: [
-      {field:"res_1", group:"RES", label:"RES-1"},{field:"res_2", group:"RES", label:"RES-2"},
-      {field:"res_3", group:"RES", label:"RES-3"},{field:"res_4", group:"RES", label:"RES-4"},
-      {field:"res_5", group:"RES", label:"RES-5"},{field:"res_6", group:"RES", label:"RES-6"},
-      {field:"res_7", group:"RES", label:"RES-7"},{field:"res_8", group:"RES", label:"RES-8"},
-      {field:"acs_1", group:"ACS", label:"ACS-1"},{field:"acs_2", group:"ACS", label:"ACS-2"},
-      {field:"acs_3", group:"ACS", label:"ACS-3"}
+    4:[
+      {field:"res_1",group:"RES",label:"RES-1"},{field:"res_2",group:"RES",label:"RES-2"},
+      {field:"res_3",group:"RES",label:"RES-3"},{field:"res_4",group:"RES",label:"RES-4"},
+      {field:"res_5",group:"RES",label:"RES-5"},{field:"res_6",group:"RES",label:"RES-6"},
+      {field:"res_7",group:"RES",label:"RES-7"},{field:"res_8",group:"RES",label:"RES-8"},
+      {field:"acs_1",group:"ACS",label:"ACS-1"},{field:"acs_2",group:"ACS",label:"ACS-2"},{field:"acs_3",group:"ACS",label:"ACS-3"}
     ]
   };
 
-  let allData = [];
-  const chartDrawn = [false, false, false, false];
-  const tooltip = document.getElementById("tooltip");
+  // Which plan priority fields exist per row
+  var PP_FIELD_MAP = {
+    "PP1": ["nps_1","nps_2","nps_3","nps_4","ps_1","ps_2","ps_3","pha_1","pha_2","pha_3","pha_4","pha_5"],
+    "PP2": ["hc_1","hc_2","hc_3","sc_1","sc_2","fwi_1","fwi_2","fwi_3"],
+    "PP3": ["spo_1","spo_2","spo_3","spo_4","pea_1","pea_2","pea_3"],
+    "PP4": ["res_1","res_2","res_3","res_4","res_5","res_6","res_7","res_8","acs_1","acs_2","acs_3"]
+  };
+
+  var allData = [];
+  var chartDrawn = [false,false,false,false,false,false];
+  var tooltip = document.getElementById("tooltip");
 
   function showTooltip(evt, html) {
     tooltip.innerHTML = html;
     tooltip.style.opacity = 1;
-    tooltip.style.left = (evt.pageX + 12) + "px";
-    tooltip.style.top = (evt.pageY - 28) + "px";
+    tooltip.style.left = (evt.pageX+14)+"px";
+    tooltip.style.top = (evt.pageY-32)+"px";
   }
-  function hideTooltip() { tooltip.style.opacity = 0; }
+  function hideTooltip() { tooltip.style.opacity=0; }
+
+  function isYes(v) {
+    if (v===null||v===undefined) return false;
+    if (v===true||v===1) return true;
+    var s = String(v).toLowerCase().trim();
+    return s==="1"||s==="true"||s==="yes"||s==="y";
+  }
+
+  function fmtDollars(v) {
+    if (v>=1e6) return "$"+(v/1e6).toFixed(1)+"M";
+    if (v>=1e3) return "$"+(v/1e3).toFixed(0)+"K";
+    return "$"+Math.round(v);
+  }
 
   function showChart(i) {
-    document.querySelectorAll('.chart-panel').forEach(function(p, j) { p.classList.toggle('active', i === j); });
-    document.querySelectorAll('.nav-btn').forEach(function(b, j) { b.classList.toggle('active', i === j); });
-    if (!chartDrawn[i] && allData.length > 0) {
-      setTimeout(function() {
-        if (i === 1) drawSiteChart();
-        if (i === 2) drawOrgChart();
-        if (i === 3) drawAllPlanPriorities();
-        chartDrawn[i] = true;
-      }, 50);
+    document.querySelectorAll('.chart-panel').forEach(function(p,j){p.classList.toggle('active',i===j);});
+    document.querySelectorAll('.nav-btn').forEach(function(b,j){b.classList.toggle('active',i===j);});
+    if (!chartDrawn[i] && allData.length>0) {
+      setTimeout(function(){
+        if (i===1) drawSiteChart();
+        if (i===2) drawOrgChart();
+        if (i===3) drawAllPlanPriorities();
+        if (i===4) drawFiscalYear();
+        if (i===5) drawHeatmap();
+        chartDrawn[i]=true;
+      },50);
     }
   }
 
   async function fetchData() {
-    // Build outFields list including all plan priority fields
-    var ppFields = [];
-    for (var p = 1; p <= 4; p++) {
-      PLAN_DEFS[p].forEach(function(it) { ppFields.push(it.field); });
-    }
-    var baseFields = ["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project"];
-    var allFields = baseFields.concat(ppFields);
-    var url = LAYER_URL + "?where=1%3D1&outFields=" + allFields.join(",") + "&f=json&resultRecordCount=2000";
-    var res = await fetch(url);
-    var json = await res.json();
-    return json.features.map(function(f) { return f.attributes; });
+    var ppFields=[];
+    for (var p=1;p<=4;p++) PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name",
+              "gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_of_award"];
+    var all=base.concat(ppFields);
+    var url=LAYER_URL+"?where=1%3D1&outFields="+all.join(",")+"&f=json&resultRecordCount=2000";
+    var res=await fetch(url);
+    var json=await res.json();
+    return json.features.map(function(f){return f.attributes;});
   }
 
-  // ── PLAN PRIORITY STACKED BAR ─────────────────────────────
-  function drawPlanPriority(data, priority, containerId) {
-    var el = document.getElementById(containerId);
-    var width = el.clientWidth || 400;
-    var height = el.clientHeight || 300;
-    var items = PLAN_DEFS[priority];
-    var palette = PP_PALETTES[priority];
+  // ── FISCAL YEAR CHART ────────────────────────────────────
+  function drawFiscalYear() {
+    var el=document.getElementById("fy-chart");
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-100);
 
-    // Aggregate totals per field
-    var totals = {};
-    items.forEach(function(it) { totals[it.field] = 0; });
-    data.forEach(function(row) {
-      var amt = row["gbep_award_amount"] || 0;
-      items.forEach(function(it) {
-        var v = row[it.field];
-        if (v === true || v === 1 || v === "1" || v === "yes" || v === "true" || v === "Yes" || v === "True") {
-          totals[it.field] += amt;
+    var funded=allData.filter(function(d){return d.gbep_award_amount>0 && d.fiscal_year_of_award;});
+    var byYear=d3.rollups(funded,
+      function(v){return {dollars:d3.sum(v,function(d){return d.gbep_award_amount;}), count:v.length};},
+      function(d){return d.fiscal_year_of_award;}
+    ).map(function(r){return {year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .sort(function(a,b){return a.year-b.year;});
+
+    if (byYear.length===0) return;
+
+    var mL=70,mR=60,mT=20,mB=50;
+    var w=width-mL-mR, h=height-mT-mB;
+
+    var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
+    var yMax=d3.max(byYear,function(d){return d.dollars;})||1;
+    var yScale=d3.scaleLinear().domain([0,yMax*1.1]).range([h,0]);
+    var y2Max=d3.max(byYear,function(d){return d.count;})||1;
+    var y2Scale=d3.scaleLinear().domain([0,y2Max*1.1]).range([h,0]);
+
+    d3.select("#fy-chart").select("svg").remove();
+    var svg=d3.select("#fy-chart").append("svg").attr("width",width).attr("height",height);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    // Grid lines
+    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(fmtDollars))
+      .call(function(ax){ax.select(".domain").remove();})
+      .call(function(ax){
+        ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");
+        ax.selectAll("text").attr("font-size",11).attr("fill","#666");
+      });
+
+    // Y axis label
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-55)
+      .attr("text-anchor","middle").attr("font-size",11).attr("fill","#1677bc").attr("font-weight","500")
+      .text("GBEP Award Dollars");
+
+    // Right axis (count)
+    g.append("g").attr("transform","translate("+w+",0)")
+      .call(d3.axisRight(y2Scale).ticks(5).tickFormat(d3.format("d")))
+      .call(function(ax){ax.select(".domain").remove();})
+      .call(function(ax){ax.selectAll("text").attr("font-size",11).attr("fill","#54a9ad");});
+
+    g.append("text").attr("transform","rotate(90)").attr("x",h/2).attr("y",-(w+52))
+      .attr("text-anchor","middle").attr("font-size",11).attr("fill","#54a9ad").attr("font-weight","500")
+      .text("Project Count");
+
+    // Bars (dollars)
+    g.selectAll(".bar").data(byYear).enter().append("rect")
+      .attr("class","bar")
+      .attr("x",function(d){return xScale(d.year);})
+      .attr("y",function(d){return yScale(d.dollars);})
+      .attr("width",xScale.bandwidth())
+      .attr("height",function(d){return h-yScale(d.dollars);})
+      .attr("fill",C1).attr("rx",3).attr("opacity",0.85)
+      .on("mousemove",function(event,d){
+        showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+fmtDollars(d.dollars)+"<br>"+d.count+" project"+(d.count!==1?"s":""));
+      }).on("mouseleave",hideTooltip);
+
+    // Line (count)
+    var line=d3.line()
+      .x(function(d){return xScale(d.year)+xScale.bandwidth()/2;})
+      .y(function(d){return y2Scale(d.count);})
+      .curve(d3.curveCatmullRom);
+
+    g.append("path").datum(byYear).attr("fill","none")
+      .attr("stroke",C2).attr("stroke-width",2.5).attr("d",line);
+
+    g.selectAll(".dot").data(byYear).enter().append("circle")
+      .attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
+      .attr("cy",function(d){return y2Scale(d.count);})
+      .attr("r",4).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
+
+    // X axis
+    g.append("g").attr("transform","translate(0,"+h+")")
+      .call(d3.axisBottom(xScale).tickFormat(function(d){return "'"+String(d).slice(-2);}))
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");})
+      .call(function(ax){ax.selectAll("text").attr("font-size",11).attr("fill","#555");});
+
+    // Legend
+    var leg=g.append("g").attr("transform","translate("+(w-160)+","+-10+")");
+    leg.append("rect").attr("width",12).attr("height",12).attr("fill",C1).attr("rx",2);
+    leg.append("text").attr("x",16).attr("y",10).attr("font-size",10).attr("fill","#555").text("Award $");
+    leg.append("line").attr("x1",70).attr("x2",82).attr("y1",6).attr("y2",6).attr("stroke",C2).attr("stroke-width",2.5);
+    leg.append("circle").attr("cx",76).attr("cy",6).attr("r",3).attr("fill",C2);
+    leg.append("text").attr("x",86).attr("y",10).attr("font-size",10).attr("fill","#555").text("# Projects");
+  }
+
+  // ── HEATMAP ──────────────────────────────────────────────
+  function drawHeatmap() {
+    var el=document.getElementById("heatmap-chart");
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-100);
+
+    var funded=allData.filter(function(d){return d.gbep_award_amount>0 && d.lead_organization_name && d.lead_organization_name.trim()!=="";});
+    var priorities=["PP1","PP2","PP3","PP4"];
+    var ppLabels={"PP1":"Priority 1","PP2":"Priority 2","PP3":"Priority 3","PP4":"Priority 4"};
+
+    // Count projects per org per priority
+    var cellMap={};
+    var orgs=[];
+    var orgSet={};
+    funded.forEach(function(row){
+      var org=row.lead_organization_name.trim();
+      if (!orgSet[org]){orgSet[org]=true;orgs.push(org);}
+      priorities.forEach(function(pp){
+        var fields=PP_FIELD_MAP[pp];
+        var hasAny=fields.some(function(f){return isYes(row[f]);});
+        if (hasAny){
+          var key=org+"||"+pp;
+          cellMap[key]=(cellMap[key]||0)+1;
         }
       });
     });
 
-    // Group by group name, each group is one bar with stacked subcategories
-    var groups = [];
-    var groupMap = {};
-    items.forEach(function(it, idx) {
-      if (!groupMap[it.group]) {
-        groupMap[it.group] = { group: it.group, subs: [], colorBase: idx };
-        groups.push(groupMap[it.group]);
-      }
-      groupMap[it.group].subs.push({ label: it.label, field: it.field, value: totals[it.field] });
+    // Sort orgs by total projects desc
+    orgs.sort(function(a,b){
+      var ta=priorities.reduce(function(s,pp){return s+(cellMap[a+"||"+pp]||0);},0);
+      var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
+      return tb-ta;
     });
 
-    var marginLeft = 55;
-    var marginRight = 10;
-    var marginTop = 10;
-    var marginBottom = 28;
-    var chartW = width - marginLeft - marginRight;
-    var chartH = height - marginTop - marginBottom;
-    var barPad = 0.3;
-    var groupW = chartW / groups.length;
-    var barW = groupW * (1 - barPad);
+    var mL=Math.min(260,width*0.32), mR=20, mT=50, mB=20;
+    var w=width-mL-mR, h=height-mT-mB;
+    var cellW=w/priorities.length;
+    var cellH=h/orgs.length;
 
-    var maxY = d3.max(groups, function(g) {
-      return d3.sum(g.subs, function(s) { return s.value; });
-    }) || 1;
+    var maxVal=d3.max(Object.values(cellMap))||1;
+    var colorScale=d3.scaleSequential().domain([0,maxVal])
+      .interpolator(d3.interpolate("#e8f4fb","#1677bc"));
 
-    var yScale = d3.scaleLinear().domain([0, maxY]).range([chartH, 0]);
+    d3.select("#heatmap-chart").select("svg").remove();
+    var svg=d3.select("#heatmap-chart").append("svg").attr("width",width).attr("height",height);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    d3.select("#" + containerId).select("svg").remove();
-    var svg = d3.select("#" + containerId).append("svg")
-      .attr("width", width).attr("height", height).style("font-family", FONT);
-
-    var g = svg.append("g").attr("transform", "translate(" + marginLeft + "," + marginTop + ")");
-
-    // Y axis
-    g.append("g")
-      .call(d3.axisLeft(yScale).ticks(4).tickFormat(function(d) {
-        if (d >= 1e6) return "$" + (d/1e6).toFixed(1) + "M";
-        if (d >= 1e3) return "$" + (d/1e3).toFixed(0) + "K";
-        return "$" + d;
-      }))
-      .call(function(ax) { ax.select(".domain").remove(); })
-      .call(function(ax) {
-        ax.selectAll(".tick line").attr("x2", chartW).attr("stroke", "#eee");
-        ax.selectAll("text").attr("font-size", 9);
-      });
-
-    // Bars
-    groups.forEach(function(grp, gi) {
-      var x = gi * groupW + (groupW - barW) / 2;
-      var yOffset = chartH;
-      var colorIdx = 0;
-      // Assign colors by subcategory index within this group
-      grp.subs.forEach(function(sub, si) {
-        // Pick color from palette cycling within group
-        var col = palette[(gi * 4 + si) % palette.length];
-        var barH = chartH - yScale(sub.value);
-        if (barH < 0) barH = 0;
-        yOffset -= barH;
-
-        var rect = g.append("rect")
-          .attr("x", x).attr("y", yOffset)
-          .attr("width", barW).attr("height", barH)
-          .attr("fill", col).attr("rx", 1);
-
-        rect.on("mousemove", function(event) {
-          showTooltip(event, "<strong>" + sub.label + "</strong><br>$" + sub.value.toLocaleString());
-        }).on("mouseleave", hideTooltip);
-      });
-
-      // Group label
+    // Column headers
+    priorities.forEach(function(pp,pi){
       g.append("text")
-        .attr("x", x + barW / 2).attr("y", chartH + 14)
-        .attr("text-anchor", "middle").attr("font-size", 10).attr("fill", "#333")
-        .text(grp.group);
+        .attr("x",pi*cellW+cellW/2).attr("y",-12)
+        .attr("text-anchor","middle").attr("font-size",12).attr("font-weight","700")
+        .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp])
+        .text(ppLabels[pp]);
+    });
 
-      // Total label above bar
-      var total = d3.sum(grp.subs, function(s) { return s.value; });
-      if (total > 0) {
-        var label = total >= 1e6 ? "$" + (total/1e6).toFixed(1) + "M" : total >= 1e3 ? "$" + (total/1e3).toFixed(0) + "K" : "$" + total;
-        g.append("text")
-          .attr("x", x + barW / 2).attr("y", yScale(total) - 3)
-          .attr("text-anchor", "middle").attr("font-size", 9).attr("fill", "#555")
-          .text(label);
-      }
+    // Cells
+    orgs.forEach(function(org,oi){
+      // Org label
+      var label=org.length>36?org.slice(0,34)+"…":org;
+      g.append("text")
+        .attr("x",-8).attr("y",oi*cellH+cellH/2)
+        .attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(11,cellH*0.55)).attr("fill","#333")
+        .text(label);
+
+      priorities.forEach(function(pp,pi){
+        var val=cellMap[org+"||"+pp]||0;
+        var dollars=funded.filter(function(d){
+          return d.lead_organization_name.trim()===org && PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});
+        }).reduce(function(s,d){return s+d.gbep_award_amount;},0);
+
+        var x=pi*cellW, y=oi*cellH;
+        var pad=2;
+
+        g.append("rect")
+          .attr("x",x+pad).attr("y",y+pad)
+          .attr("width",cellW-pad*2).attr("height",cellH-pad*2)
+          .attr("fill",val>0?colorScale(val):"#f5f5f5")
+          .attr("rx",4)
+          .on("mousemove",function(event){
+            if (val>0) showTooltip(event,"<strong>"+org+"</strong><br>"+ppLabels[pp]+"<br>"+val+" project"+(val!==1?"s":"")+"<br>"+fmtDollars(dollars));
+            else showTooltip(event,"<strong>"+org+"</strong><br>"+ppLabels[pp]+"<br>No projects");
+          }).on("mouseleave",hideTooltip);
+
+        if (val>0 && cellH>14) {
+          g.append("text")
+            .attr("x",x+cellW/2).attr("y",y+cellH/2)
+            .attr("text-anchor","middle").attr("dominant-baseline","middle")
+            .attr("font-size",Math.min(13,cellH*0.45)).attr("font-weight","600")
+            .attr("fill",val>maxVal*0.5?"white":"#1677bc")
+            .text(val);
+        }
+      });
     });
   }
 
-  function drawAllPlanPriorities() {
-    drawPlanPriority(allData, 1, "pp1-chart");
-    drawPlanPriority(allData, 2, "pp2-chart");
-    drawPlanPriority(allData, 3, "pp3-chart");
-    drawPlanPriority(allData, 4, "pp4-chart");
+  // ── PLAN PRIORITY BARS ───────────────────────────────────
+  function drawPlanPriority(data,priority,containerId){
+    var el=document.getElementById(containerId);
+    var width=el.clientWidth||400; var height=el.clientHeight||300;
+    var items=PLAN_DEFS[priority]; var palette=PP_PALETTES[priority];
+    var totals={};
+    items.forEach(function(it){totals[it.field]=0;});
+    data.forEach(function(row){
+      var amt=row["gbep_award_amount"]||0;
+      items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=amt;});
+    });
+    var groups=[];var groupMap={};
+    items.forEach(function(it,idx){
+      if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[],colorBase:idx};groups.push(groupMap[it.group]);}
+      groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
+    });
+    var mL=50,mR=10,mT=10,mB=28;
+    var cW=width-mL-mR,cH=height-mT-mB;
+    var groupW=cW/groups.length,barW=groupW*0.7;
+    var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
+    var yScale=d3.scaleLinear().domain([0,maxY]).range([cH,0]);
+    d3.select("#"+containerId).select("svg").remove();
+    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
+      .call(function(ax){ax.select(".domain").remove();})
+      .call(function(ax){ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",9);});
+    groups.forEach(function(grp,gi){
+      var x=gi*groupW+(groupW-barW)/2,yOff=cH;
+      grp.subs.forEach(function(sub,si){
+        var col=palette[(gi*4+si)%palette.length];
+        var bH=cH-yScale(sub.value);if(bH<0)bH=0;
+        yOff-=bH;
+        g.append("rect").attr("x",x).attr("y",yOff).attr("width",barW).attr("height",bH).attr("fill",col).attr("rx",1)
+          .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+fmtDollars(sub.value));})
+          .on("mouseleave",hideTooltip);
+      });
+      g.append("text").attr("x",x+barW/2).attr("y",cH+14).attr("text-anchor","middle").attr("font-size",10).attr("fill","#333").text(grp.group);
+      var total=d3.sum(grp.subs,function(s){return s.value;});
+      if(total>0) g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-3).attr("text-anchor","middle").attr("font-size",9).attr("fill","#555").text(fmtDollars(total));
+    });
+  }
+  function drawAllPlanPriorities(){
+    drawPlanPriority(allData,1,"pp1-chart");
+    drawPlanPriority(allData,2,"pp2-chart");
+    drawPlanPriority(allData,3,"pp3-chart");
+    drawPlanPriority(allData,4,"pp4-chart");
   }
 
   // ── BUBBLE CHART ─────────────────────────────────────────
-  function drawBubbleChart(counts, containerId) {
-    var el = document.getElementById(containerId);
-    var width = el.clientWidth || window.innerWidth;
-    var height = el.clientHeight || (window.innerHeight - 80);
-    if (!counts || counts.length === 0) return;
-
-    var maxCount = d3.max(counts, function(d) { return d.count; }) || 1;
-    var minR = 14;
-    var maxR = Math.min(width, height) * 0.09;
-    var rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, maxR]);
-
-    var nodes = counts.map(function(d, i) {
-      return { label: d.label, count: d.count, r: rScale(d.count), color: PALETTE[i % PALETTE.length] };
+  function drawBubbleChart(counts,containerId){
+    var el=document.getElementById(containerId);
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-80);
+    if(!counts||counts.length===0)return;
+    var maxCount=d3.max(counts,function(d){return d.count;})||1;
+    var minR=10,maxR=Math.min(width,height)*0.09;
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([minR,maxR]);
+    var nodes=counts.map(function(d,i){
+      return {label:d.label,count:d.count,r:rScale(d.count),color:PALETTE[i%PALETTE.length],
+              x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};
     });
-
-    d3.select("#" + containerId).select("svg").remove();
-    var svg = d3.select("#" + containerId).append("svg").attr("width", width).attr("height", height);
-
-    var simulation = d3.forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(2))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("x", d3.forceX().x(function(d, i) { return (i % 6) * (width / 6) + width / 12; }).strength(0.08))
-      .force("y", d3.forceY().y(function(d, i) { return Math.floor(i / 6) * (height / Math.ceil(nodes.length / 6)) + height / (2 * Math.ceil(nodes.length / 6)); }).strength(0.08))
-      .force("collision", d3.forceCollide().radius(function(d) { return d.r + 4; }).strength(1))
+    d3.select("#"+containerId).select("svg").remove();
+    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
+    var simulation=d3.forceSimulation(nodes)
+      .force("charge",d3.forceManyBody().strength(3))
+      .force("center",d3.forceCenter(width/2,height/2))
+      .force("collision",d3.forceCollide().radius(function(d){return d.r+4;}).strength(1))
       .stop();
-
-    for (var i = 0; i < 400; i++) simulation.tick();
-
-    nodes.forEach(function(d) {
-      d.x = Math.max(d.r + 5, Math.min(width - d.r - 5, d.x));
-      d.y = Math.max(d.r + 5, Math.min(height - d.r - 5, d.y));
+    for(var i=0;i<400;i++)simulation.tick();
+    nodes.forEach(function(d){
+      d.x=Math.max(d.r+5,Math.min(width-d.r-5,d.x));
+      d.y=Math.max(d.r+5,Math.min(height-d.r-5,d.y));
     });
-
-    var node = svg.selectAll("g").data(nodes).enter().append("g")
-      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-      .on("mousemove", function(event, d) {
-        showTooltip(event, "<strong>" + d.label + "</strong><br>" + d.count + " NRU project" + (d.count !== 1 ? "s" : ""));
-      })
-      .on("mouseleave", hideTooltip);
-
-    node.append("circle").attr("r", function(d) { return d.r; })
-      .attr("fill", function(d) { return d.color; }).attr("opacity", 0.88)
-      .attr("stroke", "white").attr("stroke-width", 2);
-
-    node.each(function(d) {
-      var g = d3.select(this);
-      var words = d.label.split(/[\s,\/]+/);
-      var lineHeight = 13;
-      var maxWidth = d.r * 1.6;
-      var fontSize = Math.max(8, Math.min(12, d.r / 3.2));
-      var lines = []; var current = "";
-      words.forEach(function(word) {
-        var test = current ? current + " " + word : word;
-        if (test.length * fontSize * 0.55 > maxWidth && current) { lines.push(current); current = word; }
-        else { current = test; }
+    var node=svg.selectAll("g").data(nodes).enter().append("g")
+      .attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));})
+      .on("mouseleave",hideTooltip);
+    node.append("circle").attr("r",function(d){return d.r;})
+      .attr("fill",function(d){return d.color;}).attr("opacity",0.88)
+      .attr("stroke","white").attr("stroke-width",2);
+    node.each(function(d){
+      var g=d3.select(this);
+      var words=d.label.split(/[\s,\/]+/);
+      var lh=13,mw=d.r*1.6,fs=Math.max(8,Math.min(12,d.r/3.2));
+      var lines=[],cur="";
+      words.forEach(function(w){
+        var t=cur?cur+" "+w:w;
+        if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}
       });
-      if (current) lines.push(current);
-      var maxLines = Math.floor((d.r * 1.4) / lineHeight);
-      if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[lines.length-1] = lines[lines.length-1].slice(0,7)+"..."; }
-      var totalH = lines.length * lineHeight;
-      lines.forEach(function(line, li) {
-        g.append("text").attr("x", 0).attr("y", -totalH/2 + li*lineHeight + lineHeight/2)
-          .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-          .attr("font-size", fontSize).attr("font-family", FONT).attr("fill", "white").attr("font-weight", "500").text(line);
+      if(cur)lines.push(cur);
+      var ml=Math.floor((d.r*1.4)/lh);
+      if(lines.length>ml){lines=lines.slice(0,ml);lines[lines.length-1]=lines[lines.length-1].slice(0,7)+"...";}
+      var th=lines.length*lh;
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",0).attr("y",-th/2+li*lh+lh/2)
+          .attr("text-anchor","middle").attr("dominant-baseline","middle")
+          .attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","500").text(line);
       });
-      if (d.r > 25) {
-        g.append("text").attr("x", 0).attr("y", d.r - 10)
-          .attr("text-anchor", "middle").attr("font-size", Math.max(8, fontSize-1))
-          .attr("font-family", FONT).attr("fill", "rgba(255,255,255,0.8)").text(d.count);
-      }
+      if(d.r>25) g.append("text").attr("x",0).attr("y",d.r-10).attr("text-anchor","middle")
+        .attr("font-size",Math.max(8,fs-1)).attr("font-family",FONT).attr("fill","rgba(255,255,255,0.8)").text(d.count);
     });
   }
 
-  function drawSiteChart() {
-    var funded = allData.filter(function(d) {
-      return d.gbep_award_amount > 0 && d.site_name_long_term_project_nam && d.site_name_long_term_project_nam.trim() !== "" && d.nru_project_title && d.nru_project_title.trim() !== "";
+  function drawSiteChart(){
+    var funded=allData.filter(function(d){
+      return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";
     });
-    var grouped = d3.rollups(funded, function(v) { return new Set(v.map(function(d) { return d.nru_project_title; })).size; }, function(d) { return d.site_name_long_term_project_nam; });
-    var counts = grouped.map(function(r) { return { label: r[0], count: r[1] }; }).sort(function(a,b) { return b.count - a.count; });
-    drawBubbleChart(counts, "site-chart");
+    var grouped=d3.rollups(funded,function(v){return new Set(v.map(function(d){return d.nru_project_title;})).size;},function(d){return d.site_name_long_term_project_nam;});
+    var counts=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
+    drawBubbleChart(counts,"site-chart");
   }
 
-  function drawOrgChart() {
-    var funded = allData.filter(function(d) { return d.gbep_award_amount > 0 && d.lead_organization_name && d.lead_organization_name.trim() !== ""; });
-    var grouped = d3.rollups(funded, function(v) { return v.length; }, function(d) { return d.lead_organization_name; });
-    var counts = grouped.map(function(r) { return { label: r[0], count: r[1] }; });
-    drawHorizontalBar(counts, "org-chart", C2);
+  // ── ORG BAR ──────────────────────────────────────────────
+  function drawOrgChart(){
+    var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
+    var counts=grouped.map(function(r){return{label:r[0],count:r[1]};});
+    drawHorizontalBar(counts,"org-chart",C2);
   }
 
-  function drawHorizontalBar(counts, containerId, color) {
-    var el = document.getElementById(containerId);
-    var width = el.clientWidth || window.innerWidth;
-    var height = el.clientHeight || (window.innerHeight - 80);
-    if (!counts || counts.length === 0) return;
-    var sorted = counts.slice().sort(function(a,b) { return b.count - a.count; });
-    var marginLeft = Math.min(300, width * 0.38);
-    var marginRight = 50; var marginTop = 10; var marginBottom = 30;
-    var barAreaHeight = height - marginTop - marginBottom;
-    var rowH = barAreaHeight / sorted.length;
-    var barH = Math.min(20, rowH * 0.65);
-    var xMax = d3.max(sorted, function(d) { return d.count; }) || 1;
-    var xScale = d3.scaleLinear().domain([0, xMax]).range([0, width - marginLeft - marginRight]);
-    d3.select("#" + containerId).select("svg").remove();
-    var svg = d3.select("#" + containerId).append("svg").attr("width", width).attr("height", height).style("font-family", FONT);
-    var g = svg.append("g").attr("transform", "translate(" + marginLeft + "," + marginTop + ")");
-    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax, 8)).tickFormat(d3.format("d")))
-      .attr("transform", "translate(0," + barAreaHeight + ")")
-      .call(function(gr) { gr.select(".domain").remove(); })
-      .call(function(gr) { gr.selectAll(".tick line").attr("y1", -barAreaHeight).attr("y2", 0).attr("stroke", "#eee"); gr.selectAll("text").attr("font-size", 14); });
-    sorted.forEach(function(d, i) {
-      var y = i * rowH + (rowH - barH) / 2;
-      g.append("rect").attr("x", 0).attr("y", y).attr("width", xScale(d.count)).attr("height", barH).attr("fill", color).attr("rx", 2);
-      g.append("text").attr("x", xScale(d.count) + 4).attr("y", y + barH/2).attr("dominant-baseline", "middle").attr("font-size", 14).attr("fill", "#333").text(d.count);
-      var label = d.label.length > 42 ? d.label.slice(0,40)+"..." : d.label;
-      g.append("text").attr("x", -6).attr("y", y + barH/2).attr("text-anchor", "end").attr("dominant-baseline", "middle").attr("font-size", 14).attr("fill", "#333").text(label);
+  function drawHorizontalBar(counts,containerId,color){
+    var el=document.getElementById(containerId);
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-80);
+    if(!counts||counts.length===0)return;
+    var sorted=counts.slice().sort(function(a,b){return b.count-a.count;});
+    var mL=Math.min(300,width*0.38),mR=50,mT=10,mB=30;
+    var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(20,rowH*0.65);
+    var xMax=d3.max(sorted,function(d){return d.count;})||1;
+    var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
+    d3.select("#"+containerId).select("svg").remove();
+    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
+      .attr("transform","translate(0,"+baH+")")
+      .call(function(gr){gr.select(".domain").remove();})
+      .call(function(gr){gr.selectAll(".tick line").attr("y1",-baH).attr("y2",0).attr("stroke","#eee");gr.selectAll("text").attr("font-size",14);});
+    sorted.forEach(function(d,i){
+      var y=i*rowH+(rowH-barH)/2;
+      g.append("rect").attr("x",0).attr("y",y).attr("width",xScale(d.count)).attr("height",barH).attr("fill",color).attr("rx",2);
+      g.append("text").attr("x",xScale(d.count)+4).attr("y",y+barH/2).attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(d.count);
+      var label=d.label.length>42?d.label.slice(0,40)+"...":d.label;
+      g.append("text").attr("x",-6).attr("y",y+barH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(label);
     });
   }
 
-  // ── UPSET CHART ──────────────────────────────────────────
-  function drawUpset(data, container) {
-    var el = document.getElementById(container);
-    var width = el.clientWidth; var height = el.clientHeight;
-    var rawCombinations = data.map(function(d) { return d.project_landscape_type; }).filter(function(d) { return d; })
-      .map(function(d) { return d.split(",").map(function(s) { return s.trim(); }).sort(); });
-    var comboMap = new Map();
-    rawCombinations.forEach(function(combo) { var key = combo.slice().sort().join(" | "); comboMap.set(key, (comboMap.get(key)||0)+1); });
-    var sortedCombos = Array.from(comboMap, function(e) { return {key:e[0],count:e[1]}; }).sort(function(a,b) { return b.count-a.count; });
-    if (sortedCombos.length === 0) return;
-    var allTypes = Array.from(new Set(rawCombinations.reduce(function(a,b){return a.concat(b);},[])));
-    allTypes.sort();
-    var typeTotals = new Map();
-    allTypes.forEach(function(t) { typeTotals.set(t,0); });
-    rawCombinations.forEach(function(combo) { combo.forEach(function(type) { typeTotals.set(type,(typeTotals.get(type)||0)+1); }); });
-    var rightBarWidth=100; var marginLeft=240; var marginRight=rightBarWidth+50; var marginTop=16;
-    var barHeight=Math.floor(height*0.25); var dotHeight=height-barHeight-marginTop-30;
-    var rowHeight=dotHeight/allTypes.length; var colWidth=(width-marginLeft-marginRight)/sortedCombos.length;
+  // ── UPSET ────────────────────────────────────────────────
+  function drawUpset(data,container){
+    var el=document.getElementById(container);
+    var width=el.clientWidth,height=el.clientHeight;
+    var raw=data.map(function(d){return d.project_landscape_type;}).filter(function(d){return d;})
+      .map(function(d){return d.split(",").map(function(s){return s.trim();}).sort();});
+    var cMap=new Map();
+    raw.forEach(function(c){var k=c.slice().sort().join(" | ");cMap.set(k,(cMap.get(k)||0)+1);});
+    var sc=Array.from(cMap,function(e){return{key:e[0],count:e[1]};}).sort(function(a,b){return b.count-a.count;});
+    if(sc.length===0)return;
+    var aT=Array.from(new Set(raw.reduce(function(a,b){return a.concat(b);},{}))).sort();
+    // fix: use [] not {}
+    var allT=Array.from(new Set(raw.reduce(function(a,b){return a.concat(b);},[])));
+    allT.sort();
+    var tT=new Map();
+    allT.forEach(function(t){tT.set(t,0);});
+    raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});
+    var rBW=100,mL=240,mR=rBW+50,mT=16;
+    var bH2=Math.floor(height*0.25),dH=height-bH2-mT-30;
+    var rH=dH/allT.length,cW=(width-mL-mR)/sc.length;
     d3.select("#"+container).select("svg").remove();
     var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
-    var maxCount=d3.max(sortedCombos,function(d){return d.count;});
-    var yBar=d3.scaleLinear().domain([0,maxCount]).range([barHeight,0]);
-    var barG=svg.append("g").attr("transform","translate("+marginLeft+","+marginTop+")");
-    barG.append("g").call(d3.axisLeft(yBar).ticks(maxCount).tickFormat(d3.format("d"))).call(function(g){g.select(".domain").remove();}).call(function(g){g.selectAll("text").style("font-size","14px");});
-    barG.append("text").attr("transform","rotate(-90)").attr("x",-barHeight/2).attr("y",-52).attr("text-anchor","middle").attr("font-size",14).attr("fill","#555").text("Number of Projects");
-    sortedCombos.forEach(function(d,i){
-      barG.append("rect").attr("x",i*colWidth+colWidth*0.2).attr("y",yBar(d.count)).attr("width",colWidth*0.6).attr("height",barHeight-yBar(d.count)).attr("fill",C2);
-      if(colWidth>14) barG.append("text").attr("x",i*colWidth+colWidth/2).attr("y",yBar(d.count)-3).attr("text-anchor","middle").attr("font-size",14).attr("fill","#333").text(d.count);
+    var mxC=d3.max(sc,function(d){return d.count;});
+    var yB=d3.scaleLinear().domain([0,mxC]).range([bH2,0]);
+    var bG=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    bG.append("g").call(d3.axisLeft(yB).ticks(mxC).tickFormat(d3.format("d"))).call(function(g){g.select(".domain").remove();}).call(function(g){g.selectAll("text").style("font-size","14px");});
+    bG.append("text").attr("transform","rotate(-90)").attr("x",-bH2/2).attr("y",-52).attr("text-anchor","middle").attr("font-size",14).attr("fill","#555").text("Number of Projects");
+    sc.forEach(function(d,i){
+      bG.append("rect").attr("x",i*cW+cW*0.2).attr("y",yB(d.count)).attr("width",cW*0.6).attr("height",bH2-yB(d.count)).attr("fill",C2);
+      if(cW>14)bG.append("text").attr("x",i*cW+cW/2).attr("y",yB(d.count)-3).attr("text-anchor","middle").attr("font-size",14).attr("fill","#333").text(d.count);
     });
-    var dotG=svg.append("g").attr("transform","translate("+marginLeft+","+(barHeight+marginTop+20)+")");
-    allTypes.forEach(function(type,ri){
-      dotG.append("text").attr("x",-8).attr("y",ri*rowHeight+rowHeight/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(type.replace(/_/g," ").replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.").replace(/\b\w/g,function(c){return c.toUpperCase();}));
+    var dG=svg.append("g").attr("transform","translate("+mL+","+(bH2+mT+20)+")");
+    allT.forEach(function(type,ri){
+      dG.append("text").attr("x",-8).attr("y",ri*rH+rH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333")
+        .text(type.replace(/_/g," ").replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.").replace(/\b\w/g,function(c){return c.toUpperCase();}));
     });
-    for(var ri=0;ri<=allTypes.length;ri++){
-      dotG.append("line").attr("x1",0).attr("x2",sortedCombos.length*colWidth).attr("y1",ri*rowHeight).attr("y2",ri*rowHeight).attr("stroke","#eee").attr("stroke-width",1);
-    }
-    sortedCombos.forEach(function(d,ci){
+    for(var ri=0;ri<=allT.length;ri++) dG.append("line").attr("x1",0).attr("x2",sc.length*cW).attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#eee").attr("stroke-width",1);
+    sc.forEach(function(d,ci){
       var types=d.key.split(" | ");
-      var presentRows=types.map(function(t){return allTypes.indexOf(t);}).filter(function(i){return i>=0;}).sort();
-      var cx=ci*colWidth+colWidth/2; var r=Math.min(colWidth,rowHeight)*0.28;
-      if(presentRows.length>1){
-        dotG.append("line").attr("x1",cx).attr("x2",cx).attr("y1",presentRows[0]*rowHeight+rowHeight/2).attr("y2",presentRows[presentRows.length-1]*rowHeight+rowHeight/2).attr("stroke",C1).attr("stroke-width",r*1.5);
-      }
-      allTypes.forEach(function(type,ri){
-        dotG.append("circle").attr("cx",cx).attr("cy",ri*rowHeight+rowHeight/2).attr("r",r).attr("fill",types.indexOf(type)>=0?C1:EMPTY);
-      });
+      var pr=types.map(function(t){return allT.indexOf(t);}).filter(function(i){return i>=0;}).sort();
+      var cx=ci*cW+cW/2,r=Math.min(cW,rH)*0.28;
+      if(pr.length>1) dG.append("line").attr("x1",cx).attr("x2",cx).attr("y1",pr[0]*rH+rH/2).attr("y2",pr[pr.length-1]*rH+rH/2).attr("stroke",C1).attr("stroke-width",r*1.5);
+      allT.forEach(function(type,ri){dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r).attr("fill",types.indexOf(type)>=0?C1:EMPTY);});
     });
-    var maxTypeTotal=d3.max(Array.from(typeTotals.values()));
-    var xSetBar=d3.scaleLinear().domain([0,maxTypeTotal]).range([0,rightBarWidth]);
-    var setBarG=svg.append("g").attr("transform","translate("+(marginLeft+sortedCombos.length*colWidth+16)+","+(barHeight+marginTop+20)+")");
-    setBarG.append("text").attr("x",rightBarWidth/2).attr("y",-8).attr("text-anchor","middle").attr("font-size",14).attr("fill","#555").text("Total Projects");
-    allTypes.forEach(function(type,ri){
-      var total=typeTotals.get(type)||0; var cy=ri*rowHeight+rowHeight/2; var bh=Math.min(rowHeight*0.55,12);
-      setBarG.append("rect").attr("x",0).attr("y",cy-bh/2).attr("width",xSetBar(total)).attr("height",bh).attr("fill",C2);
-      setBarG.append("text").attr("x",xSetBar(total)+3).attr("y",cy).attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(total);
+    var mxT=d3.max(Array.from(tT.values()));
+    var xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]);
+    var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+(bH2+mT+20)+")");
+    sBG.append("text").attr("x",rBW/2).attr("y",-8).attr("text-anchor","middle").attr("font-size",14).attr("fill","#555").text("Total Projects");
+    allT.forEach(function(type,ri){
+      var total=tT.get(type)||0,cy=ri*rH+rH/2,bh=Math.min(rH*0.55,12);
+      sBG.append("rect").attr("x",0).attr("y",cy-bh/2).attr("width",xSB(total)).attr("height",bh).attr("fill",C2);
+      sBG.append("text").attr("x",xSB(total)+3).attr("y",cy).attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(total);
     });
   }
 
-  async function init() {
-    allData = await fetchData();
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("app").style.display = "flex";
-    drawUpset(allData, "upset-chart");
-    chartDrawn[0] = true;
+  async function init(){
+    allData=await fetchData();
+    document.getElementById("loading").style.display="none";
+    document.getElementById("app").style.display="flex";
+    drawUpset(allData,"upset-chart");
+    chartDrawn[0]=true;
   }
 
   init();
