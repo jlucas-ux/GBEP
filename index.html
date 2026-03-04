@@ -60,7 +60,7 @@
   <div id="charts">
     <div class="chart-panel active" id="panel-0">
       <div class="chart-title">Project Habitat Type Combinations</div>
-      <div class="chart-subtitle">Each column = a unique habitat combination. Bar height = projects with that combination. Right bars = total projects per habitat type.</div>
+      <div class="chart-subtitle">How to read: Columns represent unique sets of habitat types found across projects. The bar height shows how many projects have that exact combination. Filled dots show which habitats are included — connected dots mean a project spans multiple types. Right-side bars show each habitat's total project count across all combinations.</div>
       <div class="chart-area" id="upset-chart"></div>
     </div>
     <div class="chart-panel" id="panel-1">
@@ -288,18 +288,9 @@
     var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
-      function(d){
-        var fy=d.fiscal_year_of_award;
-        if(!fy)return null;
-        // Handle full dates, timestamps, or plain years
-        if(String(fy).length===4)return parseInt(fy);
-        var parsed=new Date(fy);
-        if(!isNaN(parsed))return parsed.getFullYear();
-        return parseInt(String(fy).slice(0,4));
-      }
-    ).filter(function(r){return r[0]!==null;})
-     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
-     .sort(function(a,b){return a.year-b.year;});
+      function(d){return d.fiscal_year_of_award;}
+    ).map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};}).sort(function(a,b){return a.year-b.year;});
+    if(byYear.length===0)return;
     var mL=70,mR=60,mT=20,mB=50;
     var w=width-mL-mR,h=height-mT-mB;
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
@@ -325,7 +316,7 @@
     var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
     g.append("path").datum(byYear).attr("fill","none").attr("stroke",C2).attr("stroke-width",2.5).attr("d",line);
     g.selectAll(".dot").data(byYear).enter().append("circle").attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);}).attr("r",4).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
-    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);})
+    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return "'"+String(d).slice(-2);}))
       .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",11).attr("fill","#555");});
     var leg=g.append("g").attr("transform","translate("+(w-160)+","+-10+")");
     leg.append("rect").attr("width",12).attr("height",12).attr("fill",C1).attr("rx",2);
@@ -506,50 +497,156 @@
   function drawUpset(data,container){
     var el=document.getElementById(container);
     var width=el.clientWidth,height=el.clientHeight;
-    var raw=data.map(function(d){return d.project_landscape_type;}).filter(function(d){return d;}).map(function(d){return d.split(",").map(function(s){return s.trim();}).sort();});
+
+    var raw=data.map(function(d){return d.project_landscape_type;}).filter(function(d){return d;})
+      .map(function(d){return d.split(",").map(function(s){return s.trim();}).filter(function(s){return s;}).sort();});
+
     var cMap=new Map();
     raw.forEach(function(c){var k=c.slice().sort().join(" | ");cMap.set(k,(cMap.get(k)||0)+1);});
     var sc=Array.from(cMap,function(e){return{key:e[0],count:e[1]};}).sort(function(a,b){return b.count-a.count;});
     if(sc.length===0)return;
+
     var allT=Array.from(new Set(raw.reduce(function(a,b){return a.concat(b);},[])));
     allT.sort();
     var tT=new Map();
     allT.forEach(function(t){tT.set(t,0);});
     raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});
-    var rBW=100,mL=240,mR=rBW+50,mT=16;
-    var bH2=Math.floor(height*0.25),dH=height-bH2-mT-30,rH=dH/allT.length,cW=(width-mL-mR)/sc.length;
+
+    // Layout constants
+    var SECTION_LABEL_H = 18; // height for section header labels
+    var INSTRUCTION_H = 28;   // height for instruction line at bottom
+    var rBW=110, mL=248, mR=rBW+56, mT=SECTION_LABEL_H+8;
+    var bH2=Math.floor((height-mT-INSTRUCTION_H)*0.28);
+    var dotAreaH=height-mT-bH2-INSTRUCTION_H-24;
+    var rH=dotAreaH/allT.length;
+    var cW=(width-mL-mR)/sc.length;
+    var dotTop=bH2+mT+22;
+
     d3.select("#"+container).select("svg").remove();
     var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+
+    // ── INSTRUCTION TEXT at very bottom ──
+    svg.append("text")
+      .attr("x",width/2).attr("y",height-6)
+      .attr("text-anchor","middle").attr("font-size",11).attr("fill","#999").attr("font-style","italic")
+      .text("Each column = a unique set of habitat types. Bars show how many projects have that exact combination. Connected dots show which habitats are included. Right bars = total projects per habitat type.");
+
+    // ── SUMMARY COUNT top-right ──
+    svg.append("text")
+      .attr("x",width-mR+rBW/2).attr("y",mT-6)
+      .attr("text-anchor","middle").attr("font-size",10).attr("fill","#aaa")
+      .text(sc.length+" combinations");
+
+    // ── SECTION HEADER: Combination Count (top bars) ──
+    svg.append("text")
+      .attr("x",mL+(sc.length*cW)/2).attr("y",mT-6)
+      .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","700").attr("fill",C1)
+      .attr("letter-spacing","0.5")
+      .text("▲  Projects per Habitat Combination");
+
+    // ── SECTION HEADER: Habitat Types (dot rows) ──
+    svg.append("text")
+      .attr("x",mL-8).attr("y",dotTop-6)
+      .attr("text-anchor","end").attr("font-size",11).attr("font-weight","700").attr("fill",C1)
+      .text("Habitat Types  →");
+
+    // ── SECTION HEADER: Total Projects (right bars) ──
+    svg.append("text")
+      .attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-6)
+      .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","700").attr("fill",C2)
+      .text("Total Projects");
+
+    // ── TOP BARS (combination counts) ──
     var mxC=d3.max(sc,function(d){return d.count;});
     var yB=d3.scaleLinear().domain([0,mxC]).range([bH2,0]);
     var bG=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-    bG.append("g").call(d3.axisLeft(yB).ticks(mxC).tickFormat(d3.format("d"))).call(function(g){g.select(".domain").remove();}).call(function(g){g.selectAll("text").style("font-size","14px");});
-    bG.append("text").attr("transform","rotate(-90)").attr("x",-bH2/2).attr("y",-52).attr("text-anchor","middle").attr("font-size",14).attr("fill","#555").text("Number of Projects");
+
+    bG.append("g").call(d3.axisLeft(yB).ticks(Math.min(mxC,6)).tickFormat(d3.format("d")))
+      .call(function(g){g.select(".domain").remove();})
+      .call(function(g){
+        g.selectAll(".tick line").attr("x2",sc.length*cW).attr("stroke","#f0f0f0");
+        g.selectAll("text").style("font-size","12px").attr("fill","#888");
+      });
+
     sc.forEach(function(d,i){
-      bG.append("rect").attr("x",i*cW+cW*0.2).attr("y",yB(d.count)).attr("width",cW*0.6).attr("height",bH2-yB(d.count)).attr("fill",C2);
-      if(cW>14)bG.append("text").attr("x",i*cW+cW/2).attr("y",yB(d.count)-3).attr("text-anchor","middle").attr("font-size",14).attr("fill","#333").text(d.count);
+      var bx=i*cW+cW*0.18, bw=cW*0.64;
+      bG.append("rect").attr("x",bx).attr("y",yB(d.count)).attr("width",bw).attr("height",bH2-yB(d.count))
+        .attr("fill",C2).attr("rx",2).attr("opacity",0.9)
+        .on("mousemove",function(event){
+          var label=d.key.split(" | ").map(function(t){return t.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});}).join(", ");
+          showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='font-size:11px;opacity:0.85'>"+label+"</span>");
+        }).on("mouseleave",hideTooltip);
+      if(cW>16)
+        bG.append("text").attr("x",bx+bw/2).attr("y",yB(d.count)-3)
+          .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","600").attr("fill","#444").text(d.count);
     });
-    var dG=svg.append("g").attr("transform","translate("+mL+","+(bH2+mT+20)+")");
+
+    // ── DOT MATRIX ──
+    var dG=svg.append("g").attr("transform","translate("+mL+","+dotTop+")");
+
+    // Alternating row backgrounds for readability
     allT.forEach(function(type,ri){
-      dG.append("text").attr("x",-8).attr("y",ri*rH+rH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333")
-        .text(type.replace(/_/g," ").replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.").replace(/\b\w/g,function(c){return c.toUpperCase();}));
+      if(ri%2===0){
+        dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);
+      }
     });
-    for(var ri=0;ri<=allT.length;ri++)dG.append("line").attr("x1",0).attr("x2",sc.length*cW).attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#eee").attr("stroke-width",1);
+
+    // Horizontal grid lines
+    for(var ri=0;ri<=allT.length;ri++){
+      dG.append("line").attr("x1",-mL).attr("x2",sc.length*cW+mR)
+        .attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#e8e8e8").attr("stroke-width",1);
+    }
+
+    // Habitat type row labels — bold, colored
+    allT.forEach(function(type,ri){
+      var label=type.replace(/_/g," ")
+        .replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.")
+        .replace(/\b\w/g,function(c){return c.toUpperCase();});
+      dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2)
+        .attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(13,rH*0.52)).attr("font-weight","600").attr("fill",C1)
+        .text(label);
+    });
+
+    // Dots and connectors
     sc.forEach(function(d,ci){
       var types=d.key.split(" | ");
       var pr=types.map(function(t){return allT.indexOf(t);}).filter(function(i){return i>=0;}).sort();
-      var cx=ci*cW+cW/2,r=Math.min(cW,rH)*0.28;
-      if(pr.length>1)dG.append("line").attr("x1",cx).attr("x2",cx).attr("y1",pr[0]*rH+rH/2).attr("y2",pr[pr.length-1]*rH+rH/2).attr("stroke",C1).attr("stroke-width",r*1.5);
-      allT.forEach(function(type,ri){dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r).attr("fill",types.indexOf(type)>=0?C1:EMPTY);});
+      var cx=ci*cW+cW/2;
+      var r=Math.min(cW,rH)*0.30;
+
+      // Connector line between filled dots
+      if(pr.length>1){
+        dG.append("line").attr("x1",cx).attr("x2",cx)
+          .attr("y1",pr[0]*rH+rH/2).attr("y2",pr[pr.length-1]*rH+rH/2)
+          .attr("stroke",C1).attr("stroke-width",r*1.4).attr("stroke-linecap","round");
+      }
+
+      // All dots
+      allT.forEach(function(type,ri){
+        var filled=types.indexOf(type)>=0;
+        dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r)
+          .attr("fill",filled?C1:EMPTY)
+          .attr("stroke",filled?"white":"#d0d0d0")
+          .attr("stroke-width",filled?1.5:0.5);
+      });
     });
-    var mxT=d3.max(Array.from(tT.values()));
+
+    // ── RIGHT BARS (totals per habitat type) ──
+    var mxT=d3.max(Array.from(tT.values()))||1;
     var xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]);
-    var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+(bH2+mT+20)+")");
-    sBG.append("text").attr("x",rBW/2).attr("y",-8).attr("text-anchor","middle").attr("font-size",14).attr("fill","#555").text("Total Projects");
+    var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");
+
     allT.forEach(function(type,ri){
-      var total=tT.get(type)||0,cy=ri*rH+rH/2,bh=Math.min(rH*0.55,12);
-      sBG.append("rect").attr("x",0).attr("y",cy-bh/2).attr("width",xSB(total)).attr("height",bh).attr("fill",C2);
-      sBG.append("text").attr("x",xSB(total)+3).attr("y",cy).attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(total);
+      var total=tT.get(type)||0;
+      var cy=ri*rH+rH/2;
+      var bh=Math.min(rH*0.55,14);
+      sBG.append("rect").attr("x",0).attr("y",cy-bh/2)
+        .attr("width",xSB(total)).attr("height",bh)
+        .attr("fill",C2).attr("rx",2).attr("opacity",0.85);
+      sBG.append("text").attr("x",xSB(total)+4).attr("y",cy)
+        .attr("dominant-baseline","middle").attr("font-size",11).attr("font-weight","600").attr("fill","#444")
+        .text(total);
     });
   }
 
