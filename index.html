@@ -61,14 +61,16 @@
         }
       }
 
-      const rowHeight = 35;
-      const dotHeight = allTypes.length * rowHeight;
-      const barHeight = 140;
+      const rowHeight = 38;
+      const barHeight = 150;
       const rightBarWidth = 120;
       const marginLeft = 230;
       const marginRight = rightBarWidth + 60;
-      const width = window.innerWidth - 20;
-      const totalHeight = barHeight + dotHeight + 80;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const dotHeight = height - barHeight - 80;
+      const totalHeight = height;
+      const allTypesCount = allTypes.length;
       const colWidth = (width - marginLeft - marginRight) / sortedCombos.length;
 
       const svg = d3.select("#chart")
