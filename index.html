@@ -288,8 +288,17 @@
     var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
-      function(d){return d.fiscal_year_of_award;}
-    ).map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};}).sort(function(a,b){return a.year-b.year;});
+      function(d){
+        var fy=d.fiscal_year_of_award;
+        if(!fy)return null;
+        if(String(fy).length===4)return parseInt(fy);
+        var parsed=new Date(fy);
+        if(!isNaN(parsed))return parsed.getFullYear();
+        return parseInt(String(fy).slice(0,4));
+      }
+    ).filter(function(r){return r[0]!==null;})
+     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .sort(function(a,b){return a.year-b.year;});
     if(byYear.length===0)return;
     var mL=70,mR=60,mT=20,mB=50;
     var w=width-mL-mR,h=height-mT-mB;
@@ -316,8 +325,8 @@
     var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
     g.append("path").datum(byYear).attr("fill","none").attr("stroke",C2).attr("stroke-width",2.5).attr("d",line);
     g.selectAll(".dot").data(byYear).enter().append("circle").attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);}).attr("r",4).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
-    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return "'"+String(d).slice(-2);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",11).attr("fill","#555");});
+    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",10).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
     var leg=g.append("g").attr("transform","translate("+(w-160)+","+-10+")");
     leg.append("rect").attr("width",12).attr("height",12).attr("fill",C1).attr("rx",2);
     leg.append("text").attr("x",16).attr("y",10).attr("font-size",10).attr("fill","#555").text("Award $");
@@ -475,61 +484,63 @@
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var padL=16, padR=16, padT=16, padB=16;
-    var rowH=Math.max(36, Math.min(64, (height-padT-padB)/sorted.length));
-    var countW=56;
-    var labelW=Math.min(320, width*0.45);
-    var dotAreaW=width-padL-padR-labelW-countW;
-    var maxCount=d3.max(sorted,function(d){return d.count;})||1;
-    var dotSize=Math.min(rowH*0.38, dotAreaW/(maxCount+1)*0.82, 22);
-    var dotSpacing=Math.min(dotSize*1.5, dotAreaW/maxCount);
+    var mL=Math.min(300,width*0.40), mR=50, mT=10, mB=20;
+    var areaH=height-mT-mB;
+    var rowH=areaH/sorted.length;
+    var dotR=Math.min(rowH*0.32, 10);
+    var xMax=d3.max(sorted,function(d){return d.count;})||1;
+    var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
 
     d3.select("#org-chart").select("svg").remove();
-    var svg=d3.select("#org-chart").append("svg")
-      .attr("width",width).attr("height",Math.max(height, sorted.length*rowH+padT+padB))
-      .style("font-family",FONT);
+    var svg=d3.select("#org-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    // Gridlines
+    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
+      .attr("transform","translate(0,"+areaH+")")
+      .call(function(gr){gr.select(".domain").remove();})
+      .call(function(gr){
+        gr.selectAll(".tick line").attr("y1",-areaH).attr("y2",0).attr("stroke","#f0f0f0").attr("stroke-width",1);
+        gr.selectAll("text").attr("font-size",11).attr("fill","#aaa");
+      });
 
     sorted.forEach(function(d,i){
-      var y=padT+i*rowH;
-      var cx=padL+labelW;
+      var y=i*rowH+rowH/2;
+      var xEnd=xScale(d.count);
+      var col=i%3===0?C1:i%3===1?C2:C3;
 
-      // Alternating row background
+      // Alternating row bg
       if(i%2===0){
-        svg.append("rect").attr("x",0).attr("y",y).attr("width",width).attr("height",rowH)
-          .attr("fill","#f7fbff").attr("rx",0);
+        g.append("rect").attr("x",-mL).attr("y",i*rowH).attr("width",width).attr("height",rowH).attr("fill","#fafbff").attr("opacity",0.7);
       }
 
-      // Big bold count number
-      svg.append("text")
-        .attr("x",padL+countW*0.5).attr("y",y+rowH/2+1)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(rowH*0.58,28)).attr("font-weight","700")
-        .attr("fill",C1).text(d.count);
+      // Stem line
+      g.append("line")
+        .attr("x1",0).attr("x2",xEnd)
+        .attr("y1",y).attr("y2",y)
+        .attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.5);
 
-      // Org name
-      var label=d.label.length>52?d.label.slice(0,50)+"…":d.label;
-      svg.append("text")
-        .attr("x",padL+countW+10).attr("y",y+rowH/2)
-        .attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(rowH*0.30,13)).attr("font-weight","500")
-        .attr("fill","#333").text(label);
+      // Dot
+      g.append("circle")
+        .attr("cx",xEnd).attr("cy",y).attr("r",dotR)
+        .attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
+        .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
+        .on("mouseleave",hideTooltip);
 
-      // Project dots
-      for(var di=0;di<d.count;di++){
-        svg.append("circle")
-          .attr("cx", cx+labelW-countW+dotSpacing*0.5+di*dotSpacing)
-          .attr("cy", y+rowH/2)
-          .attr("r", dotSize/2)
-          .attr("fill", i%2===0?C1:C2)
-          .attr("opacity",0.82);
-      }
+      // Count label
+      g.append("text")
+        .attr("x",xEnd+dotR+4).attr("y",y)
+        .attr("dominant-baseline","middle").attr("font-size",11).attr("font-weight","700").attr("fill",col)
+        .text(d.count);
+
+      // Org label
+      var label=d.label.length>48?d.label.slice(0,46)+"…":d.label;
+      g.append("text")
+        .attr("x",-8).attr("y",y)
+        .attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(12,rowH*0.38)).attr("fill","#333")
+        .text(label);
     });
-
-    // Column header
-    svg.append("text").attr("x",padL+countW*0.5).attr("y",padT-4)
-      .attr("text-anchor","middle").attr("font-size",10).attr("font-weight","700").attr("fill","#aaa").text("PROJ");
-    svg.append("text").attr("x",width-padR-dotAreaW/2).attr("y",padT-4)
-      .attr("text-anchor","middle").attr("font-size",10).attr("font-weight","700").attr("fill","#aaa").text("● one dot per project");
   }
 
   function drawHorizontalBar(counts,containerId,color){
