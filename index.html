@@ -12,14 +12,11 @@
       background: white;
       font-family: 'Roboto', sans-serif;
     }
-
     #app {
       width: 100%; height: 100%;
       display: flex;
       flex-direction: column;
     }
-
-    /* NAV */
     #nav {
       display: flex;
       align-items: center;
@@ -45,8 +42,6 @@
     }
     .nav-btn:hover { background: #e8f4fb; }
     .nav-btn.active { background: #1677bc; color: white; }
-
-    /* CHARTS */
     #charts {
       flex: 1;
       overflow: hidden;
@@ -61,7 +56,6 @@
       padding: 12px 16px;
     }
     .chart-panel.active { display: flex; flex-direction: column; }
-
     .chart-title {
       font-size: 13px;
       font-weight: 700;
@@ -81,7 +75,6 @@
       min-height: 0;
     }
     svg { display: block; }
-
     #loading {
       position: fixed;
       top: 50%; left: 50%;
@@ -123,8 +116,6 @@
   const LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   const C1 = "#1677bc";
   const C2 = "#54a9ad";
-  const C3 = "#25b7d3";
-  const C4 = "#54c6c7";
   const EMPTY = "#e0e0e0";
   const FONT = "Roboto, sans-serif";
 
@@ -144,14 +135,12 @@
     });
   }
 
-async function fetchData() {
-  const url = LAYER_URL + "?where=1%3D1&outFields=*&f=json&resultRecordCount=2000";
-  const res = await fetch(url);
-  const json = await res.json();
-  console.log("Fields available:", Object.keys(json.features[0].attributes));
-  console.log("Sample record:", json.features[0].attributes);
-  return json.features.map(f => f.attributes);
-}
+  async function fetchData() {
+    const url = LAYER_URL + "?where=1%3D1&outFields=project_landscape_type,site_name_long_term_project_nam,lead_organization_name,gbep_award_amount&f=json&resultRecordCount=2000";
+    const res = await fetch(url);
+    const json = await res.json();
+    return json.features.map(f => f.attributes);
+  }
 
   // ── UPSET CHART ──────────────────────────────────────────
   function drawUpset(data, container) {
@@ -307,7 +296,7 @@ async function fetchData() {
 
     const sorted = [...data].sort((a, b) => b.count - a.count);
     if (!sorted || sorted.length === 0) return;
-    const xMax = d3.max(sorted, d => d.count) || 1;
+
     const marginLeft = Math.min(280, width * 0.35);
     const marginRight = 50;
     const marginTop = 10;
@@ -315,8 +304,8 @@ async function fetchData() {
     const barAreaHeight = height - marginTop - marginBottom;
     const barH = Math.min(22, (barAreaHeight / sorted.length) * 0.7);
     const rowH = barAreaHeight / sorted.length;
+    const xMax = d3.max(sorted, d => d.count) || 1;
 
-    const xMax = d3.max(sorted, d => d.count);
     const xScale = d3.scaleLinear()
       .domain([0, xMax])
       .range([0, width - marginLeft - marginRight]);
@@ -328,7 +317,6 @@ async function fetchData() {
 
     const g = svg.append("g").attr("transform", `translate(${marginLeft}, ${marginTop})`);
 
-    // Gridlines
     g.append("g")
       .call(d3.axisBottom(xScale).ticks(5).tickFormat(d3.format("d")))
       .attr("transform", `translate(0, ${barAreaHeight})`)
@@ -366,10 +354,8 @@ async function fetchData() {
     document.getElementById("loading").style.display = "none";
     document.getElementById("app").style.display = "flex";
 
-    // Draw all charts
     drawUpset(allData, "upset-chart");
 
-// Site counts
     const siteCounts = d3.rollups(
       allData.filter(d => d.site_name_long_term_project_nam && d.site_name_long_term_project_nam.trim() !== ""),
       v => v.length,
@@ -377,20 +363,11 @@ async function fetchData() {
     ).map(([label, count]) => ({ label, count })).filter(d => d.count > 0);
     drawHorizontalBar(siteCounts, "site-chart", C1);
 
-    // Org counts
     const orgCounts = d3.rollups(
       allData.filter(d => d.lead_organization_name && d.lead_organization_name.trim() !== ""),
       v => v.length,
       d => d.lead_organization_name
     ).map(([label, count]) => ({ label, count })).filter(d => d.count > 0);
-    drawHorizontalBar(orgCounts, "org-chart", C2);
-
-    // Org counts
-    const orgCounts = d3.rollups(
-      allData.filter(d => d.lead_organization_name),
-      v => v.length,
-      d => d.lead_organization_name
-    ).map(([label, count]) => ({ label, count }));
     drawHorizontalBar(orgCounts, "org-chart", C2);
   }
 
