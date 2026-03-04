@@ -68,11 +68,12 @@
     document.querySelectorAll('.chart-panel').forEach((p, j) => p.classList.toggle('active', i === j));
     document.querySelectorAll('.nav-btn').forEach((b, j) => b.classList.toggle('active', i === j));
     if (!chartDrawn[i] && allData.length > 0) {
-      if (i === 1) drawSiteChart();
-      if (i === 2) drawOrgChart();
-      chartDrawn[i] = true;
+      setTimeout(() => {
+        if (i === 1) drawSiteChart();
+        if (i === 2) drawOrgChart();
+        chartDrawn[i] = true;
+      }, 50);
     }
-  }
 
   async function fetchData() {
     const url = LAYER_URL + "?where=1%3D1&outFields=project_landscape_type,site_name_long_term_project_nam,lead_organization_name,gbep_award_amount&f=json&resultRecordCount=2000";
@@ -83,9 +84,9 @@
 
   function drawHorizontalBar(counts, containerId, color) {
     const el = document.getElementById(containerId);
-    const width = el.clientWidth;
-    const height = el.clientHeight;
-    if (!width || !height || counts.length === 0) return;
+    const width = el.clientWidth || window.innerWidth;
+    const height = el.clientHeight || window.innerHeight - 80;
+    if (counts.length === 0) return;
 
     const sorted = [...counts].sort((a, b) => b.count - a.count);
     const marginLeft = Math.min(300, width * 0.38);
