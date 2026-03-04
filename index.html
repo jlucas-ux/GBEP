@@ -177,7 +177,7 @@
     });
     const sortedCombos = Array.from(comboMap, function(e) { return { key: e[0], count: e[1] }; })
       .sort(function(a, b) { return b.count - a.count; });
-
+    if (sortedCombos.length === 0) return;
     const allTypes = Array.from(new Set(rawCombinations.reduce(function(a, b) { return a.concat(b); }, []))).sort();
 
     const typeTotals = new Map();
@@ -187,7 +187,7 @@
     });
 
     const rightBarWidth = 100;
-    const marginLeft = 200;
+    const marginLeft = 240;
     const marginRight = rightBarWidth + 50;
     const marginTop = 16;
     const barHeight = Math.floor(height * 0.25);
