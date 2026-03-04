@@ -144,12 +144,14 @@
     });
   }
 
-  async function fetchData() {
-    const url = LAYER_URL + "?where=gbep_award_amount+>+0&outFields=project_landscape_type,site_name_long_term_project_nam,lead_organization_name,gbep_award_amount&f=json&resultRecordCount=2000";
-    const res = await fetch(url);
-    const json = await res.json();
-    return json.features.map(f => f.attributes);
-  }
+async function fetchData() {
+  const url = LAYER_URL + "?where=1%3D1&outFields=*&f=json&resultRecordCount=2000";
+  const res = await fetch(url);
+  const json = await res.json();
+  console.log("Fields available:", Object.keys(json.features[0].attributes));
+  console.log("Sample record:", json.features[0].attributes);
+  return json.features.map(f => f.attributes);
+}
 
   // ── UPSET CHART ──────────────────────────────────────────
   function drawUpset(data, container) {
