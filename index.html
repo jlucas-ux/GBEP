@@ -122,8 +122,8 @@
     if (!counts || counts.length === 0) return;
 
     const maxCount = d3.max(counts, function(d) { return d.count; }) || 1;
-    const minR = 25;
-    const maxR = Math.min(width, height) * 0.10;
+    const minR = 14;
+    const maxR = Math.min(width, height) * 0.09;
     const rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, maxR]);
 
     const nodes = counts.map(function(d, i) {
@@ -140,12 +140,24 @@
       .attr("width", width).attr("height", height);
 
     const simulation = d3.forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(5))
+      .force("charge", d3.forceManyBody().strength(2))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(function(d) { return d.r + 3; }).strength(0.9))
+      .force("x", d3.forceX().x(function(d, i) {
+        return (i % 6) * (width / 6) + width / 12;
+      }).strength(0.08))
+      .force("y", d3.forceY().y(function(d, i) {
+        return Math.floor(i / 6) * (height / Math.ceil(nodes.length / 6)) + height / (2 * Math.ceil(nodes.length / 6));
+      }).strength(0.08))
+      .force("collision", d3.forceCollide().radius(function(d) { return d.r + 4; }).strength(1))
       .stop();
 
-    for (let i = 0; i < 300; i++) simulation.tick();
+    for (let i = 0; i < 400; i++) simulation.tick();
+
+    // Clamp to bounds
+    nodes.forEach(function(d) {
+      d.x = Math.max(d.r + 5, Math.min(width - d.r - 5, d.x));
+      d.y = Math.max(d.r + 5, Math.min(height - d.r - 5, d.y));
+    });
 
     const node = svg.selectAll("g")
       .data(nodes).enter().append("g")
@@ -165,11 +177,9 @@
     node.each(function(d) {
       const g = d3.select(this);
       const words = d.label.split(/[\s,\/]+/);
-      const lineHeight = 14;
+      const lineHeight = 13;
       const maxWidth = d.r * 1.6;
-      const fontSize = Math.max(8, Math.min(13, d.r / 3.5));
-
-      // Wrap text into lines
+      const fontSize = Math.max(8, Math.min(12, d.r / 3.2));
       let lines = [];
       let current = "";
       words.forEach(function(word) {
@@ -182,16 +192,11 @@
         }
       });
       if (current) lines.push(current);
-
-      // Truncate if too many lines
       const maxLines = Math.floor((d.r * 1.4) / lineHeight);
       if (lines.length > maxLines) {
         lines = lines.slice(0, maxLines);
-        if (lines[lines.length - 1].length > 8) {
-          lines[lines.length - 1] = lines[lines.length - 1].slice(0, 7) + "...";
-        }
+        lines[lines.length - 1] = lines[lines.length - 1].slice(0, 7) + "...";
       }
-
       const totalH = lines.length * lineHeight;
       lines.forEach(function(line, li) {
         g.append("text")
@@ -205,14 +210,11 @@
           .attr("font-weight", "500")
           .text(line);
       });
-
-      // Show count at bottom of bubble
-      if (d.r > 35) {
+      if (d.r > 25) {
         g.append("text")
-          .attr("x", 0)
-          .attr("y", d.r - 12)
+          .attr("x", 0).attr("y", d.r - 10)
           .attr("text-anchor", "middle")
-          .attr("font-size", Math.max(9, fontSize - 1))
+          .attr("font-size", Math.max(8, fontSize - 1))
           .attr("font-family", FONT)
           .attr("fill", "rgba(255,255,255,0.8)")
           .text(d.count);
