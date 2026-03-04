@@ -20,7 +20,7 @@
 </head>
 <body>
   <div id="chart"></div>
-  <script>
+ <script>
     const BAR_COLOR = "#54a9ad";
     const DOT_COLOR = "#1677bc";
     const DOT_EMPTY = "#e0e0e0";
@@ -61,28 +61,30 @@
         }
       }
 
-      const rowHeight = 38;
-      const barHeight = 150;
+      // Use actual window dimensions
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const barHeight = Math.floor(height * 0.22);
       const rightBarWidth = 120;
       const marginLeft = 230;
       const marginRight = rightBarWidth + 60;
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const dotHeight = height - barHeight - 80;
-      const totalHeight = height;
-      const allTypesCount = allTypes.length;
+      const marginTop = 20;
+      const marginBottom = 40;
+      const dotHeight = height - barHeight - marginTop - marginBottom;
+      const rowHeight = dotHeight / allTypes.length;
       const colWidth = (width - marginLeft - marginRight) / sortedCombos.length;
 
       const svg = d3.select("#chart")
         .append("svg")
         .attr("width", width)
-        .attr("height", totalHeight)
+        .attr("height", height)
+        .style("display", "block")
         .style("font-family", FONT)
         .style("background", "white");
 
       const maxCount = d3.max(sortedCombos, d => d.count);
       const yBar = d3.scaleLinear().domain([0, maxCount]).range([barHeight, 0]);
-      const barG = svg.append("g").attr("transform", `translate(${marginLeft}, 20)`);
+      const barG = svg.append("g").attr("transform", `translate(${marginLeft}, ${marginTop})`);
 
       barG.append("g")
         .call(d3.axisLeft(yBar).ticks(maxCount).tickFormat(d3.format("d")))
@@ -117,7 +119,8 @@
           .text(count);
       }
 
-      const dotG = svg.append("g").attr("transform", `translate(${marginLeft}, ${barHeight + 40})`);
+      const dotG = svg.append("g")
+        .attr("transform", `translate(${marginLeft}, ${barHeight + marginTop + marginBottom})`);
 
       for (const [ri, type] of allTypes.entries()) {
         dotG.append("text")
@@ -164,7 +167,7 @@
       const maxTypeTotal = d3.max([...typeTotals.values()]);
       const xSetBar = d3.scaleLinear().domain([0, maxTypeTotal]).range([0, rightBarWidth]);
       const setBarG = svg.append("g")
-        .attr("transform", `translate(${marginLeft + sortedCombos.length * colWidth + 20}, ${barHeight + 40})`);
+        .attr("transform", `translate(${marginLeft + sortedCombos.length * colWidth + 20}, ${barHeight + marginTop + marginBottom})`);
 
       setBarG.append("text")
         .attr("x", rightBarWidth / 2)
@@ -182,23 +185,6 @@
 
         setBarG.append("rect")
           .attr("x", 0)
-          .attr("y", cy - barH / 2)
-          .attr("width", xSetBar(total))
-          .attr("height", barH)
-          .attr("fill", SET_BAR_COLOR);
-
-        setBarG.append("text")
-          .attr("x", xSetBar(total) + 4)
-          .attr("y", cy)
-          .attr("dominant-baseline", "middle")
-          .attr("font-size", 10)
-          .attr("fill", "#333")
-          .style("font-family", FONT)
-          .text(total);
-      }
-    }
-
-    render();
-  </script>
+          .attr("y", cy -
 </body>
 </html>
