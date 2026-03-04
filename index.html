@@ -9,7 +9,7 @@
     html, body { width: 100%; height: 100%; overflow: hidden; background: white; font-family: 'Roboto', sans-serif; }
     #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
     #nav { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; background: white; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
-    .nav-btn { padding: 5px 14px; border: 1.5px solid #1677bc; border-radius: 20px; background: white; color: #1677bc; font-family: 'Roboto', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .nav-btn { padding: 5px 14px; border: 1.5px solid #1677bc; border-radius: 20px; background: white; color: #1677bc; font-family: 'Roboto', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .nav-btn:hover { background: #e8f4fb; }
     .nav-btn.active { background: #1677bc; color: white; }
     #charts { flex: 1; overflow: hidden; position: relative; }
@@ -19,7 +19,7 @@
     .chart-subtitle { font-size: 17px; color: #666; margin-bottom: 8px; flex-shrink: 0; }
     .chart-area { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
-    #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: #888; }
+    #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 13px; color: #888; }
   </style>
 </head>
 <body>
@@ -113,7 +113,7 @@
       .call(function(gr) { gr.select(".domain").remove(); })
       .call(function(gr) {
         gr.selectAll(".tick line").attr("y1", -barAreaHeight).attr("y2", 0).attr("stroke", "#eee");
-        gr.selectAll("text").attr("", 14);
+        gr.selectAll("text").attr("font-size", 14);
       });
 
     sorted.forEach(function(d, i) {
@@ -122,12 +122,12 @@
         .attr("width", xScale(d.count)).attr("height", barH)
         .attr("fill", color).attr("rx", 2);
       g.append("text").attr("x", xScale(d.count) + 4).attr("y", y + barH / 2)
-        .attr("dominant-baseline", "middle").attr("", 14).attr("fill", "#333")
+        .attr("dominant-baseline", "middle").attr("font-size", 14).attr("fill", "#333")
         .text(d.count);
       const label = d.label.length > 42 ? d.label.slice(0, 40) + "..." : d.label;
       g.append("text").attr("x", -6).attr("y", y + barH / 2)
         .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-        .attr("", 14).attr("fill", "#333").text(label);
+        .attr("font-size", 14).attr("fill", "#333").text(label);
     });
   }
 
@@ -205,17 +205,17 @@
 
     barG.append("g").call(d3.axisLeft(yBar).ticks(maxCount).tickFormat(d3.format("d")))
       .call(function(g) { g.select(".domain").remove(); })
-      .call(function(g) { g.selectAll("text").style("", "14px"); });
+      .call(function(g) { g.selectAll("text").style("font-size", "14px"); });
 
     barG.append("text").attr("transform", "rotate(-90)").attr("x", -barHeight / 2).attr("y", -42)
-      .attr("text-anchor", "middle").attr("", 14).attr("fill", "#555").text("Number of Projects");
+      .attr("text-anchor", "middle").attr("font-size", 14).attr("fill", "#555").text("Number of Projects");
 
     sortedCombos.forEach(function(d, i) {
       barG.append("rect").attr("x", i * colWidth + colWidth * 0.2).attr("y", yBar(d.count))
         .attr("width", colWidth * 0.6).attr("height", barHeight - yBar(d.count)).attr("fill", C2);
       if (colWidth > 14) {
         barG.append("text").attr("x", i * colWidth + colWidth / 2).attr("y", yBar(d.count) - 3)
-          .attr("text-anchor", "middle").attr("", 14).attr("fill", "#333").text(d.count);
+          .attr("text-anchor", "middle").attr("font-size", 14).attr("fill", "#333").text(d.count);
       }
     });
 
@@ -224,7 +224,7 @@
     allTypes.forEach(function(type, ri) {
       dotG.append("text").attr("x", -8).attr("y", ri * rowHeight + rowHeight / 2)
         .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-        .attr("", 14).attr("fill", "#333").text(cleanLabel(type));
+        .attr("font-size", 14).attr("fill", "#333").text(cleanLabel(type));
     });
 
     for (let ri = 0; ri <= allTypes.length; ri++) {
@@ -254,7 +254,7 @@
     const setBarG = svg.append("g").attr("transform", "translate(" + (marginLeft + sortedCombos.length * colWidth + 16) + "," + (barHeight + marginTop + 20) + ")");
 
     setBarG.append("text").attr("x", rightBarWidth / 2).attr("y", -8)
-      .attr("text-anchor", "middle").attr("", 14).attr("fill", "#555").text("Total Projects");
+      .attr("text-anchor", "middle").attr("font-size", 14).attr("fill", "#555").text("Total Projects");
 
     allTypes.forEach(function(type, ri) {
       const total = typeTotals.get(type) || 0;
@@ -263,7 +263,7 @@
       setBarG.append("rect").attr("x", 0).attr("y", cy - bh / 2)
         .attr("width", xSetBar(total)).attr("height", bh).attr("fill", C2);
       setBarG.append("text").attr("x", xSetBar(total) + 3).attr("y", cy)
-        .attr("dominant-baseline", "middle").attr("", 14).attr("fill", "#333").text(total);
+        .attr("dominant-baseline", "middle").attr("font-size", 14).attr("fill", "#333").text(total);
     });
   }
 
