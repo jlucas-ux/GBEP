@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: white; font-family: 'Roboto', sans-serif; }
+    #chart { width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="chart"></div>
+  <script>
+    const BAR_COLOR = "#54a9ad";
+    const DOT_COLOR = "#1677bc";
+    const DOT_EMPTY = "#e0e0e0";
+    const SET_BAR_COLOR = "#54a9ad";
+    const FONT = "Roboto, sans-serif";
+
+    const cleanLabel = str => str
+      .replace(/_/g, " ")
+      .replace(/Submerged Aquatic Vegetati\w*/i, "Submerged Aquatic Veg.")
+      .replace(/\b\w/g, c => c.toUpperCase());
+
+    async function render() {
+      const url = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query"
+        + "?where=1%3D1&outFields=project_landscape_type&f=json&resultRecordCount=2000";
+      const res = await fetch(url);
+      const json = await res.json();
+
+      const rawCombinations = json.features
+        .map(f => f.attributes.project_landscape_type)
+        .filter(d => d)
+        .map(d => d.split(",").map(s => s.trim()).sort());
+
+      const comboMap = new Map();
+      for (const combo of rawCombinations) {
+        const key = combo.sort().join(" | ");
+        comboMap.set(key, (comboMap.get(key) || 0) + 1);
+      }
+      const sortedCombos = Array.from(comboMap, ([key, count]) => ({ key, count }))
+        .sort((a, b) => b.count - a.count);
+
+      const allTypes = [...new Set(rawCombinations.flat())].sort();
+
+      const typeTotals = new Map();
+      for (const type of allTypes) typeTotals.set(type, 0);
+      for (const combo of rawCombinations) {
+        for (const type of combo) {
+          typeTotals.set(type, (typeTotals.get(type) || 0) + 1);
+        }
+      }
+
+      const rowHeight = 40;
+      const dotHeight = allTypes.length * rowHeight;
+      const barHeight = 160;
+      const rightBarWidth = 120;
+      const marginLeft = 230;
+      const marginRight = rightBarWidth + 60;
+      const width = window.innerWidth - 20;
+      const totalHeight = barHeight + dotHeight + 80;
+      const colWidth = (width - marginLeft - marginRight) / sortedCombos.length;
+
+      const svg = d3.select("#chart")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", totalHeight)
+        .style("font-family", FONT)
+        .style("background", "white");
+
+      const maxCount = d3.max(sortedCombos, d => d.count);
+      const yBar = d3.scaleLinear().domain([0, maxCount]).range([barHeight, 0]);
+      const barG = svg.append("g").attr("transform", `translate(${marginLeft}, 20)`);
+
+      barG.append("g")
+        .call(d3.axisLeft(yBar).ticks(maxCount).tickFormat(d3.format("d")))
+        .call(g => g.select(".domain").remove())
+        .call(g => g.selectAll("text").style("font-family", FONT).style("font-size", "11px"));
+
+      barG.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -barHeight / 2)
+        .attr("y", -45)
+        .attr("text-anchor", "middle")
+        .attr("font-size", 11)
+        .attr("fill", "#555")
+        .style("font-family", FONT)
+        .text("Number of Projects");
+
+      for (const [i, { count }] of sortedCombos.entries()) {
+        barG.append("rect")
+          .attr("x", i * colWidth + colWidth * 0.2)
+          .attr("y", yBar(count))
+          .attr("width", colWidth * 0.6)
+          .attr("height", barHeight - yBar(count))
+          .attr("fill", BAR_COLOR);
+
+        barG.append("text")
+          .attr("x", i * colWidth + colWidth / 2)
+          .attr("y", yBar(count) - 4)
+          .attr("text-anchor", "middle")
+          .attr("font-size", 10)
+          .attr("fill", "#333")
+          .style("font-family", FONT)
+          .text(count);
+      }
+
+      const dotG = svg.append("g").attr("transform", `translate(${marginLeft}, ${barHeight + 40})`);
+
+      for (const [ri, type] of allTypes.entries()) {
+        dotG.append("text")
+          .attr("x", -10)
+          .attr("y", ri * rowHeight + rowHeight / 2)
+          .attr("text-anchor", "end")
+          .attr("dominant-baseline", "middle")
+          .attr("font-size", 11)
+          .attr("fill", "#333")
+          .style("font-family", FONT)
+          .text(cleanLabel(type));
+      }
+
+      for (let ri = 0; ri <= allTypes.length; ri++) {
+        dotG.append("line")
+          .attr("x1", 0).attr("x2", sortedCombos.length * colWidth)
+          .attr("y1", ri * rowHeight).attr("y2", ri * rowHeight)
+          .attr("stroke", "#eee").attr("stroke-width", 1);
+      }
+
+      for (const [ci, { key }] of sortedCombos.entries()) {
+        const types = key.split(" | ");
+        const presentRows = types.map(t => allTypes.indexOf(t)).filter(i => i >= 0).sort();
+        const cx = ci * colWidth + colWidth / 2;
+        const r = Math.min(colWidth, rowHeight) * 0.3;
+
+        if (presentRows.length > 1) {
+          dotG.append("line")
+            .attr("x1", cx).attr("x2", cx)
+            .attr("y1", presentRows[0] * rowHeight + rowHeight / 2)
+            .attr("y2", presentRows[presentRows.length - 1] * rowHeight + rowHeight / 2)
+            .attr("stroke", DOT_COLOR)
+            .attr("stroke-width", r * 1.5);
+        }
+
+        for (const [ri, type] of allTypes.entries()) {
+          const cy = ri * rowHeight + rowHeight / 2;
+          dotG.append("circle")
+            .attr("cx", cx).attr("cy", cy).attr("r", r)
+            .attr("fill", types.includes(type) ? DOT_COLOR : DOT_EMPTY);
+        }
+      }
+
+      const maxTypeTotal = d3.max([...typeTotals.values()]);
+      const xSetBar = d3.scaleLinear().domain([0, maxTypeTotal]).range([0, rightBarWidth]);
+      const setBarG = svg.append("g")
+        .attr("transform", `translate(${marginLeft + sortedCombos.length * colWidth + 20}, ${barHeight + 40})`);
+
+      setBarG.append("text")
+        .attr("x", rightBarWidth / 2)
+        .attr("y", -10)
+        .attr("text-anchor", "middle")
+        .attr("font-size", 11)
+        .attr("fill", "#555")
+        .style("font-family", FONT)
+        .text("Total Projects");
+
+      for (const [ri, type] of allTypes.entries()) {
+        const total = typeTotals.get(type) || 0;
+        const cy = ri * rowHeight + rowHeight / 2;
+        const barH = Math.min(rowHeight * 0.6, 14);
+
+        setBarG.append("rect")
+          .attr("x", 0)
+          .attr("y", cy - barH / 2)
+          .attr("width", xSetBar(total))
+          .attr("height", barH)
+          .attr("fill", SET_BAR_COLOR);
+
+        setBarG.append("text")
+          .attr("x", xSetBar(total) + 4)
+          .attr("y", cy)
+          .attr("dominant-baseline", "middle")
+          .attr("font-size", 10)
+          .attr("fill", "#333")
+          .style("font-family", FONT)
+          .text(total);
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
