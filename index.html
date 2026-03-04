@@ -122,8 +122,8 @@
     if (!counts || counts.length === 0) return;
 
     const maxCount = d3.max(counts, function(d) { return d.count; }) || 1;
-    const minR = 30;
-    const maxR = Math.min(width, height) * 0.18;
+    const minR = 25;
+    const maxR = Math.min(width, height) * 0.10;
     const rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, maxR]);
 
     const nodes = counts.map(function(d, i) {
