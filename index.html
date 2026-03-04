@@ -76,12 +76,11 @@
     }
 
   async function fetchData() {
-    const url = LAYER_URL + "?where=1%3D1&outFields=project_landscape_type,site_name_long_term_project_nam,lead_organization_name,gbep_award_amount&f=json&resultRecordCount=2000";
+    const url = LAYER_URL + "?where=1%3D1&outFields=project_landscape_type,site_name_long_term_project_nam,lead_organization_name,gbep_award_amount,nru_project_title&f=json&resultRecordCount=2000";
     const res = await fetch(url);
     const json = await res.json();
     return json.features.map(f => f.attributes);
   }
-
   function drawHorizontalBar(counts, containerId, color) {
     const el = document.getElementById(containerId);
     const width = el.clientWidth || window.innerWidth;
@@ -127,9 +126,9 @@
     });
   }
 
-  function drawSiteChart() {
-    const funded = allData.filter(d => d.gbep_award_amount > 0 && d.site_name_long_term_project_nam && d.site_name_long_term_project_nam.trim() !== "");
-    const counts = d3.rollups(funded, v => v.length, d => d.site_name_long_term_project_nam)
+function drawSiteChart() {
+    const funded = allData.filter(d => d.gbep_award_amount > 0 && d.site_name_long_term_project_nam && d.site_name_long_term_project_nam.trim() !== "" && d.nru_project_title && d.nru_project_title.trim() !== "");
+    const counts = d3.rollups(funded, v => new Set(v.map(d => d.nru_project_title)).size, d => d.site_name_long_term_project_nam)
       .map(([label, count]) => ({ label, count }));
     drawHorizontalBar(counts, "site-chart", C1);
   }
