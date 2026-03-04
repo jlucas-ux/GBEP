@@ -288,9 +288,18 @@
     var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
-      function(d){return d.fiscal_year_of_award;}
-    ).map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};}).sort(function(a,b){return a.year-b.year;});
-    if(byYear.length===0)return;
+      function(d){
+        var fy=d.fiscal_year_of_award;
+        if(!fy)return null;
+        // Handle full dates, timestamps, or plain years
+        if(String(fy).length===4)return parseInt(fy);
+        var parsed=new Date(fy);
+        if(!isNaN(parsed))return parsed.getFullYear();
+        return parseInt(String(fy).slice(0,4));
+      }
+    ).filter(function(r){return r[0]!==null;})
+     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .sort(function(a,b){return a.year-b.year;});
     var mL=70,mR=60,mT=20,mB=50;
     var w=width-mL-mR,h=height-mT-mB;
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
@@ -316,7 +325,7 @@
     var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
     g.append("path").datum(byYear).attr("fill","none").attr("stroke",C2).attr("stroke-width",2.5).attr("d",line);
     g.selectAll(".dot").data(byYear).enter().append("circle").attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);}).attr("r",4).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
-    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return "'"+String(d).slice(-2);}))
+    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);})
       .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",11).attr("fill","#555");});
     var leg=g.append("g").attr("transform","translate("+(w-160)+","+-10+")");
     leg.append("rect").attr("width",12).attr("height",12).attr("fill",C1).attr("rx",2);
