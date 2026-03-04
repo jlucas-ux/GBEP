@@ -466,9 +466,70 @@
   }
 
   function drawOrgChart(){
+    var el=document.getElementById("org-chart");
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-80);
+
     var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
-    drawHorizontalBar(grouped.map(function(r){return{label:r[0],count:r[1]};}),"org-chart",C2);
+    var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
+    if(!sorted.length)return;
+
+    var padL=16, padR=16, padT=16, padB=16;
+    var rowH=Math.max(36, Math.min(64, (height-padT-padB)/sorted.length));
+    var countW=56;
+    var labelW=Math.min(320, width*0.45);
+    var dotAreaW=width-padL-padR-labelW-countW;
+    var maxCount=d3.max(sorted,function(d){return d.count;})||1;
+    var dotSize=Math.min(rowH*0.38, dotAreaW/(maxCount+1)*0.82, 22);
+    var dotSpacing=Math.min(dotSize*1.5, dotAreaW/maxCount);
+
+    d3.select("#org-chart").select("svg").remove();
+    var svg=d3.select("#org-chart").append("svg")
+      .attr("width",width).attr("height",Math.max(height, sorted.length*rowH+padT+padB))
+      .style("font-family",FONT);
+
+    sorted.forEach(function(d,i){
+      var y=padT+i*rowH;
+      var cx=padL+labelW;
+
+      // Alternating row background
+      if(i%2===0){
+        svg.append("rect").attr("x",0).attr("y",y).attr("width",width).attr("height",rowH)
+          .attr("fill","#f7fbff").attr("rx",0);
+      }
+
+      // Big bold count number
+      svg.append("text")
+        .attr("x",padL+countW*0.5).attr("y",y+rowH/2+1)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(rowH*0.58,28)).attr("font-weight","700")
+        .attr("fill",C1).text(d.count);
+
+      // Org name
+      var label=d.label.length>52?d.label.slice(0,50)+"…":d.label;
+      svg.append("text")
+        .attr("x",padL+countW+10).attr("y",y+rowH/2)
+        .attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(rowH*0.30,13)).attr("font-weight","500")
+        .attr("fill","#333").text(label);
+
+      // Project dots
+      for(var di=0;di<d.count;di++){
+        svg.append("circle")
+          .attr("cx", cx+labelW-countW+dotSpacing*0.5+di*dotSpacing)
+          .attr("cy", y+rowH/2)
+          .attr("r", dotSize/2)
+          .attr("fill", i%2===0?C1:C2)
+          .attr("opacity",0.82);
+      }
+    });
+
+    // Column header
+    svg.append("text").attr("x",padL+countW*0.5).attr("y",padT-4)
+      .attr("text-anchor","middle").attr("font-size",10).attr("font-weight","700").attr("fill","#aaa").text("PROJ");
+    svg.append("text").attr("x",width-padR-dotAreaW/2).attr("y",padT-4)
+      .attr("text-anchor","middle").attr("font-size",10).attr("font-weight","700").attr("fill","#aaa").text("● one dot per project");
   }
 
   function drawHorizontalBar(counts,containerId,color){
