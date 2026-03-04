@@ -306,6 +306,8 @@ async function fetchData() {
     const height = el.clientHeight;
 
     const sorted = [...data].sort((a, b) => b.count - a.count);
+    if (!sorted || sorted.length === 0) return;
+    const xMax = d3.max(sorted, d => d.count) || 1;
     const marginLeft = Math.min(280, width * 0.35);
     const marginRight = 50;
     const marginTop = 10;
@@ -367,13 +369,21 @@ async function fetchData() {
     // Draw all charts
     drawUpset(allData, "upset-chart");
 
-    // Site counts
+// Site counts
     const siteCounts = d3.rollups(
-      allData.filter(d => d.site_name_long_term_project_nam),
+      allData.filter(d => d.site_name_long_term_project_nam && d.site_name_long_term_project_nam.trim() !== ""),
       v => v.length,
       d => d.site_name_long_term_project_nam
-    ).map(([label, count]) => ({ label, count }));
+    ).map(([label, count]) => ({ label, count })).filter(d => d.count > 0);
     drawHorizontalBar(siteCounts, "site-chart", C1);
+
+    // Org counts
+    const orgCounts = d3.rollups(
+      allData.filter(d => d.lead_organization_name && d.lead_organization_name.trim() !== ""),
+      v => v.length,
+      d => d.lead_organization_name
+    ).map(([label, count]) => ({ label, count })).filter(d => d.count > 0);
+    drawHorizontalBar(orgCounts, "org-chart", C2);
 
     // Org counts
     const orgCounts = d3.rollups(
