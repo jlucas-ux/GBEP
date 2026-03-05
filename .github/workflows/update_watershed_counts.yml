@@ -2,17 +2,15 @@ name: Update Watershed Counts
 
 on:
   schedule:
-    # Runs nightly at midnight UTC
     - cron: "0 0 * * *"
   workflow_dispatch:
-    # Also allows manual trigger from the Actions tab
 
 jobs:
   update:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write  # needed to commit the JSON back to the repo
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -26,14 +24,16 @@ jobs:
       - name: Install dependencies
         run: pip install requests shapely
 
-      - name: Run spatial join script
-        run: python scripts/update_watershed_counts.py
+      - name: Run spatial join and update ArcGIS layer
+        env:
+          ARCGIS_USERNAME: ${{ secrets.ARCGIS_USERNAME }}
+          ARCGIS_PASSWORD: ${{ secrets.ARCGIS_PASSWORD }}
+        run: python scripts/update_watershed_layer.py
 
       - name: Commit updated watershed_counts.json
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add watershed_counts.json
-          # Only commit if the file actually changed
           git diff --cached --quiet || git commit -m "chore: update watershed counts [skip ci]"
           git push
