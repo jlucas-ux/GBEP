@@ -21,10 +21,10 @@
       display:flex;flex-direction:column;
     }
     .stat-card:last-child{border-right:none;}
-    .stat-num{font-size:32px;font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
-    .stat-num.loading{color:rgba(255,255,255,0.3);font-size:22px;font-weight:300;}
-    .stat-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
-    .stat-sub{font-size:9px;color:rgba(255,255,255,0.45);margin-top:2px;}
+    .stat-num{font-size:35px;font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
+    .stat-num.loading{color:rgba(255,255,255,0.3);font-size:25px;font-weight:300;}
+    .stat-label{font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
+    .stat-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;}
 
     /* ── MAIN BODY ── */
     #main{flex:1;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:10px;padding:10px;min-height:0;}
@@ -37,14 +37,14 @@
       min-height:0;
     }
     .chart-card-header{padding:10px 14px 6px;border-bottom:2px solid #f0f4ff;flex-shrink:0;}
-    .chart-card-header h3{font-size:13px;font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
-    .chart-card-header p{font-size:10px;color:#aaa;margin-top:2px;}
+    .chart-card-header h3{font-size:16px;font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
+    .chart-card-header p{font-size:13px;color:#aaa;margin-top:2px;}
     .chart-body{flex:1;padding:6px;min-height:0;overflow:hidden;}
 
     /* ── FOOTER ── */
     #site-footer{
       background:#0d47a1;color:rgba(255,255,255,0.6);
-      padding:8px 24px;font-size:10px;flex-shrink:0;
+      padding:8px 24px;font-size:13px;flex-shrink:0;
       display:flex;align-items:center;justify-content:space-between;
     }
     #site-footer a{color:rgba(255,255,255,0.7);text-decoration:none;}
@@ -52,7 +52,7 @@
     /* ── TOOLTIP ── */
     .tooltip{
       position:fixed;background:rgba(15,23,42,0.93);color:white;
-      padding:7px 11px;border-radius:7px;font-size:11px;
+      padding:7px 11px;border-radius:7px;font-size:14px;
       pointer-events:none;opacity:0;transition:opacity 0.15s;
       max-width:220px;line-height:1.5;z-index:9999;
       box-shadow:0 4px 16px rgba(0,0,0,0.25);font-family:'Roboto',sans-serif;
@@ -204,9 +204,9 @@
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
     g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");ax.selectAll("text").attr("font-size",8).attr("fill","#999");});
+      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");ax.selectAll("text").attr("font-size",11).attr("fill","#999");});
     g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(4).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll("text").attr("font-size",8).attr("fill",C2);});
+      .call(function(ax){ax.select(".domain").remove();ax.selectAll("text").attr("font-size",11).attr("fill",C2);});
 
     g.selectAll(".bar").data(byYear).enter().append("rect")
       .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
@@ -222,14 +222,14 @@
       .attr("r",2.5).attr("fill",C2).attr("stroke","white").attr("stroke-width",1);
 
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",7).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");});
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",10).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");});
   }
 
   function drawLollipop(sorted,elId,fmt){
     var el=document.getElementById(elId);
     var width=el.clientWidth||240,height=el.clientHeight||200;
     if(!sorted||!sorted.length)return;
-    var mL=Math.min(130,width*0.42),mR=36,mT=6,mB=16;
+    var mL=Math.min(133,width*0.42),mR=36,mT=6,mB=16;
     var areaH=height-mT-mB;
     var rowH=areaH/sorted.length;
     var dotR=Math.min(rowH*0.28,6);
@@ -242,7 +242,7 @@
 
     g.append("g").call(d3.axisBottom(xScale).ticks(4).tickFormat(fmt||d3.format("d")))
       .attr("transform","translate(0,"+areaH+")")
-      .call(function(gr){gr.select(".domain").remove();gr.selectAll(".tick line").attr("y1",-areaH).attr("y2",0).attr("stroke","#f0f0f0");gr.selectAll("text").attr("font-size",8).attr("fill","#bbb");});
+      .call(function(gr){gr.select(".domain").remove();gr.selectAll(".tick line").attr("y1",-areaH).attr("y2",0).attr("stroke","#f0f0f0");gr.selectAll("text").attr("font-size",11).attr("fill","#bbb");});
 
     sorted.forEach(function(d,i){
       var y=i*rowH+rowH/2;
@@ -253,9 +253,9 @@
       g.append("circle").attr("cx",xEnd).attr("cy",y).attr("r",dotR).attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
         .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+(fmt?fmt(d.value):d.value+" projects"));})
         .on("mouseleave",hideTooltip);
-      g.append("text").attr("x",xEnd+dotR+3).attr("y",y).attr("dominant-baseline","middle").attr("font-size",8).attr("font-weight","700").attr("fill",col).text(fmt?fmt(d.value):d.value);
+      g.append("text").attr("x",xEnd+dotR+3).attr("y",y).attr("dominant-baseline","middle").attr("font-size",11).attr("font-weight","700").attr("fill",col).text(fmt?fmt(d.value):d.value);
       var label=d.label.length>28?d.label.slice(0,26)+"…":d.label;
-      g.append("text").attr("x",-6).attr("y",y).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",Math.min(10,rowH*0.38)).attr("fill","#444").text(label);
+      g.append("text").attr("x",-6).attr("y",y).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",Math.min(13,rowH*0.38)).attr("fill","#444").text(label);
     });
   }
 
