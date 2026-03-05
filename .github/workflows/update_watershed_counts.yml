@@ -28,7 +28,7 @@ jobs:
         env:
           ARCGIS_USERNAME: ${{ secrets.ARCGIS_USERNAME }}
           ARCGIS_PASSWORD: ${{ secrets.ARCGIS_PASSWORD }}
-        run: python scripts/update_watershed_layer.py
+        run: python update_watershed_layer.py
 
       - name: Commit updated watershed_counts.json
         run: |
