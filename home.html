@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;background:#f4f7fb;font-family:'Roboto',sans-serif;color:#222;scroll-behavior:smooth;}
+
+    /* ── HERO STATS ── */
+    #hero-stats{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+      background:white;border-bottom:3px solid #e8f0fe;
+    }
+    .stat-card{
+      padding:22px 28px;border-right:1px solid #eef2ff;
+      display:flex;flex-direction:column;align-items:flex-start;
+    }
+    .stat-card:last-child{border-right:none;}
+    .stat-num{
+      font-size:40px;font-weight:900;color:#1677bc;line-height:1;
+      letter-spacing:-1px;
+    }
+    .stat-num.loading{color:#ccc;font-size:28px;font-weight:400;}
+    .stat-label{font-size:11px;font-weight:600;color:#888;margin-top:5px;text-transform:uppercase;letter-spacing:0.6px;}
+    .stat-sub{font-size:11px;color:#aaa;margin-top:2px;}
+
+    /* ── INTRO SECTION ── */
+    #intro{
+      display:grid;grid-template-columns:1fr 1fr;gap:0;
+      background:white;border-bottom:1px solid #e8f0fe;
+    }
+    #intro-text{
+      padding:36px 48px;border-right:1px solid #e8f0fe;
+      display:flex;flex-direction:column;justify-content:center;
+    }
+    #intro-text h2{font-size:20px;font-weight:700;color:#1677bc;margin-bottom:12px;letter-spacing:-0.3px;}
+    #intro-text p{font-size:13px;line-height:1.75;color:#555;margin-bottom:10px;}
+    #map-container{height:340px;position:relative;overflow:hidden;}
+    #map-container iframe{width:100%;height:100%;border:none;display:block;}
+    #map-label{
+      position:absolute;bottom:10px;left:12px;
+      background:rgba(22,119,188,0.9);color:white;
+      font-size:10px;font-weight:600;padding:4px 8px;border-radius:4px;
+      letter-spacing:0.4px;text-transform:uppercase;pointer-events:none;
+    }
+
+    /* ── CHARTS GRID ── */
+    #charts-grid{
+      display:grid;grid-template-columns:1fr 1fr;
+      gap:20px;padding:24px 32px;
+    }
+    .chart-card{
+      background:white;border-radius:12px;
+      box-shadow:0 2px 12px rgba(0,0,0,0.07);
+      overflow:hidden;display:flex;flex-direction:column;
+    }
+    .chart-card-header{
+      padding:16px 20px 8px;border-bottom:2px solid #f0f4ff;flex-shrink:0;
+    }
+    .chart-card-header h3{font-size:15px;font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
+    .chart-card-header p{font-size:11px;color:#999;margin-top:3px;line-height:1.4;}
+    .chart-card-body{flex:1;padding:8px;min-height:0;height:260px;}
+
+    /* ── FOOTER ── */
+    #site-footer{
+      background:#0d47a1;color:rgba(255,255,255,0.6);
+      padding:18px 48px;font-size:11px;
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    #site-footer a{color:rgba(255,255,255,0.7);text-decoration:none;}
+
+    /* ── TOOLTIP ── */
+    .tooltip{
+      position:fixed;background:rgba(15,23,42,0.93);color:white;
+      padding:8px 12px;border-radius:7px;font-size:12px;
+      pointer-events:none;opacity:0;transition:opacity 0.15s;
+      max-width:220px;line-height:1.5;z-index:9999;
+      box-shadow:0 4px 16px rgba(0,0,0,0.25);
+      font-family:'Roboto',sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+<div id="tooltip" class="tooltip"></div>
+
+<!-- HERO STATS -->
+<section id="hero-stats">
+  <div class="stat-card">
+    <div class="stat-num loading" id="stat-projects">—</div>
+    <div class="stat-label">Projects Funded</div>
+    <div class="stat-sub">GBEP award amount &gt; $0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num loading" id="stat-dollars">—</div>
+    <div class="stat-label">Total GBEP Awarded</div>
+    <div class="stat-sub">Across all funded projects</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num loading" id="stat-acres">—</div>
+    <div class="stat-label">Approximate Acres Impacted</div>
+    <div class="stat-sub">Funded projects with acreage data</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num loading" id="stat-orgs">—</div>
+    <div class="stat-label">Lead Organizations</div>
+    <div class="stat-sub">Distinct organizations funded</div>
+  </div>
+</section>
+
+<!-- INTRO + MAP -->
+<section id="intro">
+  <div id="intro-text">
+    <h2>About the Galveston Bay Estuary Program</h2>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+  </div>
+  <div id="map-container">
+    <iframe src="https://www.arcgis.com/apps/mapviewer/index.html?webmap=f39a85f6327240cd9263e69edcbf568e" allowfullscreen></iframe>
+    <div id="map-label">Project Locations</div>
+  </div>
+</section>
+
+<!-- CHARTS GRID -->
+<section id="charts-grid">
+
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3>GBEP Funding by Fiscal Year</h3>
+      <p>Total award dollars (bars) and project count (line) per fiscal year.</p>
+    </div>
+    <div class="chart-card-body" id="fy-chart"></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3>GBEP Awards by County</h3>
+      <p>Number of funded projects per county.</p>
+    </div>
+    <div class="chart-card-body" id="county-chart"></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3>Acres by Broad Project Goal</h3>
+      <p>Total approximate project acres per broad goal category.</p>
+    </div>
+    <div class="chart-card-body" id="goal-chart"></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3>Projects by Focal Species</h3>
+      <p>Count of GBEP-funded projects per targeted focal species.</p>
+    </div>
+    <div class="chart-card-body" id="species-chart"></div>
+  </div>
+
+</section>
+
+<!-- FOOTER -->
+<footer id="site-footer">
+  <span>© Galveston Bay Estuary Program · Data updated in real time from ArcGIS Online</span>
+  <span><a href="https://jlucas-ux.github.io/GBEP">Full Dashboard →</a></span>
+</footer>
+
+<script>
+  var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+  var COUNTY_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/NRU_Draft1_Results_Counties/FeatureServer/0/query";
+  var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#0d47a1";
+  var FONT="Roboto,sans-serif";
+  var PALETTE=[C1,C2,C3,C4,"#90caf9","#80deea","#4dd0e1","#006994","#0288d1","#29b6f6","#039be5","#26c6da"];
+
+  var tooltip=document.getElementById("tooltip");
+  function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
+  function hideTooltip(){tooltip.style.opacity=0;}
+
+  function fmtDollars(v){if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";return "$"+Math.round(v);}
+  function fmtAcres(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M ac";if(v>=1e3)return (v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
+  function fmtNum(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M";if(v>=1e3)return (v/1e3).toFixed(1)+"K";return v.toLocaleString();}
+
+  function animateStat(id,value,prefix,suffix){
+    var el=document.getElementById(id);
+    el.classList.remove("loading");
+    var start=0,duration=1200,startTime=null;
+    function step(ts){
+      if(!startTime)startTime=ts;
+      var p=Math.min((ts-startTime)/duration,1);
+      var ease=1-Math.pow(1-p,3);
+      var cur=Math.floor(ease*value);
+      el.textContent=(prefix||"")+fmtNum(cur)+(suffix||"");
+      if(p<1)requestAnimationFrame(step);
+      else el.textContent=(prefix||"")+fmtNum(value)+(suffix||"");
+    }
+    requestAnimationFrame(step);
+  }
+
+  async function fetchMain(){
+    var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz",
+                "lead_organization_name","broad_project_goals","targeted_focal_species"];
+    var url=LAYER_URL+"?where=1%3D1&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000";
+    var res=await fetch(url);
+    var json=await res.json();
+    return json.features.map(function(f){return f.attributes;});
+  }
+
+  async function fetchCounty(){
+    var url=COUNTY_URL+"?where=1%3D1&outFields=NAME,project_count&f=json&resultRecordCount=500";
+    var res=await fetch(url);
+    var json=await res.json();
+    return json.features.map(function(f){return f.attributes;});
+  }
+
+  function drawHeroStats(data){
+    var funded=data.filter(function(d){return d.gbep_award_amount>0;});
+    var totalDollars=d3.sum(funded,function(d){return d.gbep_award_amount;});
+    var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
+    var orgs=new Set(funded.filter(function(d){return d.lead_organization_name;}).map(function(d){return d.lead_organization_name.trim();}));
+    animateStat("stat-projects",funded.length,"","");
+    animateStat("stat-dollars",totalDollars,"$","");
+    animateStat("stat-acres",Math.round(totalAcres),"","");
+    animateStat("stat-orgs",orgs.size,"","");
+    // Fix dollar display after animation
+    setTimeout(function(){
+      document.getElementById("stat-dollars").textContent=fmtDollars(totalDollars);
+      document.getElementById("stat-acres").textContent=fmtAcres(totalAcres);
+    },1300);
+  }
+
+  function drawFiscalYear(data){
+    var el=document.getElementById("fy-chart");
+    var width=el.clientWidth||500, height=el.clientHeight||260;
+    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
+    var byYear=d3.rollups(funded,
+      function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
+      function(d){
+        var fy=d.fiscal_year_of_award;
+        if(!fy)return null;
+        if(String(fy).length===4)return parseInt(fy);
+        var p=new Date(fy);
+        if(!isNaN(p))return p.getFullYear();
+        return parseInt(String(fy).slice(0,4));
+      }
+    ).filter(function(r){return r[0]!==null;})
+     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .sort(function(a,b){return a.year-b.year;});
+    if(!byYear.length)return;
+
+    var mL=58,mR=46,mT=14,mB=44;
+    var w=width-mL-mR,h=height-mT-mB;
+    var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
+    var yScale=d3.scaleLinear().domain([0,d3.max(byYear,function(d){return d.dollars;})*1.12]).range([h,0]);
+    var y2Scale=d3.scaleLinear().domain([0,d3.max(byYear,function(d){return d.count;})*1.12]).range([h,0]);
+
+    d3.select("#fy-chart").select("svg").remove();
+    var svg=d3.select("#fy-chart").append("svg").attr("width",width).attr("height",height);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
+      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");ax.selectAll("text").attr("font-size",9).attr("fill","#999");});
+    g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(4).tickFormat(d3.format("d")))
+      .call(function(ax){ax.select(".domain").remove();ax.selectAll("text").attr("font-size",9).attr("fill",C2);});
+
+    g.selectAll(".bar").data(byYear).enter().append("rect")
+      .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
+      .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.dollars);})
+      .attr("fill",C1).attr("rx",2).attr("opacity",0.85)
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+fmtDollars(d.dollars)+"<br>"+d.count+" projects");})
+      .on("mouseleave",hideTooltip);
+
+    var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
+    g.append("path").datum(byYear).attr("fill","none").attr("stroke",C2).attr("stroke-width",2).attr("d",line);
+    g.selectAll(".dot").data(byYear).enter().append("circle")
+      .attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);})
+      .attr("r",3).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
+
+    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",8).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");});
+  }
+
+  function drawCounty(countyData,mainData){
+    var el=document.getElementById("county-chart");
+    var width=el.clientWidth||500, height=el.clientHeight||260;
+
+    // Try county layer first, fall back to main data
+    var counts=[];
+    if(countyData&&countyData.length>0&&countyData[0].NAME){
+      // Use county layer — count projects per county name
+      var cMap={};
+      countyData.forEach(function(r){
+        if(r.NAME){cMap[r.NAME]=(cMap[r.NAME]||0)+1;}
+      });
+      counts=Object.keys(cMap).map(function(k){return{label:k,count:cMap[k]};});
+    }
+    if(counts.length===0){
+      // Fallback: won't have county in main layer, show empty
+      return;
+    }
+    counts.sort(function(a,b){return b.count-a.count;});
+    drawLollipop(counts,el,width,height,C2);
+  }
+
+  function drawGoalChart(data){
+    var el=document.getElementById("goal-chart");
+    var width=el.clientWidth||500,height=el.clientHeight||260;
+    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.broad_project_goals&&d.numeric_approximate_project_siz>0;});
+    var grouped=d3.rollups(funded,
+      function(v){return d3.sum(v,function(d){return d.numeric_approximate_project_siz||0;});},
+      function(d){return d.broad_project_goals;}
+    ).map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
+    drawLollipop(grouped,el,width,height,C1,fmtAcres);
+  }
+
+  function drawSpeciesChart(data){
+    var el=document.getElementById("species-chart");
+    var width=el.clientWidth||500,height=el.clientHeight||260;
+    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.targeted_focal_species&&d.targeted_focal_species.trim()!="";});
+    // Species field may be comma-separated
+    var sMap={};
+    funded.forEach(function(row){
+      var specs=row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
+      specs.forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+    });
+    var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;}).slice(0,15);
+    drawLollipop(counts,el,width,height,C3);
+  }
+
+  function drawLollipop(sorted,el,width,height,color,fmt){
+    if(!sorted||!sorted.length)return;
+    var mL=Math.min(220,width*0.42),mR=44,mT=8,mB=20;
+    var areaH=height-mT-mB;
+    var rowH=areaH/sorted.length;
+    var dotR=Math.min(rowH*0.30,7);
+    var xMax=d3.max(sorted,function(d){return d.count;})||1;
+    var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
+
+    d3.select(el).select("svg").remove();
+    var svg=d3.select(el).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,6)).tickFormat(fmt||d3.format("d")))
+      .attr("transform","translate(0,"+areaH+")")
+      .call(function(gr){gr.select(".domain").remove();gr.selectAll(".tick line").attr("y1",-areaH).attr("y2",0).attr("stroke","#f0f0f0");gr.selectAll("text").attr("font-size",9).attr("fill","#aaa");});
+
+    sorted.forEach(function(d,i){
+      var y=i*rowH+rowH/2;
+      var xEnd=xScale(d.count);
+      var col=PALETTE[i%PALETTE.length];
+
+      if(i%2===0) g.append("rect").attr("x",-mL).attr("y",i*rowH).attr("width",width).attr("height",rowH).attr("fill","#fafbff").attr("opacity",0.6);
+
+      g.append("line").attr("x1",0).attr("x2",xEnd).attr("y1",y).attr("y2",y).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.45);
+      g.append("circle").attr("cx",xEnd).attr("cy",y).attr("r",dotR).attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
+        .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+(fmt?fmt(d.count):d.count+" projects"));})
+        .on("mouseleave",hideTooltip);
+      g.append("text").attr("x",xEnd+dotR+3).attr("y",y).attr("dominant-baseline","middle").attr("font-size",9).attr("font-weight","700").attr("fill",col)
+        .text(fmt?fmt(d.count):d.count);
+
+      var label=d.label.length>36?d.label.slice(0,34)+"…":d.label;
+      g.append("text").attr("x",-8).attr("y",y).attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(11,rowH*0.36)).attr("fill","#444").text(label);
+    });
+  }
+
+  async function init(){
+    var mainData=await fetchMain();
+    drawHeroStats(mainData);
+    drawFiscalYear(mainData);
+    drawGoalChart(mainData);
+    drawSpeciesChart(mainData);
+
+    try{
+      var countyData=await fetchCounty();
+      drawCounty(countyData,mainData);
+    }catch(e){
+      console.warn("County layer fetch failed",e);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
