@@ -41,14 +41,6 @@
     .chart-card-header p{font-size:13px;color:#aaa;margin-top:2px;}
     .chart-body{flex:1;padding:6px;min-height:0;overflow:hidden;}
 
-    /* ── FOOTER ── */
-    #site-footer{
-      background:#0d47a1;color:rgba(255,255,255,0.6);
-      padding:8px 24px;font-size:13px;flex-shrink:0;
-      display:flex;align-items:center;justify-content:space-between;
-    }
-    #site-footer a{color:rgba(255,255,255,0.7);text-decoration:none;}
-
     /* ── TOOLTIP ── */
     .tooltip{
       position:fixed;background:rgba(15,23,42,0.93);color:white;
@@ -119,12 +111,6 @@
 
   </div>
 
-  <!-- FOOTER -->
-  <footer id="site-footer">
-    <span>© Galveston Bay Estuary Program · Data updated in real time from ArcGIS Online</span>
-    <span><a href="index.html">Full Dashboard →</a></span>
-  </footer>
-
 </div>
 
 <script>
@@ -137,6 +123,8 @@
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
   function hideTooltip(){tooltip.style.opacity=0;}
 
+
+  function cleanTick(s){ return String(s).replace(/_/g," "); }
   function fmtDollars(v){if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";return "$"+Math.round(v);}
   function fmtAcres(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M ac";if(v>=1e3)return (v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
   function fmtNum(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M";if(v>=1e3)return (v/1e3).toFixed(1)+"K";return v.toLocaleString();}
@@ -254,29 +242,130 @@
         .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+(fmt?fmt(d.value):d.value+" projects"));})
         .on("mouseleave",hideTooltip);
       g.append("text").attr("x",xEnd+dotR+3).attr("y",y).attr("dominant-baseline","middle").attr("font-size",11).attr("font-weight","700").attr("fill",col).text(fmt?fmt(d.value):d.value);
-      var label=d.label.length>28?d.label.slice(0,26)+"…":d.label;
+      var cleanLabel=d.label.replace(/_/g," ");
+      var label=cleanLabel.length>28?cleanLabel.slice(0,26)+"…":cleanLabel;
       g.append("text").attr("x",-6).attr("y",y).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",Math.min(13,rowH*0.38)).attr("fill","#444").text(label);
     });
   }
 
   function drawGoalChart(data){
+    var el=document.getElementById("goal-chart");
+    var width=el.clientWidth||400, height=el.clientHeight||200;
     var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.broad_project_goals&&d.numeric_approximate_project_siz>0;});
     var grouped=d3.rollups(funded,
       function(v){return d3.sum(v,function(d){return d.numeric_approximate_project_siz||0;});},
       function(d){return d.broad_project_goals;}
-    ).map(function(r){return{label:r[0],value:r[1]};}).sort(function(a,b){return b.value-a.value;});
-    drawLollipop(grouped,"goal-chart",fmtAcres);
+    ).map(function(r,i){return{name:r[0].replace(/_/g," "),value:r[1],color:PALETTE[i%PALETTE.length]};})
+     .filter(function(d){return d.value>0;});
+
+    var root=d3.hierarchy({children:grouped}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
+    d3.treemap().size([width,height]).padding(3).round(true)(root);
+
+    d3.select("#goal-chart").select("svg").remove();
+    var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height);
+
+    var total=d3.sum(grouped,function(d){return d.value;});
+    var threshold=total*0.05; // only label cells >5% of total
+
+    var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
+      .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
+
+    var cW=function(d){return Math.max(0,d.x1-d.x0);};
+    var cH=function(d){return Math.max(0,d.y1-d.y0);};
+
+    cell.append("rect")
+      .attr("width",cW).attr("height",cH)
+      .attr("fill",function(d){return d.data.color;})
+      .attr("rx",4).attr("opacity",0.88)
+      .on("mousemove",function(event,d){
+        showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value));
+      }).on("mouseleave",hideTooltip);
+
+    // Only label cells above threshold and wide/tall enough
+    cell.each(function(d){
+      var w=cW(d), h=cH(d);
+      if(d.data.value < threshold || w<60 || h<24) return;
+      var g=d3.select(this);
+      var words=d.data.name.split(/[\s\/]+/);
+      var fs=Math.min(13, Math.max(9, w/10));
+      var lines=[], cur="";
+      words.forEach(function(word){
+        var test=cur?cur+" "+word:word;
+        if(test.length*fs*0.55>w-10&&cur){lines.push(cur);cur=word;}
+        else{cur=test;}
+      });
+      if(cur)lines.push(cur);
+      lines=lines.slice(0,Math.floor((h-fs)/( fs+2)));
+      var startY=(h-lines.length*(fs+2))/2+fs;
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",w/2).attr("y",startY+li*(fs+2))
+          .attr("text-anchor","middle").attr("font-size",fs).attr("font-family",FONT)
+          .attr("fill","white").attr("font-weight","500").text(line);
+      });
+      if(h>lines.length*(fs+2)+fs*2){
+        g.append("text").attr("x",w/2).attr("y",startY+lines.length*(fs+2)+2)
+          .attr("text-anchor","middle").attr("font-size",Math.max(8,fs-2)).attr("font-family",FONT)
+          .attr("fill","rgba(255,255,255,0.8)").text(fmtAcres(d.data.value));
+      }
+    });
   }
 
   function drawSpeciesChart(data){
+    var el=document.getElementById("species-chart");
+    var width=el.clientWidth||400, height=el.clientHeight||200;
     var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.targeted_focal_species&&d.targeted_focal_species.trim()!="";});
     var sMap={};
     funded.forEach(function(row){
-      row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(function(s){return s;})
+      row.targeted_focal_species.split(",").map(function(s){return s.trim().replace(/_/g," ");}).filter(function(s){return s;})
         .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
     });
-    var counts=Object.keys(sMap).map(function(k){return{label:k,value:sMap[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,12);
-    drawLollipop(counts,"species-chart",null);
+    var counts=Object.keys(sMap).map(function(k,i){return{label:k,count:sMap[k],color:PALETTE[i%PALETTE.length]};})
+      .sort(function(a,b){return b.count-a.count;});
+    if(!counts.length)return;
+
+    var maxCount=d3.max(counts,function(d){return d.count;})||1;
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([10,Math.min(width,height)*0.18]);
+    var nodes=counts.map(function(d){return{label:d.label,count:d.count,r:rScale(d.count),color:d.color,x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
+
+    d3.select("#species-chart").select("svg").remove();
+    var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height);
+
+    var sim=d3.forceSimulation(nodes)
+      .force("charge",d3.forceManyBody().strength(2))
+      .force("center",d3.forceCenter(width/2,height/2))
+      .force("collision",d3.forceCollide().radius(function(d){return d.r+3;}).strength(1))
+      .stop();
+    for(var i=0;i<400;i++)sim.tick();
+    nodes.forEach(function(d){d.x=Math.max(d.r+3,Math.min(width-d.r-3,d.x));d.y=Math.max(d.r+3,Math.min(height-d.r-3,d.y));});
+
+    var node=svg.selectAll("g").data(nodes).enter().append("g")
+      .attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
+      .on("mouseleave",hideTooltip);
+
+    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.88).attr("stroke","white").attr("stroke-width",1.5);
+
+    node.each(function(d){
+      var g=d3.select(this);
+      var fs=Math.max(8,Math.min(13,d.r/2.8));
+      var words=d.label.split(/[\s_\/]+/);
+      var lines=[],cur="",mw=d.r*1.7;
+      words.forEach(function(w){var t=cur?cur+" "+w:w;if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}});
+      if(cur)lines.push(cur);
+      var maxLines=Math.floor(d.r*1.6/(fs+2));
+      lines=lines.slice(0,maxLines);
+      var th=lines.length*(fs+2);
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",0).attr("y",-th/2+li*(fs+2)+fs)
+          .attr("text-anchor","middle").attr("font-size",fs).attr("font-family",FONT)
+          .attr("fill","white").attr("font-weight","500").text(line);
+      });
+      if(d.r>20){
+        g.append("text").attr("x",0).attr("y",d.r-8)
+          .attr("text-anchor","middle").attr("font-size",Math.max(8,fs-1)).attr("font-family",FONT)
+          .attr("fill","rgba(255,255,255,0.8)").text(d.count);
+      }
+    });
   }
 
   async function init(){
