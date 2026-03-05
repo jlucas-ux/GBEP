@@ -42,6 +42,13 @@
       max-width: 240px; line-height: 1.5; z-index: 999;
       box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
+    #site-footer{
+      background:#0d47a1;color:rgba(255,255,255,0.6);
+      padding:14px 32px;font-size:14px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:space-between;
+      font-family:'Roboto',sans-serif;
+    }
+    #site-footer a{color:rgba(255,255,255,0.7);text-decoration:none;}
   </style>
 </head>
 <body>
@@ -101,6 +108,10 @@
       <div class="chart-area" id="treemap-chart"></div>
     </div>
   </div>
+  <footer id="site-footer">
+    <span>© Galveston Bay Estuary Program · Data updated in real time from ArcGIS Online</span>
+    <span><a href="home.html">← Home</a></span>
+  </footer>
 </div>
 
 <script>
@@ -224,8 +235,8 @@
     var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
       .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
 
-    var cellW=function(d){return Math.max(0,d.x1-d.x0);};
-    var cellH=function(d){return Math.max(0,d.y1-d.y0);};
+    var cellW=function(d){return Math.max(3,d.x1-d.x0);};
+    var cellH=function(d){return Math.max(3,d.y1-d.y0);};
 
     cell.append("rect")
       .attr("width",cellW).attr("height",cellH)
@@ -244,7 +255,7 @@
         .replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
 
-      var fontSize=Math.min(14,Math.max(9,w/10));
+      var fontSize=Math.min(17,Math.max(12,w/10));
       var words=label.split(" ");
       var lines=[],cur="";
       words.forEach(function(word){
@@ -273,7 +284,7 @@
         g.append("text")
           .attr("x",w/2).attr("y",startY+lines.length*lineH+4)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",Math.max(8,fontSize-2)).attr("font-family",FONT)
+          .attr("font-size",Math.max(11,fontSize-2)).attr("font-family",FONT)
           .attr("fill","rgba(255,255,255,0.8)")
           .text(fmtAcres(d.data.value));
       }
@@ -312,11 +323,11 @@
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
     g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(fmtDollars))
       .call(function(ax){ax.select(".domain").remove();})
-      .call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",11).attr("fill","#666");});
-    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-55).attr("text-anchor","middle").attr("font-size",11).attr("fill",C1).attr("font-weight","500").text("GBEP Award Dollars");
+      .call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",14).attr("fill","#666");});
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-55).attr("text-anchor","middle").attr("font-size",14).attr("fill",C1).attr("font-weight","500").text("GBEP Award Dollars");
     g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(5).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();}).call(function(ax){ax.selectAll("text").attr("font-size",11).attr("fill",C2);});
-    g.append("text").attr("transform","rotate(90)").attr("x",h/2).attr("y",-(w+52)).attr("text-anchor","middle").attr("font-size",11).attr("fill",C2).attr("font-weight","500").text("Project Count");
+      .call(function(ax){ax.select(".domain").remove();}).call(function(ax){ax.selectAll("text").attr("font-size",14).attr("fill",C2);});
+    g.append("text").attr("transform","rotate(90)").attr("x",h/2).attr("y",-(w+52)).attr("text-anchor","middle").attr("font-size",14).attr("fill",C2).attr("font-weight","500").text("Project Count");
     g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
       .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
       .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.dollars);})
@@ -326,13 +337,13 @@
     g.append("path").datum(byYear).attr("fill","none").attr("stroke",C2).attr("stroke-width",2.5).attr("d",line);
     g.selectAll(".dot").data(byYear).enter().append("circle").attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);}).attr("r",4).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",10).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",13).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
     var leg=g.append("g").attr("transform","translate("+(w-160)+","+-10+")");
     leg.append("rect").attr("width",12).attr("height",12).attr("fill",C1).attr("rx",2);
-    leg.append("text").attr("x",16).attr("y",10).attr("font-size",10).attr("fill","#555").text("Award $");
+    leg.append("text").attr("x",16).attr("y",10).attr("font-size",13).attr("fill","#555").text("Award $");
     leg.append("line").attr("x1",70).attr("x2",82).attr("y1",6).attr("y2",6).attr("stroke",C2).attr("stroke-width",2.5);
     leg.append("circle").attr("cx",76).attr("cy",6).attr("r",3).attr("fill",C2);
-    leg.append("text").attr("x",86).attr("y",10).attr("font-size",10).attr("fill","#555").text("# Projects");
+    leg.append("text").attr("x",86).attr("y",10).attr("font-size",13).attr("fill","#555").text("# Projects");
   }
 
   // ── HEATMAP ──────────────────────────────────────────────
@@ -357,7 +368,7 @@
       var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
       return tb-ta;
     });
-    var mL=Math.min(260,width*0.32),mR=20,mT=50,mB=20;
+    var mL=Math.min(263,width*0.32),mR=20,mT=50,mB=20;
     var w=width-mL-mR,h=height-mT-mB;
     var cellW=w/priorities.length,cellH=h/orgs.length;
     var maxVal=d3.max(Object.values(cellMap))||1;
@@ -371,13 +382,13 @@
     var svg=d3.select("#heatmap-chart").append("svg").attr("width",width).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
     priorities.forEach(function(pp,pi){
-      g.append("text").attr("x",pi*cellW+cellW/2).attr("y",-12).attr("text-anchor","middle").attr("font-size",12).attr("font-weight","700")
+      g.append("text").attr("x",pi*cellW+cellW/2).attr("y",-12).attr("text-anchor","middle").attr("font-size",15).attr("font-weight","700")
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
       var label=org.length>36?org.slice(0,34)+"…":org;
       g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(11,cellH*0.55)).attr("fill","#333").text(label);
+        .attr("font-size",Math.min(14,cellH*0.55)).attr("fill","#333").text(label);
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
@@ -389,7 +400,7 @@
           }).on("mouseleave",hideTooltip);
         if(val>0&&cellH>14){
           g.append("text").attr("x",x+cellW/2).attr("y",y+cellH/2).attr("text-anchor","middle").attr("dominant-baseline","middle")
-            .attr("font-size",Math.min(13,cellH*0.45)).attr("font-weight","600")
+            .attr("font-size",Math.min(16,cellH*0.45)).attr("font-weight","600")
             .attr("fill",val>maxVal*0.5?"white":{"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#4a148c","PP4":"#bf360c"}[pp]).text(val);
         }
       });
@@ -422,7 +433,7 @@
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
     g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
       .call(function(ax){ax.select(".domain").remove();})
-      .call(function(ax){ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",9);});
+      .call(function(ax){ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",12);});
     groups.forEach(function(grp,gi){
       var x=gi*groupW+(groupW-barW)/2,yOff=cH;
       grp.subs.forEach(function(sub,si){
@@ -432,9 +443,9 @@
         g.append("rect").attr("x",x).attr("y",yOff).attr("width",barW).attr("height",bH).attr("fill",col).attr("rx",1)
           .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+fmtDollars(sub.value));}).on("mouseleave",hideTooltip);
       });
-      g.append("text").attr("x",x+barW/2).attr("y",cH+14).attr("text-anchor","middle").attr("font-size",10).attr("fill","#333").text(grp.group);
+      g.append("text").attr("x",x+barW/2).attr("y",cH+14).attr("text-anchor","middle").attr("font-size",13).attr("fill","#333").text(grp.group);
       var total=d3.sum(grp.subs,function(s){return s.value;});
-      if(total>0)g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-3).attr("text-anchor","middle").attr("font-size",9).attr("fill","#555").text(fmtDollars(total));
+      if(total>0)g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-3).attr("text-anchor","middle").attr("font-size",12).attr("fill","#555").text(fmtDollars(total));
     });
   }
   function drawAllPlanPriorities(){drawPlanPriority(allData,1,"pp1-chart");drawPlanPriority(allData,2,"pp2-chart");drawPlanPriority(allData,3,"pp3-chart");drawPlanPriority(allData,4,"pp4-chart");}
@@ -456,7 +467,7 @@
       .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);
     node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.88).attr("stroke","white").attr("stroke-width",2);
     node.each(function(d){
-      var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=13,mw=d.r*1.6,fs=Math.max(8,Math.min(12,d.r/3.2));
+      var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=13,mw=d.r*1.6,fs=Math.max(11,Math.min(15,d.r/3.2));
       var lines=[],cur="";
       words.forEach(function(w){var t=cur?cur+" "+w:w;if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}});
       if(cur)lines.push(cur);
@@ -464,7 +475,7 @@
       if(lines.length>ml){lines=lines.slice(0,ml);lines[lines.length-1]=lines[lines.length-1].slice(0,7)+"...";}
       var th=lines.length*lh;
       lines.forEach(function(line,li){g.append("text").attr("x",0).attr("y",-th/2+li*lh+lh/2).attr("text-anchor","middle").attr("dominant-baseline","middle").attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","500").text(line);});
-      if(d.r>25)g.append("text").attr("x",0).attr("y",d.r-10).attr("text-anchor","middle").attr("font-size",Math.max(8,fs-1)).attr("font-family",FONT).attr("fill","rgba(255,255,255,0.8)").text(d.count);
+      if(d.r>25)g.append("text").attr("x",0).attr("y",d.r-10).attr("text-anchor","middle").attr("font-size",Math.max(11,fs-1)).attr("font-family",FONT).attr("fill","rgba(255,255,255,0.8)").text(d.count);
     });
   }
 
@@ -484,7 +495,7 @@
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var mL=Math.min(300,width*0.40), mR=50, mT=10, mB=20;
+    var mL=Math.min(303,width*0.40), mR=50, mT=10, mB=20;
     var areaH=height-mT-mB;
     var rowH=areaH/sorted.length;
     var dotR=Math.min(rowH*0.32, 10);
@@ -501,7 +512,7 @@
       .call(function(gr){gr.select(".domain").remove();})
       .call(function(gr){
         gr.selectAll(".tick line").attr("y1",-areaH).attr("y2",0).attr("stroke","#f0f0f0").attr("stroke-width",1);
-        gr.selectAll("text").attr("font-size",11).attr("fill","#aaa");
+        gr.selectAll("text").attr("font-size",14).attr("fill","#aaa");
       });
 
     sorted.forEach(function(d,i){
@@ -530,7 +541,7 @@
       // Count label
       g.append("text")
         .attr("x",xEnd+dotR+4).attr("y",y)
-        .attr("dominant-baseline","middle").attr("font-size",11).attr("font-weight","700").attr("fill",col)
+        .attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","700").attr("fill",col)
         .text(d.count);
 
       // Org label
@@ -538,7 +549,7 @@
       g.append("text")
         .attr("x",-8).attr("y",y)
         .attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(12,rowH*0.38)).attr("fill","#333")
+        .attr("font-size",Math.min(15,rowH*0.38)).attr("fill","#333")
         .text(label);
     });
   }
@@ -548,20 +559,20 @@
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var sorted=counts.slice().sort(function(a,b){return b.count-a.count;});
-    var mL=Math.min(300,width*0.38),mR=50,mT=10,mB=30;
-    var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(20,rowH*0.65);
+    var mL=Math.min(303,width*0.38),mR=50,mT=10,mB=30;
+    var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(23,rowH*0.65);
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
     g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d"))).attr("transform","translate(0,"+baH+")")
-      .call(function(gr){gr.select(".domain").remove();}).call(function(gr){gr.selectAll(".tick line").attr("y1",-baH).attr("y2",0).attr("stroke","#eee");gr.selectAll("text").attr("font-size",14);});
+      .call(function(gr){gr.select(".domain").remove();}).call(function(gr){gr.selectAll(".tick line").attr("y1",-baH).attr("y2",0).attr("stroke","#eee");gr.selectAll("text").attr("font-size",17);});
     sorted.forEach(function(d,i){
       var y=i*rowH+(rowH-barH)/2;
       g.append("rect").attr("x",0).attr("y",y).attr("width",xScale(d.count)).attr("height",barH).attr("fill",color).attr("rx",2);
-      g.append("text").attr("x",xScale(d.count)+4).attr("y",y+barH/2).attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(d.count);
-      g.append("text").attr("x",-6).attr("y",y+barH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",14).attr("fill","#333").text(d.label.length>42?d.label.slice(0,40)+"...":d.label);
+      g.append("text").attr("x",xScale(d.count)+4).attr("y",y+barH/2).attr("dominant-baseline","middle").attr("font-size",17).attr("fill","#333").text(d.count);
+      g.append("text").attr("x",-6).attr("y",y+barH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",17).attr("fill","#333").text(d.label.length>42?d.label.slice(0,40)+"...":d.label);
     });
   }
 
@@ -586,7 +597,7 @@
 
     // Layout constants
     var SECTION_LABEL_H = 18; // height for section header labels
-    var INSTRUCTION_H = 42;   // height for instruction line at bottom
+    var INSTRUCTION_H = 28;   // height for instruction line at bottom
     var rBW=110, mL=248, mR=rBW+56, mT=SECTION_LABEL_H+8;
     var bH2=Math.floor((height-mT-INSTRUCTION_H)*0.28);
     var dotAreaH=height-mT-bH2-INSTRUCTION_H-24;
@@ -600,32 +611,32 @@
     // ── INSTRUCTION TEXT at very bottom ──
     svg.append("text")
       .attr("x",width/2).attr("y",height-6)
-      .attr("text-anchor","middle").attr("font-size",11).attr("fill","#999").attr("font-style","italic")
+      .attr("text-anchor","middle").attr("font-size",14).attr("fill","#999").attr("font-style","italic")
       .text("Each column = a unique set of habitat types. Bars show how many projects have that exact combination. Connected dots show which habitats are included. Right bars = total projects per habitat type.");
 
     // ── SUMMARY COUNT top-right ──
     svg.append("text")
       .attr("x",width-mR+rBW/2).attr("y",mT-6)
-      .attr("text-anchor","middle").attr("font-size",10).attr("fill","#aaa")
+      .attr("text-anchor","middle").attr("font-size",13).attr("fill","#aaa")
       .text(sc.length+" combinations");
 
     // ── SECTION HEADER: Combination Count (top bars) ──
     svg.append("text")
       .attr("x",mL+(sc.length*cW)/2).attr("y",mT-6)
-      .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","700").attr("fill",C1)
+      .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","700").attr("fill",C1)
       .attr("letter-spacing","0.5")
       .text("▲  Projects per Habitat Combination");
 
     // ── SECTION HEADER: Habitat Types (dot rows) ──
     svg.append("text")
       .attr("x",mL-8).attr("y",dotTop-6)
-      .attr("text-anchor","end").attr("font-size",11).attr("font-weight","700").attr("fill",C1)
+      .attr("text-anchor","end").attr("font-size",14).attr("font-weight","700").attr("fill",C1)
       .text("Habitat Types  →");
 
     // ── SECTION HEADER: Total Projects (right bars) ──
     svg.append("text")
       .attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-6)
-      .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","700").attr("fill",C2)
+      .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","700").attr("fill",C2)
       .text("Total Projects");
 
     // ── TOP BARS (combination counts) ──
@@ -637,7 +648,7 @@
       .call(function(g){g.select(".domain").remove();})
       .call(function(g){
         g.selectAll(".tick line").attr("x2",sc.length*cW).attr("stroke","#f0f0f0");
-        g.selectAll("text").style("font-size","12px").attr("fill","#888");
+        g.selectAll("text").style("font-size","15px").attr("fill","#888");
       });
 
     sc.forEach(function(d,i){
@@ -646,11 +657,11 @@
         .attr("fill",C2).attr("rx",2).attr("opacity",0.9)
         .on("mousemove",function(event){
           var label=d.key.split(" | ").map(function(t){return t.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});}).join(", ");
-          showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='font-size:11px;opacity:0.85'>"+label+"</span>");
+          showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='font-size:14px;opacity:0.85'>"+label+"</span>");
         }).on("mouseleave",hideTooltip);
       if(cW>16)
         bG.append("text").attr("x",bx+bw/2).attr("y",yB(d.count)-3)
-          .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","600").attr("fill","#444").text(d.count);
+          .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","600").attr("fill","#444").text(d.count);
     });
 
     // ── DOT MATRIX ──
@@ -676,7 +687,7 @@
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
       dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2)
         .attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(13,rH*0.52)).attr("font-weight","600").attr("fill",C1)
+        .attr("font-size",Math.min(16,rH*0.52)).attr("font-weight","600").attr("fill",C1)
         .text(label);
     });
 
@@ -717,7 +728,7 @@
         .attr("width",xSB(total)).attr("height",bh)
         .attr("fill",C2).attr("rx",2).attr("opacity",0.85);
       sBG.append("text").attr("x",xSB(total)+4).attr("y",cy)
-        .attr("dominant-baseline","middle").attr("font-size",11).attr("font-weight","600").attr("fill","#444")
+        .attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","600").attr("fill","#444")
         .text(total);
     });
   }
