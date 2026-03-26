@@ -120,8 +120,8 @@
   // Light-to-dark scales — smaller values lighter, larger values darker
   // Each chart uses a distinct hue family within the brand palette
   var SCALE_FY   = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1")); // blue — fiscal year bars
-  var SCALE_GOAL = d3.scaleSequential().interpolator(d3.interpolate("#b2dfdb","#00695c")); // teal — treemap
-  var SCALE_SPE  = d3.scaleSequential().interpolator(d3.interpolate("#b2ebf2","#006064")); // aqua — bubbles
+  var SCALE_GOAL = d3.scaleSequential().interpolator(d3.interpolate("#2a9db5","#0d47a1")); // teal-to-navy, all dark enough for white text
+  var SCALE_SPE  = d3.scaleSequential().interpolator(d3.interpolate("#1e9cb3","#054d6f")); // mid-teal to deep teal, all readable
 
   var tooltip=document.getElementById("tooltip");
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
@@ -187,7 +187,7 @@
     var maxDollars=d3.max(byYear,function(d){return d.dollars;})||1;
     SCALE_FY.domain([0,maxDollars]);
 
-    var mL=52,mR=40,mT=10,mB=36;
+    var mL=52,mR=40,mT=10,mB=52;
     var w=width-mL-mR,h=height-mT-mB;
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
     var yScale=d3.scaleLinear().domain([0,maxDollars*1.12]).range([h,0]);
@@ -356,10 +356,4 @@
     drawHeroStats(data);
     drawFiscalYear(data);
     drawGoalChart(data);
-    drawSpeciesChart(data);
-  }
-
-  init();
-</script>
-</body>
-</html>
+    drawSpeciesCha
