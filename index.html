@@ -228,7 +228,7 @@
     if(leaves.length===0)return;
 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    var colorScale=d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#2a9db5","#0d47a1"));
+    var colorScale=d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#54c4b0","#0d47a1"));
 
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
