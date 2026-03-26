@@ -33,7 +33,7 @@
     .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
     .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; width: 100%; height: 100%; }
     .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
-    .grid-cell-title { font-size: 11px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    .grid-cell-title { font-size: 14px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
     .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
@@ -506,7 +506,7 @@
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
     var rScale=d3.scaleSqrt().domain([1,maxCount]).range([10,Math.min(width,height)*0.09]);
     // Light-to-dark blue scale — min value gets mid-blue (still readable), max gets deep navy
-    var colorScale=d3.scaleSequential().domain([1,maxCount]).interpolator(d3.interpolate("#2a7fc1","#0d47a1"));
+    var colorScale=d3.scaleSequential().domain([1,maxCount]).interpolator(d3.interpolate("#1e88e5","#0d47a1"));
     var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:colorScale(d.count),x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
@@ -544,8 +544,8 @@
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var ROW_H=42; // fixed row height tall enough for 2-line labels
-    var mL=Math.min(303,width*0.40), mR=60, mT=10, mB=40;
+    var ROW_H=46;
+    var mL=Math.min(303,width*0.40), mR=60, mT=10, mB=50;
     var totalH=sorted.length*ROW_H+mT+mB;
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
@@ -559,13 +559,13 @@
     var svg=d3.select("#org-chart").append("svg").attr("width",width).attr("height",totalH).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // X axis — fixed at bottom of full SVG height
-    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
-      .attr("transform","translate(0,"+(totalH-mT-mB)+")")
+    // X axis pinned at bottom of full SVG
+    var axisG=g.append("g").attr("transform","translate(0,"+(totalH-mT-mB)+")");
+    axisG.call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
       .call(function(gr){
         gr.select(".domain").remove();
-        gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0").attr("stroke-width",1);
-        gr.selectAll("text").attr("font-size",14).attr("fill","#888");
+        gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0");
+        gr.selectAll("text").attr("font-size",14).attr("fill","#555").attr("dy","1em");
       });
 
     sorted.forEach(function(d,i){
@@ -585,19 +585,18 @@
 
       g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","700").attr("fill",col).text(d.count);
 
-      // Stacked label — wrap long org names across 2 lines
+      // Stacked label — wrap at 20 chars per line max
       var cleanLabel=d.label.replace(/_/g," ");
       var words=cleanLabel.split(" ");
       var lines=[],cur="";
-      var maxW=mL-14;
       words.forEach(function(word){
         var test=cur?cur+" "+word:word;
-        if(test.length*7>maxW&&cur){lines.push(cur);cur=word;}
+        if(test.length>20&&cur){lines.push(cur);cur=word;}
         else{cur=test;}
       });
       if(cur)lines.push(cur);
-      lines=lines.slice(0,2); // max 2 lines
-      var fs=13;
+      lines=lines.slice(0,2);
+      var fs=12;
       var lineH=fs+3;
       var startY=y-(lines.length-1)*lineH/2;
       lines.forEach(function(line,li){
@@ -751,21 +750,21 @@
         .text(label);
     });
 
+    // Vertical column grid lines — thin light gray, gives structure without implying data
+    sc.forEach(function(d,ci){
+      var cx=ci*cW+cW/2;
+      dG.append("line").attr("x1",cx).attr("x2",cx)
+        .attr("y1",0).attr("y2",allT.length*rH)
+        .attr("stroke","#e0e0e0").attr("stroke-width",1);
+    });
+
     // Dots and connectors
     sc.forEach(function(d,ci){
       var types=d.key.split(" | ");
-      var pr=types.map(function(t){return allT.indexOf(t);}).filter(function(i){return i>=0;}).sort();
       var cx=ci*cW+cW/2;
       var r=Math.min(cW,rH)*0.30;
 
-      // Connector line — neutral gray so it doesn't look like a colored data element
-      if(pr.length>1){
-        dG.append("line").attr("x1",cx).attr("x2",cx)
-          .attr("y1",pr[0]*rH+rH/2).attr("y2",pr[pr.length-1]*rH+rH/2)
-          .attr("stroke",DOT_CONNECT).attr("stroke-width",r*1.4).attr("stroke-linecap","round");
-      }
-
-      // All dots — single color filled/empty, no multi-color confusion
+      // All dots — single color filled/empty, no connector
       allT.forEach(function(type,ri){
         var filled=types.indexOf(type)>=0;
         dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r)
