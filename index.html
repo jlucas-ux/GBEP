@@ -377,7 +377,8 @@
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
-      var label=(org.length>36?org.slice(0,34)+"…":org).replace(/_/g," ");
+      var cleanOrg=org.replace(/_/g," ");
+      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
       g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
         .attr("font-size",Math.min(14,cellH*0.55)).attr("fill","#333").text(label);
       priorities.forEach(function(pp,pi){
@@ -536,7 +537,8 @@
         .text(d.count);
 
       // Org label
-      var label=(d.label.length>48?d.label.slice(0,46)+"…":d.label).replace(/_/g," ");
+      var cleanLabel=d.label.replace(/_/g," ");
+      var label=cleanLabel.length>48?cleanLabel.slice(0,46)+"…":cleanLabel;
       g.append("text")
         .attr("x",-8).attr("y",y)
         .attr("text-anchor","end").attr("dominant-baseline","middle")
@@ -586,9 +588,16 @@
     allT.forEach(function(t){tT.set(t,0);});
     raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});
 
+    // Colorblind-safe colors
+    var DOT_FILLED  = "#0077bb"; // blue — colorblind safe
+    var DOT_CONNECT = "#bbbbbb"; // neutral gray connector — no color confusion
+    var BAR_TOP     = "#0077bb"; // same blue for top bars
+    var BAR_RIGHT   = "#009988"; // teal/turquoise for right bars — distinct from blue, colorblind safe
+    var DOT_EMPTY   = "#eeeeee";
+
     // Layout constants
-    var SECTION_LABEL_H = 18; // height for section header labels
-    var INSTRUCTION_H = 28;   // height for instruction line at bottom
+    var SECTION_LABEL_H = 20;
+    var INSTRUCTION_H = 36;
     var rBW=110, mL=290, mR=rBW+56, mT=SECTION_LABEL_H+8;
     var bH2=Math.floor((height-mT-INSTRUCTION_H)*0.28);
     var dotAreaH=height-mT-bH2-INSTRUCTION_H-24;
@@ -599,10 +608,10 @@
     d3.select("#"+container).select("svg").remove();
     var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
 
-    // ── INSTRUCTION TEXT at very bottom ──
+    // ── INSTRUCTION TEXT at very bottom — larger and more visible ──
     svg.append("text")
-      .attr("x",width/2).attr("y",height-6)
-      .attr("text-anchor","middle").attr("font-size",14).attr("fill","#999").attr("font-style","italic")
+      .attr("x",width/2).attr("y",height-10)
+      .attr("text-anchor","middle").attr("font-size",17).attr("fill","#777").attr("font-style","italic")
       .text("Each column = a unique set of habitat types. Bars show how many projects have that exact combination. Connected dots show which habitats are included. Right bars = total projects per habitat type.");
 
     // ── SUMMARY COUNT top-right ──
@@ -614,20 +623,20 @@
     // ── SECTION HEADER: Combination Count (top bars) ──
     svg.append("text")
       .attr("x",mL+(sc.length*cW)/2).attr("y",mT-6)
-      .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","700").attr("fill",C1)
+      .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","700").attr("fill",DOT_FILLED)
       .attr("letter-spacing","0.5")
       .text("▲  Projects per Habitat Combination");
 
     // ── SECTION HEADER: Habitat Types (dot rows) ──
     svg.append("text")
       .attr("x",mL-8).attr("y",dotTop-6)
-      .attr("text-anchor","end").attr("font-size",14).attr("font-weight","700").attr("fill",C1)
+      .attr("text-anchor","end").attr("font-size",14).attr("font-weight","700").attr("fill",DOT_FILLED)
       .text("Habitat Types  →");
 
-    // ── SECTION HEADER: Total Projects (right bars) ──
+    // ── SECTION HEADER: Total Projects (right bars) — darker and bolder ──
     svg.append("text")
       .attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-6)
-      .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","700").attr("fill",C2)
+      .attr("text-anchor","middle").attr("font-size",14).attr("font-weight","900").attr("fill","#333")
       .text("Total Projects");
 
     // ── TOP BARS (combination counts) ──
@@ -645,7 +654,7 @@
     sc.forEach(function(d,i){
       var bx=i*cW+cW*0.18, bw=cW*0.64;
       bG.append("rect").attr("x",bx).attr("y",yB(d.count)).attr("width",bw).attr("height",bH2-yB(d.count))
-        .attr("fill",C2).attr("rx",2).attr("opacity",0.9)
+        .attr("fill",BAR_TOP).attr("rx",2).attr("opacity",0.9)
         .on("mousemove",function(event){
           var label=d.key.split(" | ").map(function(t){return t.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});}).join(", ");
           showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='font-size:14px;opacity:0.85'>"+label+"</span>");
@@ -658,7 +667,7 @@
     // ── DOT MATRIX ──
     var dG=svg.append("g").attr("transform","translate("+mL+","+dotTop+")");
 
-    // Alternating row backgrounds for readability
+    // Alternating row backgrounds
     allT.forEach(function(type,ri){
       if(ri%2===0){
         dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);
@@ -671,14 +680,19 @@
         .attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#e8e8e8").attr("stroke-width",1);
     }
 
-    // Habitat type row labels — bold, colored
+    // Habitat type row labels — fix SAV parenthesis, longer labels, bolder
     allT.forEach(function(type,ri){
       var label=type.replace(/_/g," ")
-        .replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.")
+        .replace(/Submerged Aquatic Vegetation\s*\(/i,"Submerged Aquatic Vegetation (SAV)")
+        .replace(/Submerged Aquatic Veg[a-z]*\s*\(?[^)]*\)?/i,"Submerged Aquatic Vegetation (SAV)")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
+      // Add closing paren to SAV if missing
+      if(label.toLowerCase().indexOf("sav")>=0 && label.indexOf(")")<0){
+        label=label.replace(/\(sav/i,"(SAV)");
+      }
       dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2)
         .attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(16,rH*0.52)).attr("font-weight","600").attr("fill",C1)
+        .attr("font-size",Math.min(16,rH*0.52)).attr("font-weight","700").attr("fill","#222")
         .text(label);
     });
 
@@ -689,24 +703,24 @@
       var cx=ci*cW+cW/2;
       var r=Math.min(cW,rH)*0.30;
 
-      // Connector line between filled dots
+      // Connector line — neutral gray so it doesn't look like a colored data element
       if(pr.length>1){
         dG.append("line").attr("x1",cx).attr("x2",cx)
           .attr("y1",pr[0]*rH+rH/2).attr("y2",pr[pr.length-1]*rH+rH/2)
-          .attr("stroke",C1).attr("stroke-width",r*1.4).attr("stroke-linecap","round");
+          .attr("stroke",DOT_CONNECT).attr("stroke-width",r*1.4).attr("stroke-linecap","round");
       }
 
-      // All dots
+      // All dots — single color filled/empty, no multi-color confusion
       allT.forEach(function(type,ri){
         var filled=types.indexOf(type)>=0;
         dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r)
-          .attr("fill",filled?C1:EMPTY)
+          .attr("fill",filled?DOT_FILLED:DOT_EMPTY)
           .attr("stroke",filled?"white":"#d0d0d0")
           .attr("stroke-width",filled?1.5:0.5);
       });
     });
 
-    // ── RIGHT BARS (totals per habitat type) ──
+    // ── RIGHT BARS (totals per habitat type) — light turquoise ──
     var mxT=d3.max(Array.from(tT.values()))||1;
     var xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]);
     var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");
@@ -717,9 +731,9 @@
       var bh=Math.min(rH*0.55,14);
       sBG.append("rect").attr("x",0).attr("y",cy-bh/2)
         .attr("width",xSB(total)).attr("height",bh)
-        .attr("fill",C2).attr("rx",2).attr("opacity",0.85);
+        .attr("fill",BAR_RIGHT).attr("rx",2).attr("opacity",0.9);
       sBG.append("text").attr("x",xSB(total)+4).attr("y",cy)
-        .attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","600").attr("fill","#444")
+        .attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","700").attr("fill","#222")
         .text(total);
     });
   }
