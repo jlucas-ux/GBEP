@@ -589,10 +589,10 @@
     raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});
 
     // Colorblind-safe colors
-    var DOT_FILLED  = "#0077bb"; // blue — colorblind safe
-    var DOT_CONNECT = "#bbbbbb"; // neutral gray connector — no color confusion
-    var BAR_TOP     = "#0077bb"; // same blue for top bars
-    var BAR_RIGHT   = "#009988"; // teal/turquoise for right bars — distinct from blue, colorblind safe
+    var DOT_FILLED  = "#009988"; // green/teal — matches right bars (habitat totals)
+    var DOT_CONNECT = "#0077bb"; // blue — matches top bars (combination counts)
+    var BAR_TOP     = "#0077bb"; // blue for top bars
+    var BAR_RIGHT   = "#009988"; // teal for right bars — matches filled dots
     var DOT_EMPTY   = "#eeeeee";
 
     // Layout constants
