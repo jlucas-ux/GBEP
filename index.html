@@ -228,7 +228,7 @@
     if(leaves.length===0)return;
 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    var colorScale=d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#2a7fc1","#0d47a1"));
+    var colorScale=d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#2a9db5","#0d47a1"));
 
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
@@ -505,9 +505,9 @@
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
     var rScale=d3.scaleSqrt().domain([1,maxCount]).range([10,Math.min(width,height)*0.09]);
-    // Light-to-dark blue scale — min value gets mid-blue (still readable), max gets deep navy
-    var colorScale=d3.scaleSequential().domain([1,maxCount]).interpolator(d3.interpolate("#1e88e5","#0d47a1"));
-    var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:colorScale(d.count),x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
+    // Multi-color palette with light colors removed — all dark enough for white text
+    var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
+    var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
     var sim=d3.forceSimulation(nodes).force("charge",d3.forceManyBody().strength(3)).force("center",d3.forceCenter(width/2,height/2)).force("collision",d3.forceCollide().radius(function(d){return d.r+4;}).strength(1)).stop();
@@ -596,7 +596,7 @@
       });
       if(cur)lines.push(cur);
       lines=lines.slice(0,2);
-      var fs=12;
+      var fs=17;
       var lineH=fs+3;
       var startY=y-(lines.length-1)*lineH/2;
       lines.forEach(function(line,li){
