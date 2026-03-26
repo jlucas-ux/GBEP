@@ -4,34 +4,34 @@
   <meta charset="utf-8">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;overflow:hidden;background:white;font-family:'Roboto',sans-serif;}
+    html,body{width:100%;height:100%;overflow:hidden;background:#d6e8f5;font-family:'Roboto',sans-serif;}
     #container{width:100%;height:100%;position:relative;}
     svg{display:block;width:100%;height:100%;}
-    .watershed-zero{fill:#e8f4fb;stroke:white;stroke-width:0.8px;}
-    .watershed-active{stroke:white;stroke-width:1px;cursor:pointer;transition:opacity 0.15s;}
-    .watershed-active:hover{opacity:0.75;}
     #tooltip{
       position:fixed;background:rgba(15,23,42,0.93);color:white;
       padding:8px 12px;border-radius:7px;font-size:13px;
       pointer-events:none;opacity:0;transition:opacity 0.15s;
-      max-width:200px;line-height:1.5;z-index:9999;
+      max-width:220px;line-height:1.6;z-index:9999;
       box-shadow:0 4px 16px rgba(0,0,0,0.25);font-family:'Roboto',sans-serif;
     }
     #loading{
       position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-      font-size:13px;color:#1677bc;font-weight:500;
+      font-size:13px;color:#1677bc;font-weight:500;background:white;
+      padding:10px 20px;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);
     }
     #updated{
       position:absolute;bottom:8px;left:10px;
-      font-size:10px;color:#bbb;pointer-events:none;
+      font-size:10px;color:#888;pointer-events:none;
+      background:rgba(255,255,255,0.75);padding:2px 6px;border-radius:3px;
     }
   </style>
 </head>
 <body>
 <div id="container">
-  <div id="loading">Loading watershed data…</div>
+  <div id="loading">Loading map…</div>
   <div id="tooltip"></div>
   <div id="updated"></div>
 </div>
@@ -41,147 +41,186 @@
     "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/" +
     "GBEP_Watersheds_Summary_Stats/FeatureServer/0/query" +
     "?where=1%3D1&outFields=Name&outSR=4326&f=geojson&resultRecordCount=500";
-
   var COUNTS_URL = "watershed_counts.json";
 
+  // Branding palette: 0 = lightest, max = darkest
+  // Uses warm blue-green ramp — light aqua for zero, deep teal-blue for high
+  var BRAND_COLORS = ["#cceee8","#54c4b0","#1a9e8f","#0d6e75","#0d47a1"];
+
+  // Major Texas cities near Galveston Bay for context
+  var CITIES = [
+    {name:"Houston",    lon:-95.3698, lat:29.7604, major:true},
+    {name:"Galveston",  lon:-94.7977, lat:29.3013, major:true},
+    {name:"Pasadena",   lon:-95.2091, lat:29.6911, major:false},
+    {name:"Baytown",    lon:-94.9774, lat:29.7358, major:false},
+    {name:"League City",lon:-95.0949, lat:29.5075, major:false},
+    {name:"Texas City", lon:-94.9277, lat:29.3838, major:false},
+    {name:"Pearland",   lon:-95.2860, lat:29.5635, major:false},
+    {name:"Beaumont",   lon:-94.1018, lat:30.0802, major:false},
+  ];
+
   var tooltip = document.getElementById("tooltip");
-  function showTooltip(evt, html){
-    tooltip.innerHTML = html;
-    tooltip.style.opacity = 1;
-    tooltip.style.left = (evt.clientX + 14) + "px";
-    tooltip.style.top = (evt.clientY - 32) + "px";
+  function showTooltip(evt,html){
+    tooltip.innerHTML=html;tooltip.style.opacity=1;
+    tooltip.style.left=(evt.clientX+14)+"px";
+    tooltip.style.top=(evt.clientY-32)+"px";
   }
-  function hideTooltip(){ tooltip.style.opacity = 0; }
+  function hideTooltip(){tooltip.style.opacity=0;}
+
+  function brandColor(val, max){
+    if(val===0) return "#cceee8";
+    // Map 1..max onto the 4 color stops
+    var t = (val-1)/(Math.max(max-1,1));
+    var stops = ["#b2d9f0","#54a9ad","#1677bc","#0d47a1"];
+    var idx = Math.min(Math.floor(t*(stops.length-1)), stops.length-2);
+    var local = t*(stops.length-1) - idx;
+    return d3.interpolate(stops[idx], stops[idx+1])(local);
+  }
 
   async function draw(){
-    // Fetch both in parallel
-    var [countsRes, geoRes] = await Promise.all([
-      fetch(COUNTS_URL),
-      fetch(WATERSHED_URL)
-    ]);
-    var countsData = await countsRes.json();
-    var geoData    = await geoRes.json();
-
-    // Build count lookup
-    var countMap = {};
-    countsData.watersheds.forEach(function(w){
-      countMap[w.name] = w.project_count;
-    });
-
-    // Attach counts to features
-    geoData.features.forEach(function(f){
-      f.properties.project_count = countMap[f.properties.Name] || 0;
-    });
-
-    var maxCount = d3.max(geoData.features, function(f){
-      return f.properties.project_count;
-    }) || 1;
-
-    // Color scale
-    var colorScale = d3.scaleSequential()
-      .domain([0, maxCount])
-      .interpolator(d3.interpolate("#cce5f5", "#0d47a1"));
-
-    // Fit to container
     var w = document.getElementById("container").clientWidth;
     var h = document.getElementById("container").clientHeight;
 
-    var projection = d3.geoMercator().fitExtent([[20, 20], [w-20, h-40]], geoData);
-    var path = d3.geoPath().projection(projection);
+    // Fetch in parallel
+    var [countsRes, geoRes, txRes] = await Promise.all([
+      fetch(COUNTS_URL),
+      fetch(WATERSHED_URL),
+      fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json")
+    ]);
+    var countsData = await countsRes.json();
+    var geoData    = await geoRes.json();
+    var txTopo     = await txRes.json();
 
-    document.getElementById("loading").style.display = "none";
+    // Build count lookup
+    var countMap={};
+    countsData.watersheds.forEach(function(w){countMap[w.name]=w.project_count;});
+    geoData.features.forEach(function(f){
+      f.properties.project_count=countMap[f.properties.Name]||0;
+    });
+    var maxCount=d3.max(geoData.features,function(f){return f.properties.project_count;})||1;
 
-    var svg = d3.select("#container").append("svg")
-      .attr("width", w).attr("height", h);
+    // Projection fitted to watershed extent with generous padding
+    var projection=d3.geoMercator().fitExtent([[60,40],[w-60,h-50]],geoData);
+    var path=d3.geoPath().projection(projection);
 
-    // Watersheds
-    svg.selectAll("path")
+    // Texas counties from US Atlas (FIPS 48 = Texas)
+    var counties=topojson.feature(txTopo, txTopo.objects.counties);
+    var txCounties={type:"FeatureCollection",features:counties.features.filter(function(f){return String(f.id).startsWith("48");})};
+
+    document.getElementById("loading").style.display="none";
+
+    var svg=d3.select("#container").append("svg").attr("width",w).attr("height",h);
+
+    // ── BACKGROUND: water/sky color ──
+    svg.append("rect").attr("width",w).attr("height",h).attr("fill","#d6e8f5");
+
+    // ── TEXAS COUNTIES (land background) ──
+    svg.selectAll(".tx-county")
+      .data(txCounties.features)
+      .enter().append("path")
+      .attr("class","tx-county")
+      .attr("d",path)
+      .attr("fill","#f0ede8")
+      .attr("stroke","#ddd")
+      .attr("stroke-width",0.4);
+
+    // ── WATERSHED FILLS ──
+    svg.selectAll(".watershed")
       .data(geoData.features)
       .enter().append("path")
-      .attr("d", path)
-      .attr("fill", function(d){
-        return d.properties.project_count > 0
-          ? colorScale(d.properties.project_count)
-          : "#e8f4fb";
+      .attr("class","watershed")
+      .attr("d",path)
+      .attr("fill",function(d){return brandColor(d.properties.project_count,maxCount);})
+      .attr("stroke","white")
+      .attr("stroke-width",1)
+      .attr("opacity",0.88)
+      .on("mousemove",function(event,d){
+        var n=d.properties.Name;
+        var c=d.properties.project_count;
+        showTooltip(event,"<strong>"+n+"</strong><br>"+c+" project"+(c!==1?"s":""));
       })
-      .attr("stroke", "white")
-      .attr("stroke-width", 0.8)
-      .on("mousemove", function(event, d){
-        var n = d.properties.Name;
-        var c = d.properties.project_count;
-        showTooltip(event,
-          "<strong>" + n + "</strong><br>" +
-          c + " project" + (c !== 1 ? "s" : "")
-        );
-      })
-      .on("mouseleave", hideTooltip);
+      .on("mouseleave",hideTooltip);
 
-    // Count labels on active watersheds
-    svg.selectAll(".ws-label")
-      .data(geoData.features.filter(function(d){
-        return d.properties.project_count > 0;
-      }))
+    // ── WATERSHED OUTLINES (on top for clarity) ──
+    svg.selectAll(".watershed-border")
+      .data(geoData.features)
+      .enter().append("path")
+      .attr("d",path)
+      .attr("fill","none")
+      .attr("stroke","rgba(22,119,188,0.3)")
+      .attr("stroke-width",0.6)
+      .attr("pointer-events","none");
+
+    // ── CITY DOTS ──
+    CITIES.forEach(function(city){
+      var pt=projection([city.lon,city.lat]);
+      if(!pt)return;
+      svg.append("circle")
+        .attr("cx",pt[0]).attr("cy",pt[1])
+        .attr("r",city.major?4:2.5)
+        .attr("fill",city.major?"#333":"#666")
+        .attr("stroke","white")
+        .attr("stroke-width",1)
+        .attr("pointer-events","none");
+      svg.append("text")
+        .attr("x",pt[0]+6).attr("y",pt[1]+1)
+        .attr("font-size",city.major?12:10)
+        .attr("font-weight",city.major?"700":"400")
+        .attr("fill",city.major?"#222":"#555")
+        .attr("font-family","Roboto,sans-serif")
+        .attr("pointer-events","none")
+        .text(city.name);
+    });
+
+    // ── COUNT LABELS on active watersheds ──
+    svg.selectAll(".ws-count")
+      .data(geoData.features.filter(function(d){return d.properties.project_count>0;}))
       .enter().append("text")
-      .attr("class", "ws-label")
-      .attr("transform", function(d){
-        var c = path.centroid(d);
-        return "translate(" + c[0] + "," + c[1] + ")";
-      })
-      .attr("text-anchor", "middle")
-      .attr("dominant-baseline", "middle")
-      .attr("font-size", 13)
-      .attr("font-weight", "700")
-      .attr("fill", "white")
-      .attr("pointer-events", "none")
-      .text(function(d){ return d.properties.project_count; });
+      .attr("class","ws-count")
+      .attr("transform",function(d){var c=path.centroid(d);return "translate("+c[0]+","+c[1]+")";})
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size",14).attr("font-weight","700")
+      .attr("fill","white").attr("pointer-events","none")
+      .text(function(d){return d.properties.project_count;});
 
-    // Watershed name labels for active ones (below count)
+    // ── WATERSHED NAME on active watersheds ──
     svg.selectAll(".ws-name")
-      .data(geoData.features.filter(function(d){
-        return d.properties.project_count > 0;
-      }))
+      .data(geoData.features.filter(function(d){return d.properties.project_count>0;}))
       .enter().append("text")
-      .attr("class", "ws-name")
-      .attr("transform", function(d){
-        var c = path.centroid(d);
-        return "translate(" + c[0] + "," + (c[1] + 14) + ")";
-      })
-      .attr("text-anchor", "middle")
-      .attr("dominant-baseline", "middle")
-      .attr("font-size", 10)
-      .attr("font-weight", "500")
-      .attr("fill", "rgba(255,255,255,0.85)")
-      .attr("pointer-events", "none")
-      .text(function(d){ return d.properties.Name; });
+      .attr("class","ws-name")
+      .attr("transform",function(d){var c=path.centroid(d);return "translate("+c[0]+","+(c[1]+15)+")";})
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size",9).attr("font-weight","500")
+      .attr("fill","rgba(255,255,255,0.9)").attr("pointer-events","none")
+      .text(function(d){return d.properties.Name;});
 
-    // Legend
-    var legendW = 120, legendH = 10;
-    var legendX = w - legendW - 12, legendY = h - 28;
-    var defs = svg.append("defs");
-    var grad = defs.append("linearGradient").attr("id", "ws-grad");
-    grad.append("stop").attr("offset", "0%").attr("stop-color", "#cce5f5");
-    grad.append("stop").attr("offset", "100%").attr("stop-color", "#0d47a1");
-    svg.append("rect")
-      .attr("x", legendX).attr("y", legendY)
-      .attr("width", legendW).attr("height", legendH)
-      .attr("fill", "url(#ws-grad)").attr("rx", 3);
-    svg.append("text")
-      .attr("x", legendX).attr("y", legendY - 4)
-      .attr("font-size", 10).attr("fill", "#888")
-      .attr("font-family", "Roboto,sans-serif")
-      .text("0 projects");
-    svg.append("text")
-      .attr("x", legendX + legendW).attr("y", legendY - 4)
-      .attr("font-size", 10).attr("fill", "#888")
-      .attr("text-anchor", "end")
-      .attr("font-family", "Roboto,sans-serif")
-      .text(maxCount + " projects");
+    // ── LEGEND ──
+    var lgW=130, lgH=10, lgX=w-lgW-14, lgY=h-32;
+    var defs=svg.append("defs");
+    var grad=defs.append("linearGradient").attr("id","ws-grad");
+    BRAND_COLORS.forEach(function(c,i){
+      grad.append("stop").attr("offset",(i/(BRAND_COLORS.length-1)*100)+"%").attr("stop-color",c);
+    });
+    svg.append("rect").attr("x",lgX).attr("y",lgY).attr("width",lgW).attr("height",lgH)
+      .attr("fill","url(#ws-grad)").attr("rx",3)
+      .attr("stroke","#ccc").attr("stroke-width",0.5);
+    svg.append("text").attr("x",lgX).attr("y",lgY-4)
+      .attr("font-size",10).attr("fill","#555").attr("font-family","Roboto,sans-serif").text("0");
+    svg.append("text").attr("x",lgX+lgW).attr("y",lgY-4)
+      .attr("font-size",10).attr("fill","#555").attr("text-anchor","end")
+      .attr("font-family","Roboto,sans-serif").text(maxCount+" projects");
 
-    // Updated timestamp
-    if(countsData.updated && countsData.updated !== "pending first run"){
-      var dt = new Date(countsData.updated);
-      document.getElementById("updated").textContent =
-        "Data updated " + dt.toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"});
+    // ── TITLE ──
+    svg.append("text").attr("x",14).attr("y",26)
+      .attr("font-size",15).attr("font-weight","700")
+      .attr("fill","#1677bc").attr("font-family","Roboto,sans-serif")
+      .text("GBEP Projects by Watershed");
+
+    // ── UPDATED STAMP ──
+    if(countsData.updated&&countsData.updated!=="pending first run"){
+      var dt=new Date(countsData.updated);
+      document.getElementById("updated").textContent=
+        "Updated "+dt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
     }
   }
 
