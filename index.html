@@ -26,8 +26,8 @@
       overflow: hidden; display: none; padding: 16px 20px; background: #f8fafc;
     }
     .chart-panel.active { display: flex; flex-direction: column; }
-    .chart-title { font-size: 24px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
-    .chart-subtitle { font-size:19px; color: #888; margin-bottom: 10px; flex-shrink: 0; line-height:1.7; }
+    .chart-title { font-size: 19px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
+    .chart-subtitle { font-size:14px; color: #888; margin-bottom: 10px; flex-shrink: 0; line-height:1.7; }
     .chart-subtitle strong { color: #1677bc; font-weight: 700; }
     .chart-subtitle strong.green { color: #009988; }
     .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
@@ -76,8 +76,8 @@
       <div class="chart-area" id="org-chart"></div>
     </div>
     <div class="chart-panel" id="panel-3">
-      <div class="chart-title">GBEP Funding by Plan Priority</div>
-      <div class="chart-subtitle">Total GBEP award dollars by activity group and subcategory for each plan priority.</div>
+      <div class="chart-title">GBEP Projects by Plan Priority</div>
+      <div class="chart-subtitle">Number of funded projects by activity group and subcategory for each plan priority.</div>
       <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;">
         <div class="grid-2x2">
           <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
@@ -88,8 +88,8 @@
       </div>
     </div>
     <div class="chart-panel" id="panel-4">
-      <div class="chart-title">GBEP Funding by Fiscal Year</div>
-      <div class="chart-subtitle">Total GBEP award dollars and project count per fiscal year of award.</div>
+      <div class="chart-title">GBEP Projects by Fiscal Year</div>
+      <div class="chart-subtitle" id="fy-subtitle">Number of GBEP-funded projects per fiscal year.</div>
       <div class="chart-area" id="fy-chart"></div>
     </div>
     <div class="chart-panel" id="panel-5">
@@ -99,7 +99,7 @@
     </div>
     <div class="chart-panel" id="panel-6">
       <div class="chart-title">Approximate Project Acres by Habitat Type</div>
-      <div class="chart-subtitle">Total approximate acres across GBEP-funded projects per habitat type. Sites with multiple habitats contribute acres to each type.</div>
+      <div class="chart-subtitle" id="treemap-subtitle">Total approximate acres across GBEP-funded projects per habitat type. Sites with multiple habitats contribute acres to each type.</div>
       <div class="chart-area" id="treemap-chart"></div>
     </div>
   </div>
@@ -199,6 +199,18 @@
       return d.gbep_award_amount>0 && d.project_landscape_type && d.numeric_approximate_project_siz>0;
     });
 
+    // Year range for subtitle
+    var years=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;}).map(function(d){
+      var fy=d.fiscal_year_of_award;
+      if(String(fy).length===4)return parseInt(fy);
+      var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
+      return parseInt(String(fy).slice(0,4));
+    }).filter(Boolean);
+    if(years.length){
+      var subtitleEl=document.getElementById("treemap-subtitle");
+      if(subtitleEl)subtitleEl.textContent="Total approximate acres across GBEP-funded projects per habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Sites with multiple habitats contribute acres to each type.";
+    }
+
     // Sum acres per habitat type (multi-habitat sites contribute to each)
     var acreMap={};
     funded.forEach(function(row){
@@ -209,16 +221,19 @@
       });
     });
 
-    var leaves=Object.keys(acreMap).map(function(k,i){
-      return {name:k,value:acreMap[k],color:PALETTE[i%PALETTE.length]};
+    var leaves=Object.keys(acreMap).map(function(k){
+      return {name:k,value:acreMap[k]};
     }).filter(function(d){return d.value>0;});
 
     if(leaves.length===0)return;
 
-    // Build hierarchy for d3 treemap
+    var maxVal=d3.max(leaves,function(d){return d.value;})||1;
+    var colorScale=d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#2a7fc1","#0d47a1"));
+
+    // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
 
-    var treemap=d3.treemap().size([width,height]).padding(3).round(true);
+    var treemap=d3.treemap().size([width,height]).padding(2).round(true);
     treemap(root);
 
     d3.select("#treemap-chart").select("svg").remove();
@@ -233,7 +248,7 @@
 
     cell.append("rect")
       .attr("width",cellW).attr("height",cellH)
-      .attr("fill",function(d){return d.data.color;})
+      .attr("fill",function(d){return colorScale(d.data.value);})
       .attr("rx",4).attr("opacity",0.88)
       .on("mousemove",function(event,d){
         showTooltip(event,"<strong>"+d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total");
@@ -291,7 +306,7 @@
     var height=el.clientHeight||(window.innerHeight-100);
     var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
-      function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
+      function(v){return v.length;},
       function(d){
         var fy=d.fiscal_year_of_award;
         if(!fy)return null;
@@ -301,42 +316,64 @@
         return parseInt(String(fy).slice(0,4));
       }
     ).filter(function(r){return r[0]!==null;})
-     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .map(function(r){return{year:r[0],count:r[1]};})
      .sort(function(a,b){return a.year-b.year;});
     if(byYear.length===0)return;
-    var mL=70,mR=60,mT=20,mB=50;
-    var w=width-mL-mR,h=height-mT-mB;
+
+    // Update subtitle with year range
+    var minY=byYear[0].year, maxY=byYear[byYear.length-1].year;
+    var subtitleEl=document.querySelector("#panel-4 .chart-subtitle");
+    if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"–"+maxY+".";
+
+    // Make scrollable if many years
+    el.style.overflowX="auto";
+    el.style.overflowY="hidden";
+    var minBarW=28;
+    var mL=55,mR=30,mT=20,mB=55;
+    var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
+    var w=chartW-mL-mR,h=height-mT-mB;
+
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
-    var yMax=d3.max(byYear,function(d){return d.dollars;})||1;
-    var yScale=d3.scaleLinear().domain([0,yMax*1.1]).range([h,0]);
-    var y2Max=d3.max(byYear,function(d){return d.count;})||1;
-    var y2Scale=d3.scaleLinear().domain([0,y2Max*1.1]).range([h,0]);
+    var yMax=d3.max(byYear,function(d){return d.count;})||1;
+    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
+
+    // Light-to-dark blue scale
+    var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
+
     d3.select("#fy-chart").select("svg").remove();
-    var svg=d3.select("#fy-chart").append("svg").attr("width",width).attr("height",height);
+    var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(fmtDollars))
+
+    // Left axis — project count
+    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d")))
       .call(function(ax){ax.select(".domain").remove();})
       .call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",14).attr("fill","#666");});
-    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-55).attr("text-anchor","middle").attr("font-size",14).attr("fill",C1).attr("font-weight","500").text("GBEP Award Dollars");
-    g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(5).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();}).call(function(ax){ax.selectAll("text").attr("font-size",14).attr("fill",C2);});
-    g.append("text").attr("transform","rotate(90)").attr("x",h/2).attr("y",-(w+52)).attr("text-anchor","middle").attr("font-size",14).attr("fill",C2).attr("font-weight","500").text("Project Count");
+
+    // Y axis label — inside margin, won't get cut off
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-42)
+      .attr("text-anchor","middle").attr("font-size",13).attr("fill","#888").attr("font-weight","500").text("Projects");
+
+    // Bars — light-to-dark by count
     g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
-      .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
-      .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.dollars);})
-      .attr("fill",C1).attr("rx",3).attr("opacity",0.85)
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+fmtDollars(d.dollars)+"<br>"+d.count+" project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);
-    var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
-    g.append("path").datum(byYear).attr("fill","none").attr("stroke",C2).attr("stroke-width",2.5).attr("d",line);
-    g.selectAll(".dot").data(byYear).enter().append("circle").attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);}).attr("r",4).attr("fill",C2).attr("stroke","white").attr("stroke-width",1.5);
-    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return cleanTick(String(d));}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",13).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
-    var leg=g.append("g").attr("transform","translate("+(w-160)+","+-10+")");
-    leg.append("rect").attr("width",12).attr("height",12).attr("fill",C1).attr("rx",2);
-    leg.append("text").attr("x",16).attr("y",10).attr("font-size",13).attr("fill","#555").text("Award $");
-    leg.append("line").attr("x1",70).attr("x2",82).attr("y1",6).attr("y2",6).attr("stroke",C2).attr("stroke-width",2.5);
-    leg.append("circle").attr("cx",76).attr("cy",6).attr("r",3).attr("fill",C2);
-    leg.append("text").attr("x",86).attr("y",10).attr("font-size",13).attr("fill","#555").text("# Projects");
+      .attr("x",function(d){return xScale(d.year);})
+      .attr("y",function(d){return yScale(d.count);})
+      .attr("width",xScale.bandwidth())
+      .attr("height",function(d){return h-yScale(d.count);})
+      .attr("fill",function(d){return colorScale(d.count);}).attr("rx",3).attr("opacity",0.9)
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
+      .on("mouseleave",hideTooltip);
+
+    // Count labels on top of bars
+    g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label")
+      .attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
+      .attr("y",function(d){return yScale(d.count)-4;})
+      .attr("text-anchor","middle").attr("font-size",11).attr("font-weight","700")
+      .attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});
+
+    // X axis
+    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");})
+      .call(function(ax){ax.selectAll("text").attr("font-size",13).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
   }
 
   // ── HEATMAP ──────────────────────────────────────────────
@@ -405,29 +442,32 @@
   function drawPlanPriority(data,priority,containerId){
     var el=document.getElementById(containerId);
     var width=el.clientWidth||400,height=el.clientHeight||300;
+    var DEF_BOX_H=48; // reserved height for definition box at bottom
     var items=PLAN_DEFS[priority],palette=PP_PALETTES[priority];
     var totals={};
     items.forEach(function(it){totals[it.field]=0;});
     data.forEach(function(row){
-      var amt=row["gbep_award_amount"]||0;
-      items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=amt;});
+      items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=1;}); // count projects not dollars
     });
     var groups=[],groupMap={};
-    items.forEach(function(it,idx){
+    items.forEach(function(it){
       if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[]};groups.push(groupMap[it.group]);}
       groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
     });
     var mL=50,mR=10,mT=10,mB=28;
-    var cW=width-mL-mR,cH=height-mT-mB;
+    var cW=width-mL-mR,cH=height-mT-mB-DEF_BOX_H;
     var groupW=cW/groups.length,barW=groupW*0.7;
     var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
     var yScale=d3.scaleLinear().domain([0,maxY]).range([cH,0]);
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
+
+    // Y axis — project count
+    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(d3.format("d")))
       .call(function(ax){ax.select(".domain").remove();})
-      .call(function(ax){ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",12);});
+      .call(function(ax){ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",14);});
+
     groups.forEach(function(grp,gi){
       var x=gi*groupW+(groupW-barW)/2,yOff=cH;
       grp.subs.forEach(function(sub,si){
@@ -435,12 +475,26 @@
         var bH=cH-yScale(sub.value);if(bH<0)bH=0;
         yOff-=bH;
         g.append("rect").attr("x",x).attr("y",yOff).attr("width",barW).attr("height",bH).attr("fill",col).attr("rx",1)
-          .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+fmtDollars(sub.value));}).on("mouseleave",hideTooltip);
+          .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+sub.value+" project"+(sub.value!==1?"s":""));}).on("mouseleave",hideTooltip);
       });
-      g.append("text").attr("x",x+barW/2).attr("y",cH+14).attr("text-anchor","middle").attr("font-size",13).attr("fill","#333").text(grp.group);
+      // Group label — larger font
+      g.append("text").attr("x",x+barW/2).attr("y",cH+18).attr("text-anchor","middle").attr("font-size",16).attr("font-weight","700").attr("fill","#333").text(grp.group);
       var total=d3.sum(grp.subs,function(s){return s.value;});
-      if(total>0)g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-3).attr("text-anchor","middle").attr("font-size",12).attr("fill","#555").text(fmtDollars(total));
+      if(total>0)g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-4).attr("text-anchor","middle").attr("font-size",14).attr("font-weight","600").attr("fill","#555").text(total);
     });
+
+    // Definition box at bottom — placeholder text, will be replaced with real definitions
+    var defY=height-DEF_BOX_H;
+    var defColors={"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#6a1b9a","PP4":"#bf360c"};
+    var ppKey="PP"+priority;
+    svg.append("rect").attr("x",4).attr("y",defY+4).attr("width",width-8).attr("height",DEF_BOX_H-8)
+      .attr("fill","#f8f9fa").attr("stroke",defColors[ppKey]||"#ccc").attr("stroke-width",1).attr("rx",4);
+    svg.append("text").attr("x",10).attr("y",defY+18)
+      .attr("font-size",11).attr("font-weight","700").attr("fill",defColors[ppKey]||"#333").attr("font-family",FONT)
+      .text("Category definitions:");
+    svg.append("text").attr("x",10).attr("y",defY+32)
+      .attr("font-size",10).attr("fill","#666").attr("font-family",FONT)
+      .text(groups.map(function(g){return g.group+": [definition pending]";}).join("  ·  ").slice(0,Math.floor(width/6)));
   }
   function drawAllPlanPriorities(){drawPlanPriority(allData,1,"pp1-chart");drawPlanPriority(allData,2,"pp2-chart");drawPlanPriority(allData,3,"pp3-chart");drawPlanPriority(allData,4,"pp4-chart");}
 
@@ -451,7 +505,9 @@
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
     var rScale=d3.scaleSqrt().domain([1,maxCount]).range([10,Math.min(width,height)*0.09]);
-    var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:PALETTE[i%PALETTE.length],x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
+    // Light-to-dark blue scale — min value gets mid-blue (still readable), max gets deep navy
+    var colorScale=d3.scaleSequential().domain([1,maxCount]).interpolator(d3.interpolate("#2a7fc1","#0d47a1"));
+    var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:colorScale(d.count),x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
     var sim=d3.forceSimulation(nodes).force("charge",d3.forceManyBody().strength(3)).force("center",d3.forceCenter(width/2,height/2)).force("collision",d3.forceCollide().radius(function(d){return d.r+4;}).strength(1)).stop();
@@ -482,70 +538,73 @@
   function drawOrgChart(){
     var el=document.getElementById("org-chart");
     var width=el.clientWidth||window.innerWidth;
-    var height=el.clientHeight||(window.innerHeight-80);
 
     var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var mL=Math.min(303,width*0.40), mR=50, mT=10, mB=20;
-    var areaH=height-mT-mB;
-    var rowH=areaH/sorted.length;
-    var dotR=Math.min(rowH*0.32, 10);
+    var ROW_H=42; // fixed row height tall enough for 2-line labels
+    var mL=Math.min(303,width*0.40), mR=60, mT=10, mB=40;
+    var totalH=sorted.length*ROW_H+mT+mB;
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
+    var dotR=Math.min(ROW_H*0.22,8);
+
+    // Make container scrollable
+    el.style.overflowY="auto";
+    el.style.overflowX="hidden";
 
     d3.select("#org-chart").select("svg").remove();
-    var svg=d3.select("#org-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var svg=d3.select("#org-chart").append("svg").attr("width",width).attr("height",totalH).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // Gridlines
+    // X axis — fixed at bottom of full SVG height
     g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
-      .attr("transform","translate(0,"+areaH+")")
-      .call(function(gr){gr.select(".domain").remove();})
+      .attr("transform","translate(0,"+(totalH-mT-mB)+")")
       .call(function(gr){
-        gr.selectAll(".tick line").attr("y1",-areaH).attr("y2",0).attr("stroke","#f0f0f0").attr("stroke-width",1);
-        gr.selectAll("text").attr("font-size",14).attr("fill","#aaa");
+        gr.select(".domain").remove();
+        gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0").attr("stroke-width",1);
+        gr.selectAll("text").attr("font-size",14).attr("fill","#888");
       });
 
     sorted.forEach(function(d,i){
-      var y=i*rowH+rowH/2;
+      var y=i*ROW_H+ROW_H/2;
       var xEnd=xScale(d.count);
       var col=i%3===0?C1:i%3===1?C2:C3;
 
-      // Alternating row bg
       if(i%2===0){
-        g.append("rect").attr("x",-mL).attr("y",i*rowH).attr("width",width).attr("height",rowH).attr("fill","#fafbff").attr("opacity",0.7);
+        g.append("rect").attr("x",-mL).attr("y",i*ROW_H).attr("width",width).attr("height",ROW_H).attr("fill","#fafbff").attr("opacity",0.7);
       }
 
-      // Stem line
-      g.append("line")
-        .attr("x1",0).attr("x2",xEnd)
-        .attr("y1",y).attr("y2",y)
-        .attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.5);
+      g.append("line").attr("x1",0).attr("x2",xEnd).attr("y1",y).attr("y2",y).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.5);
 
-      // Dot
-      g.append("circle")
-        .attr("cx",xEnd).attr("cy",y).attr("r",dotR)
-        .attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
+      g.append("circle").attr("cx",xEnd).attr("cy",y).attr("r",dotR).attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
         .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
         .on("mouseleave",hideTooltip);
 
-      // Count label
-      g.append("text")
-        .attr("x",xEnd+dotR+4).attr("y",y)
-        .attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","700").attr("fill",col)
-        .text(d.count);
+      g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle").attr("font-size",14).attr("font-weight","700").attr("fill",col).text(d.count);
 
-      // Org label
+      // Stacked label — wrap long org names across 2 lines
       var cleanLabel=d.label.replace(/_/g," ");
-      var label=cleanLabel.length>48?cleanLabel.slice(0,46)+"…":cleanLabel;
-      g.append("text")
-        .attr("x",-8).attr("y",y)
-        .attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(15,rowH*0.38)).attr("fill","#333")
-        .text(label);
+      var words=cleanLabel.split(" ");
+      var lines=[],cur="";
+      var maxW=mL-14;
+      words.forEach(function(word){
+        var test=cur?cur+" "+word:word;
+        if(test.length*7>maxW&&cur){lines.push(cur);cur=word;}
+        else{cur=test;}
+      });
+      if(cur)lines.push(cur);
+      lines=lines.slice(0,2); // max 2 lines
+      var fs=13;
+      var lineH=fs+3;
+      var startY=y-(lines.length-1)*lineH/2;
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",-8).attr("y",startY+li*lineH)
+          .attr("text-anchor","end").attr("dominant-baseline","middle")
+          .attr("font-size",fs).attr("fill","#333").text(line);
+      });
     });
   }
 
