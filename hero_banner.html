@@ -10,45 +10,47 @@
     #banner{
       width:100%;height:100%;
       background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
-      display:flex;align-items:center;padding:0 40px;
-      gap:32px;
+      display:flex;flex-direction:column;justify-content:center;padding:0 36px;
     }
 
-    .divider{
-      width:2px;height:60%;
-      background:rgba(255,255,255,0.25);
-      flex-shrink:0;
-    }
+    /* Default style — subheader strip */
+    .mode-strip #banner{flex-direction:row;align-items:center;gap:32px;}
+    .mode-strip .page-title{font-size:26px;}
+    .mode-strip .page-tagline{font-size:13px;font-weight:300;}
+    .mode-strip .divider{display:block;}
+    .mode-strip .title-block{flex-shrink:0;}
+    .mode-strip .blurb-block{flex:1;}
 
-    .title-block{flex-shrink:0;}
-    .page-title{
-      font-size:26px;font-weight:900;color:white;
-      letter-spacing:-0.5px;line-height:1.1;
-    }
+    /* Home style — tall card */
+    .mode-home #banner{flex-direction:column;justify-content:center;gap:10px;}
+    .mode-home .page-title{font-size:28px;}
+    .mode-home .page-tagline{font-size:14px;font-weight:300;max-width:520px;}
+    .mode-home .divider{display:none;}
+
+    .page-title{font-weight:900;color:white;letter-spacing:-0.5px;line-height:1.15;}
     .page-title span{color:#b2ebf2;}
-
-    .blurb-block{flex:1;}
-    .blurb{
-      font-size:13px;font-weight:300;color:rgba(255,255,255,0.82);
-      line-height:1.65;max-width:700px;
-    }
+    .page-tagline{color:rgba(255,255,255,0.82);line-height:1.65;margin-top:4px;}
+    .divider{width:2px;height:60%;background:rgba(255,255,255,0.25);flex-shrink:0;}
   </style>
 </head>
 <body>
+<div id="mode-wrapper">
 <div id="banner">
   <div class="title-block">
     <div class="page-title" id="page-title">Browse Database</div>
   </div>
   <div class="divider"></div>
   <div class="blurb-block">
-    <div class="blurb" id="page-blurb">Search and filter all GBEP project records by attributes. View matching records and download data, GIS files, and attachments.</div>
+    <div class="page-tagline" id="page-blurb">Search and filter all GBEP project records by attributes. View matching records and download data, GIS files, and attachments.</div>
   </div>
+</div>
 </div>
 
 <script>
-  // To customize per page, pass ?title=...&blurb=... in the URL
   var params=new URLSearchParams(window.location.search);
-  if(params.get("title")) document.getElementById("page-title").textContent=params.get("title");
+  var mode=params.get("mode")||"strip";
+  document.getElementById("mode-wrapper").className="mode-"+mode;
+  if(params.get("title")) document.getElementById("page-title").innerHTML=params.get("title");
   if(params.get("blurb")) document.getElementById("page-blurb").textContent=params.get("blurb");
 </script>
 </body>
