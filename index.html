@@ -353,9 +353,9 @@
 
     // Make scrollable if many years
     el.style.overflowX="auto";
-    el.style.overflowY="hidden";
+    el.style.overflowY="visible";
     var minBarW=28;
-    var mL=75,mR=30,mT=20,mB=55;
+    var mL=75,mR=30,mT=20,mB=85;
     var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
     var w=chartW-mL-mR,h=height-mT-mB;
 
