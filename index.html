@@ -499,21 +499,34 @@
     var defY=height-DEF_BOX_H;
     var defColors={"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#6a1b9a","PP4":"#bf360c"};
     var ppKey="PP"+priority;
+    var accentColor=defColors[ppKey]||"#333";
     svg.append("rect").attr("x",4).attr("y",defY+4).attr("width",width-8).attr("height",DEF_BOX_H-8)
-      .attr("fill","#f8f9fa").attr("stroke",defColors[ppKey]||"#ccc").attr("stroke-width",1).attr("rx",4);
-    svg.append("text").attr("x",10).attr("y",defY+20)
-      .attr("font-size",20).attr("font-weight","700").attr("fill",defColors[ppKey]||"#333").attr("font-family",FONT)
+      .attr("fill","#f8f9fa").attr("stroke",accentColor).attr("stroke-width",1).attr("rx",4);
+    svg.append("text").attr("x",10).attr("y",defY+22)
+      .attr("font-size",14).attr("font-weight","700").attr("fill",accentColor).attr("font-family",FONT)
       .text("Category definitions:");
-    var defStr=groups.map(function(grp){return grp.group+(DEFS[grp.group]?" — "+DEFS[grp.group]:"");}).join("   ");
-    var charsPerLine=Math.floor((width-20)/6.2);
-    var line1=defStr.slice(0,charsPerLine);
-    var line2=defStr.slice(charsPerLine,charsPerLine*2);
-    svg.append("text").attr("x",10).attr("y",defY+38)
-      .attr("font-size",16).attr("fill","#555").attr("font-family",FONT).text(line1);
-    if(line2.trim()){
-      svg.append("text").attr("x",10).attr("y",defY+56)
-        .attr("font-size",16).attr("fill","#555").attr("font-family",FONT).text(line2);
-    }
+    var lineFS=13;
+    var lineY=defY+40;
+    var x=10;
+    var lineSpacing=lineFS+6;
+    var currentLineY=lineY;
+   groups.forEach(function(grp,gi){
+      var acronym=grp.group;
+      var defText=DEFS[acronym]||"";
+      var acronymW=acronym.length*lineFS*0.72+8;
+      var entryW=acronymW+(defText.length*lineFS*0.52)+16;
+      if(gi>0 && x+entryW > width-16){x=10;currentLineY+=lineSpacing;}
+      svg.append("text").attr("x",x).attr("y",currentLineY)
+        .attr("font-size",lineFS).attr("font-weight","700")
+        .attr("fill",accentColor).attr("font-family",FONT)
+        .text(acronym+" —");
+      x+=acronymW;
+      svg.append("text").attr("x",x).attr("y",currentLineY)
+        .attr("font-size",lineFS).attr("font-weight","400")
+        .attr("fill","#444").attr("font-family",FONT)
+        .text(defText+(gi<groups.length-1?"   ":""));
+      x+=defText.length*lineFS*0.52+24;
+    });
   }
   function drawAllPlanPriorities(){drawPlanPriority(allData,1,"pp1-chart");drawPlanPriority(allData,2,"pp2-chart");drawPlanPriority(allData,3,"pp3-chart");drawPlanPriority(allData,4,"pp4-chart");}
 
