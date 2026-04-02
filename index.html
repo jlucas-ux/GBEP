@@ -513,13 +513,13 @@
    groups.forEach(function(grp,gi){
       var acronym=grp.group;
       var defText=DEFS[acronym]||"";
-      var acronymW=acronym.length*lineFS*0.72+8;
+      var acronymW=acronym.length*lineFS*0.72+20;
       var entryW=acronymW+(defText.length*lineFS*0.52)+16;
       if(gi>0 && x+entryW > width-16){x=10;currentLineY+=lineSpacing;}
       svg.append("text").attr("x",x).attr("y",currentLineY)
         .attr("font-size",lineFS).attr("font-weight","700")
         .attr("fill",accentColor).attr("font-family",FONT)
-        .text(acronym+" —");
+        .text(acronym+"  —  ");
       x+=acronymW;
       svg.append("text").attr("x",x).attr("y",currentLineY)
         .attr("font-size",lineFS).attr("font-weight","400")
