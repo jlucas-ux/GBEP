@@ -429,7 +429,10 @@
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
+    var funded = filteredData.map(function(d) {
+    return d.fiscal_year_of_award;
+});
+
     var byYear=d3.rollups(funded,
       function(v){return v.length;},
       function(d){
