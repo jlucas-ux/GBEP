@@ -482,32 +482,37 @@ lines.forEach(function(line,li){
   function drawPlanPriority(data,priority,containerId){
     var el=document.getElementById(containerId);
     var width=el.clientWidth||400,height=el.clientHeight||300;
-    var DEF_BOX_H=0; // reserved height for definition box at bottom
     var items=PLAN_DEFS[priority],palette=PP_PALETTES[priority];
     var totals={};
     items.forEach(function(it){totals[it.field]=0;});
     data.forEach(function(row){
-      items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=1;}); // count projects not dollars
+      items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=1;});
     });
     var groups=[],groupMap={};
     items.forEach(function(it){
       if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[]};groups.push(groupMap[it.group]);}
       groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
     });
-    var mL=50,mR=10,mT=30,mB=28;
-    var cW=width-mL-mR,cH=height-mT-mB-90;
+ 
+    var mL=50,mR=10,mT=36,mB=32; // mT=36 gives room for numbers above bars
+    var cW=width-mL-mR,cH=height-mT-mB;
     var groupW=cW/groups.length,barW=groupW*0.7;
     var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
-    var yScale=d3.scaleLinear().domain([0,maxY]).range([cH,0]);
+    // Scale domain slightly above maxY so top label never clips
+    var yScale=d3.scaleLinear().domain([0,maxY*1.15]).range([cH,0]);
+ 
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-
+ 
     // Y axis — project count
     g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();})
-      .call(function(ax){ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",18);});
-
+      .call(function(ax){
+        ax.select(".domain").remove();
+        ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");
+        ax.selectAll("text").attr("font-size",18);
+      });
+ 
     groups.forEach(function(grp,gi){
       var x=gi*groupW+(groupW-barW)/2,yOff=cH;
       grp.subs.forEach(function(sub,si){
@@ -515,49 +520,23 @@ lines.forEach(function(line,li){
         var bH=cH-yScale(sub.value);if(bH<0)bH=0;
         yOff-=bH;
         g.append("rect").attr("x",x).attr("y",yOff).attr("width",barW).attr("height",bH).attr("fill",col).attr("rx",1)
-          .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+sub.value+" project"+(sub.value!==1?"s":""));}).on("mouseleave",hideTooltip);
+          .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+sub.value+" project"+(sub.value!==1?"s":""));})
+          .on("mouseleave",hideTooltip);
       });
-      // Group label — larger font
-      g.append("text").attr("x",x+barW/2).attr("y",cH+18).attr("text-anchor","middle").attr("font-size",19).attr("font-weight","700").attr("fill","#333").text(grp.group);
+      // Group label below bars
+      g.append("text").attr("x",x+barW/2).attr("y",cH+22)
+        .attr("text-anchor","middle").attr("font-size",19).attr("font-weight","700").attr("fill","#333")
+        .text(grp.group);
+      // Total above bars — safely inside chart area due to 1.15 domain padding
       var total=d3.sum(grp.subs,function(s){return s.value;});
-      if(total>0)g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-4).attr("text-anchor","middle").attr("font-size",18).attr("font-weight","600").attr("fill","#555").text(total);
-    });
-
-    // Definition box at bottom with real definitions
-    var defY=height-DEF_BOX_H;
-    var defColors={"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#6a1b9a","PP4":"#bf360c"};
-    var ppKey="PP"+priority;
-    var accentColor=defColors[ppKey]||"#333";
-    svg.append("rect").attr("x",4).attr("y",defY+4).attr("width",width-8).attr("height",DEF_BOX_H-8)
-      .attr("fill","#f8f9fa").attr("stroke",accentColor).attr("stroke-width",1).attr("rx",4);
-    svg.append("text").attr("x",10).attr("y",defY+22)
-      .attr("font-size",14).attr("font-weight","700").attr("fill",accentColor).attr("font-family",FONT)
-      .text("Category definitions:");
-    var lineFS=13;
-    var lineY=defY+40;
-    var x=10;
-    var lineSpacing=lineFS+6;
-    var currentLineY=lineY;
-   groups.forEach(function(grp,gi){
-      var acronym=grp.group;
-      var defText=DEFS[acronym]||"";
-      var acronymW=acronym.length*lineFS*0.72+20;
-      var entryW=acronymW+(defText.length*lineFS*0.52)+16;
-      if(gi>0 && x+entryW > width-16){x=10;currentLineY+=lineSpacing;}
-      svg.append("text").attr("x",x).attr("y",currentLineY)
-        .attr("font-size",lineFS).attr("font-weight","700")
-        .attr("fill",accentColor).attr("font-family",FONT)
-        .text(acronym+"  —  ");
-      x+=acronymW;
-      svg.append("text").attr("x",x).attr("y",currentLineY)
-        .attr("font-size",lineFS).attr("font-weight","400")
-        .attr("fill","#444").attr("font-family",FONT)
-        .text(defText+(gi<groups.length-1?"   ":""));
-      x+=defText.length*lineFS*0.52+24;
+      if(total>0){
+        g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-6)
+          .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","600").attr("fill","#555")
+          .text(total);
+      }
     });
   }
   function drawAllPlanPriorities(){drawPlanPriority(allData,1,"pp1-chart");drawPlanPriority(allData,2,"pp2-chart");drawPlanPriority(allData,3,"pp3-chart");drawPlanPriority(allData,4,"pp4-chart");}
-
   // ── BUBBLE CHART ─────────────────────────────────────────
   function drawBubbleChart(counts,containerId){
     var el=document.getElementById(containerId);
