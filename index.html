@@ -523,7 +523,7 @@
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([28,Math.min(width,height)*0.09]);
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([52,Math.min(width,height)*0.13]);
     // Multi-color palette with light colors removed — all dark enough for white text
     var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
     var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
