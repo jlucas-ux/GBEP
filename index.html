@@ -228,7 +228,12 @@
     if(leaves.length===0)return;
 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    var colorScale=d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#54c4b0","#0d47a1"));
+    var colorScale=d3.scaleSequential().domain([0,maxVal])
+  .interpolator(function(t){
+    if(t<0.33) return d3.interpolate("#a8e6e0","#54c4b0")(t*3);
+    if(t<0.66) return d3.interpolate("#54c4b0","#1677bc")((t-0.33)*3);
+    return d3.interpolate("#1677bc","#0d47a1")((t-0.66)*3);
+  });
 
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
@@ -251,19 +256,19 @@
       .attr("fill",function(d){return colorScale(d.data.value);})
       .attr("rx",4).attr("opacity",0.88)
       .on("mousemove",function(event,d){
-        showTooltip(event,"<strong>"+d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total");
+        showTooltip(event,"<strong style='font-size:16px'>"+d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
       }).on("mouseleave",hideTooltip);
 
     // Clip text to cell
     cell.each(function(d){
       var w=cellW(d),h=cellH(d);
-      if(w<30||h<20)return;
+      if(w<80||h<50)return;
       var g=d3.select(this);
       var label=d.data.name.replace(/_/g," ")
-        .replace(/Submerged Aquatic Vegetati\w*/i,"Submerged Aquatic Veg.")
+        .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
 
-      var fontSize=Math.min(20,Math.max(18,w/10));
+      var fontSize=Math.min(18,Math.max(12,w/12));
       var words=label.split(" ");
       var lines=[],cur="";
       words.forEach(function(word){
