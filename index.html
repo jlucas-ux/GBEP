@@ -398,7 +398,7 @@
       var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
       return tb-ta;
     });
-    var mL=Math.min(266,width*0.32),mR=20,mT=50,mB=20;
+    var mL=Math.min(320,width*0.38),mR=20,mT=50,mB=20;
     var w=width-mL-mR,h=height-mT-mB;
     var cellW=w/priorities.length,cellH=h/orgs.length;
     var maxVal=d3.max(Object.values(cellMap))||1;
@@ -417,9 +417,24 @@
     });
     orgs.forEach(function(org,oi){
       var cleanOrg=org.replace(/_/g," ");
-      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
-      g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(18,cellH*0.55)).attr("fill","#333").text(label);
+      var cleanOrg=org.replace(/_/g," ");
+var words=cleanOrg.split(" ");
+var lines=[],cur="";
+words.forEach(function(word){
+  var test=cur?cur+" "+word:word;
+  if(test.length>18&&cur){lines.push(cur);cur=word;}
+  else{cur=test;}
+});
+if(cur)lines.push(cur);
+lines=lines.slice(0,2);
+var fs=Math.min(14,cellH*0.55);
+var lineH=fs+2;
+var startY=oi*cellH+cellH/2-(lines.length-1)*lineH/2;
+lines.forEach(function(line,li){
+  g.append("text").attr("x",-8).attr("y",startY+li*lineH)
+    .attr("text-anchor","end").attr("dominant-baseline","middle")
+    .attr("font-size",fs).attr("fill","#333").text(line);
+});
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
