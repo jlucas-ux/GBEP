@@ -329,7 +329,7 @@
     el.style.overflowX="auto";
     el.style.overflowY="hidden";
     var minBarW=28;
-    var mL=55,mR=30,mT=20,mB=55;
+    var mL=75,mR=30,mT=20,mB=55;
     var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
     var w=chartW-mL-mR,h=height-mT-mB;
 
@@ -644,7 +644,7 @@
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var sorted=counts.slice().sort(function(a,b){return b.count-a.count;});
-    var mL=Math.min(306,width*0.38),mR=50,mT=10,mB=30;
+    var mL=Math.min(306,width*0.38),mR=50,mT=10,mB=50;
     var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(26,rowH*0.65);
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
