@@ -33,7 +33,7 @@
     .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
     .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; width: 100%; height: 100%; }
     .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
-    .grid-cell-title { font-size: 14px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    .grid-cell-title { font-size: 18px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
     .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
@@ -442,7 +442,7 @@
   function drawPlanPriority(data,priority,containerId){
     var el=document.getElementById(containerId);
     var width=el.clientWidth||400,height=el.clientHeight||300;
-    var DEF_BOX_H=60; // reserved height for definition box at bottom
+    var DEF_BOX_H=90; // reserved height for definition box at bottom
     var items=PLAN_DEFS[priority],palette=PP_PALETTES[priority];
     var totals={};
     items.forEach(function(it){totals[it.field]=0;});
@@ -454,8 +454,8 @@
       if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[]};groups.push(groupMap[it.group]);}
       groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
     });
-    var mL=50,mR=10,mT=10,mB=28;
-    var cW=width-mL-mR,cH=height-mT-mB-DEF_BOX_H;
+    var mL=50,mR=10,mT=30,mB=28;
+    var cW=width-mL-mR,cH=height-mT-mB-90;
     var groupW=cW/groups.length,barW=groupW*0.7;
     var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
     var yScale=d3.scaleLinear().domain([0,maxY]).range([cH,0]);
@@ -502,14 +502,14 @@
     svg.append("rect").attr("x",4).attr("y",defY+4).attr("width",width-8).attr("height",DEF_BOX_H-8)
       .attr("fill","#f8f9fa").attr("stroke",defColors[ppKey]||"#ccc").attr("stroke-width",1).attr("rx",4);
     svg.append("text").attr("x",10).attr("y",defY+16)
-      .attr("font-size",11).attr("font-weight","700").attr("fill",defColors[ppKey]||"#333").attr("font-family",FONT)
+      .attr("font-size",16).attr("font-weight","700").attr("fill",defColors[ppKey]||"#333").attr("font-family",FONT)
       .text("Category definitions:");
     var defStr=groups.map(function(grp){return grp.group+(DEFS[grp.group]?" — "+DEFS[grp.group]:"");}).join("   ");
     var charsPerLine=Math.floor((width-20)/6.2);
     var line1=defStr.slice(0,charsPerLine);
     var line2=defStr.slice(charsPerLine,charsPerLine*2);
     svg.append("text").attr("x",10).attr("y",defY+28)
-      .attr("font-size",10).attr("fill","#555").attr("font-family",FONT).text(line1);
+      .attr("font-size",16).attr("fill","#555").attr("font-family",FONT).text(line1);
     if(line2.trim()){
       svg.append("text").attr("x",10).attr("y",defY+40)
         .attr("font-size",10).attr("fill","#555").attr("font-family",FONT).text(line2);
