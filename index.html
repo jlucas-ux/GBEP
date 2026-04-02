@@ -129,7 +129,19 @@
     </div>
     <div class="chart-panel" id="panel-6">
       <div class="chart-title">Approximate Project Acres by Habitat Type</div>
-      <div class="chart-subtitle" id="treemap-subtitle">Total approximate acres across GBEP-funded projects per habitat type. Sites with multiple habitats contribute acres to each type.</div>
+      <div class="chart-subtitle" id="treemap-subtitle">Physical project acres per habitat type. Sites with multiple habitats contribute acres to each type.</div>
+      <div style="display:flex;gap:12px;margin-bottom:8px;flex-shrink:0;">
+        <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Physical Project Acres</div>
+          <div id="physical-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
+          <div style="font-size:10px;opacity:0.6;">Habitat-specific, shown in chart below</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Large Scale Project Acres</div>
+          <div id="research-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
+          <div style="font-size:10px;opacity:0.6;">Research-affected, not habitat-specific</div>
+        </div>
+      </div>
       <div class="chart-area" id="treemap-chart"></div>
     </div>
   </div>
@@ -266,7 +278,7 @@
     for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
     var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name",
               "gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_of_award",
-              "numeric_approximate_project_siz"];
+              "numeric_approximate_project_siz","project_scale"];
     var all=base.concat(ppFields);
     var url=LAYER_URL+"?where=1%3D1&outFields="+all.join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);
@@ -282,7 +294,7 @@
 
     // Separate by project scale
     var physicalFunded=filteredData.filter(function(d){
-      return d.gbep_award_amount>0 && d.project_landscape_type && 
+      return d.gbep_award_amount>0 && d.project_landscape_type &&
         d.numeric_approximate_project_siz>0 &&
         d.project_scale==="Physical project";
     });
@@ -448,7 +460,7 @@
 
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
     var yMax=d3.max(byYear,function(d){return d.count;})||1;
-    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);s
+    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
 
     // Light-to-dark blue scale
     var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
@@ -529,24 +541,10 @@
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
-var cleanOrg=org.replace(/_/g," ");
-      var words=cleanOrg.split(" ");
-      var lines=[],cur="";
-      words.forEach(function(word){
-        var test=cur?cur+" "+word:word;
-        if(test.length>18&&cur){lines.push(cur);cur=word;}
-        else{cur=test;}
-      });
-      if(cur)lines.push(cur);
-      lines=lines.slice(0,2);
-      var fs=Math.min(18,cellH*0.65);
-      var lineH=fs+2;
-      var startY=oi*cellH+cellH/2-(lines.length-1)*lineH/2;
-      lines.forEach(function(line,li){
-        g.append("text").attr("x",-8).attr("y",startY+li*lineH)
-          .attr("text-anchor","end").attr("dominant-baseline","middle")
-          .attr("font-size",fs).attr("fill","#333").text(line);
-      });
+      var cleanOrg=org.replace(/_/g," ");
+      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
+      g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(18,cellH*0.55)).attr("fill","#333").text(label);
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
