@@ -26,14 +26,14 @@
       overflow: hidden; display: none; padding: 16px 20px; background: #f8fafc;
     }
     .chart-panel.active { display: flex; flex-direction: column; }
-    .chart-title { font-size: 22px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
-    .chart-subtitle { font-size:17px; color: #888; margin-bottom: 10px; flex-shrink: 0; line-height:1.7; }
+    .chart-title { font-size: 19px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
+    .chart-subtitle { font-size:18px; color: #888; margin-bottom: 10px; flex-shrink: 0; line-height:1.7; }
     .chart-subtitle strong { color: #1677bc; font-weight: 700; }
     .chart-subtitle strong.green { color: #009988; }
     .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
     .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; width: 100%; height: 100%; }
     .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
-    .grid-cell-title { font-size: 18px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    .grid-cell-title { font-size: 14px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
     .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
@@ -50,6 +50,36 @@
 <div id="loading">Loading data…</div>
 <div id="tooltip" class="tooltip"></div>
 <div id="app" style="display:none">
+  <!-- DATE RANGE FILTER -->
+  <div id="date-filter" style="
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    padding:10px 16px;background:white;border-bottom:1px solid #e8f0fe;
+    flex-shrink:0;font-family:'Roboto',sans-serif;
+  ">
+    <span style="font-size:15px;font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
+    <select id="year-from" onchange="applyYearFilter()" style="
+      padding:6px 12px;border:2px solid #1677bc;border-radius:20px;
+      font-size:15px;font-family:'Roboto',sans-serif;color:#1677bc;
+      background:white;cursor:pointer;outline:none;
+    ">
+      <option value="">From</option>
+    </select>
+    <span style="font-size:15px;color:#888;">—</span>
+    <select id="year-to" onchange="applyYearFilter()" style="
+      padding:6px 12px;border:2px solid #1677bc;border-radius:20px;
+      font-size:15px;font-family:'Roboto',sans-serif;color:#1677bc;
+      background:white;cursor:pointer;outline:none;
+    ">
+      <option value="">To</option>
+    </select>
+    <button onclick="clearYearFilter()" style="
+      padding:6px 16px;border:2px solid #aaa;border-radius:20px;
+      font-size:14px;font-family:'Roboto',sans-serif;color:#888;
+      background:white;cursor:pointer;
+    ">Clear</button>
+    <span id="filter-count" style="font-size:14px;color:#aaa;"></span>
+  </div>
+
   <div id="nav">
     <button class="nav-btn active" onclick="showChart(0)">Habitat Types</button>
     <button class="nav-btn" onclick="showChart(1)">Projects by Site</button>
@@ -78,33 +108,12 @@
     <div class="chart-panel" id="panel-3">
       <div class="chart-title">GBEP Projects by Plan Priority</div>
       <div class="chart-subtitle">Number of funded projects by activity group and subcategory for each plan priority.</div>
-      <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;">
+      <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;">
         <div class="grid-2x2">
           <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
           <div class="grid-cell"><div class="grid-cell-title" style="color:#2e7d32">Plan Priority 2 — Habitat, Stewardship &amp; Field Work</div><div class="grid-chart" id="pp2-chart"></div></div>
           <div class="grid-cell"><div class="grid-cell-title" style="color:#6a1b9a">Plan Priority 3 — Outreach, Education &amp; Partnerships</div><div class="grid-chart" id="pp3-chart"></div></div>
           <div class="grid-cell"><div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Restoration, Sustainability &amp; Capacity</div><div class="grid-chart" id="pp4-chart"></div></div>
-        </div>
-        <div id="pp-definitions" style="
-          background:white;border-radius:10px;
-          box-shadow:0 1px 6px rgba(0,0,0,0.07);
-          padding:14px 20px;margin-top:10px;
-          font-family:'Roboto',sans-serif;
-          flex-shrink:0;
-        ">
-          <div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;">
-            <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
-            <span><strong style="color:#1565c0">PS</strong> — Improve water quality through point source pollution abatement.</span>
-            <span><strong style="color:#1565c0">PHA</strong> — Promote public health and awareness.</span>
-            <span><strong style="color:#1b5e20">HC</strong> — Support habitat conservation.</span>
-            <span><strong style="color:#1b5e20">SC</strong> — Support species conservation.</span>
-            <span><strong style="color:#1b5e20">FWI</strong> — Sustain freshwater inflows.</span>
-            <span><strong style="color:#6a1b9a">SPO</strong> — Preserve Galveston Bay through stakeholder and partner outreach.</span>
-            <span><strong style="color:#6a1b9a">PEA</strong> — Support public education and awareness initiatives.</span>
-            <span><strong style="color:#bf360c">RES</strong> — Collaborate with research institutions to support focus area applied research and monitoring.</span>
-            <span><strong style="color:#bf360c">ACS</strong> — Increase access to Galveston Bay ecosystem information.</span>
-          </div>
         </div>
       </div>
     </div>
@@ -154,8 +163,62 @@
   };
 
   var allData=[];
+  var filteredData=[];
   var chartDrawn=[false,false,false,false,false,false,false];
   var tooltip=document.getElementById("tooltip");
+
+  function getYear(d){
+    var fy=d.fiscal_year_of_award;
+    if(!fy)return null;
+    if(String(fy).length===4)return parseInt(fy);
+    var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
+    return parseInt(String(fy).slice(0,4));
+  }
+
+  function populateYearDropdowns(){
+    var years=Array.from(new Set(allData.map(getYear).filter(Boolean))).sort();
+    var fromSel=document.getElementById("year-from");
+    var toSel=document.getElementById("year-to");
+    years.forEach(function(y){
+      var o1=document.createElement("option");o1.value=y;o1.textContent=y;fromSel.appendChild(o1);
+      var o2=document.createElement("option");o2.value=y;o2.textContent=y;toSel.appendChild(o2);
+    });
+    // Default to last value in To
+    toSel.value=years[years.length-1]||"";
+  }
+
+  function applyYearFilter(){
+    var from=parseInt(document.getElementById("year-from").value)||null;
+    var to=parseInt(document.getElementById("year-to").value)||null;
+    filteredData=allData.filter(function(d){
+      var y=getYear(d);
+      if(!y)return true;
+      if(from&&y<from)return false;
+      if(to&&y>to)return false;
+      return true;
+    });
+    var count=filteredData.filter(function(d){return d.gbep_award_amount>0;}).length;
+    document.getElementById("filter-count").textContent=count+" funded projects";
+    redrawAll();
+  }
+
+  function clearYearFilter(){
+    document.getElementById("year-from").value="";
+    document.getElementById("year-to").value="";
+    filteredData=allData.slice();
+    document.getElementById("filter-count").textContent="";
+    redrawAll();
+  }
+
+  function redrawAll(){
+    chartDrawn=[false,false,false,false,false,false,false];
+    var active=document.querySelector(".chart-panel.active");
+    if(active){
+      var idx=parseInt(active.id.replace("panel-",""));
+      chartDrawn[idx]=false;
+      showChart(idx);
+    }
+  }
 
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.pageX+14)+"px";tooltip.style.top=(evt.pageY-32)+"px";}
   function hideTooltip(){tooltip.style.opacity=0;}
@@ -184,8 +247,9 @@
   function showChart(i){
     document.querySelectorAll('.chart-panel').forEach(function(p,j){p.classList.toggle('active',i===j);});
     document.querySelectorAll('.nav-btn').forEach(function(b,j){b.classList.toggle('active',i===j);});
-    if(!chartDrawn[i]&&allData.length>0){
+    if(!chartDrawn[i]&&filteredData.length>0){
       setTimeout(function(){
+        if(i===0)drawUpset(filteredData,"upset-chart");
         if(i===1)drawSiteChart();
         if(i===2)drawOrgChart();
         if(i===3)drawAllPlanPriorities();
@@ -215,13 +279,13 @@
     var el=document.getElementById("treemap-chart");
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
- 
-    var funded=allData.filter(function(d){
+
+    var funded=filteredData.filter(function(d){
       return d.gbep_award_amount>0 && d.project_landscape_type && d.numeric_approximate_project_siz>0;
     });
- 
+
     // Year range for subtitle
-    var years=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;}).map(function(d){
+    var years=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;}).map(function(d){
       var fy=d.fiscal_year_of_award;
       if(String(fy).length===4)return parseInt(fy);
       var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
@@ -231,7 +295,7 @@
       var subtitleEl=document.getElementById("treemap-subtitle");
       if(subtitleEl)subtitleEl.textContent="Total approximate acres across GBEP-funded projects per habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Sites with multiple habitats contribute acres to each type.";
     }
- 
+
     // Sum acres per habitat type (multi-habitat sites contribute to each)
     var acreMap={};
     funded.forEach(function(row){
@@ -241,13 +305,13 @@
         acreMap[type]=(acreMap[type]||0)+acres;
       });
     });
- 
+
     var leaves=Object.keys(acreMap).map(function(k){
       return {name:k,value:acreMap[k]};
     }).filter(function(d){return d.value>0;});
- 
+
     if(leaves.length===0)return;
- 
+
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
     // Use sqrt scale for color domain — compresses high end, spreads low end for better variation
     var sqrtScale=d3.scaleSqrt().domain([0,maxVal]).range([0,1]);
@@ -257,23 +321,23 @@
       if(t<0.66) return d3.interpolate("#54c4b0","#1677bc")((t-0.33)*3);
       return d3.interpolate("#1677bc","#0d47a1")((t-0.66)*3);
     };
- 
+
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
- 
+
     var treemap=d3.treemap().size([width,height]).padding(2).round(true);
     treemap(root);
- 
+
     d3.select("#treemap-chart").select("svg").remove();
     var svg=d3.select("#treemap-chart").append("svg")
       .attr("width",width).attr("height",height);
- 
+
     var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
       .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
- 
+
     var cellW=function(d){return Math.max(18,d.x1-d.x0);};
     var cellH=function(d){return Math.max(18,d.y1-d.y0);};
- 
+
     cell.append("rect")
       .attr("width",cellW).attr("height",cellH)
       .attr("fill",function(d){return colorScale(d.data.value);})
@@ -281,7 +345,7 @@
       .on("mousemove",function(event,d){
         showTooltip(event,"<strong style='font-size:16px'>"+d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
       }).on("mouseleave",hideTooltip);
- 
+
     // Only show labels on cells large enough to contain them
     var totalAcres=d3.sum(leaves,function(d){return d.value;});
     cell.each(function(d){
@@ -292,7 +356,7 @@
       var label=d.data.name.replace(/_/g," ")
         .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
- 
+
       var fontSize=Math.min(18,Math.max(12,w/12));
       var words=label.split(" ");
       var lines=[],cur="";
@@ -302,14 +366,14 @@
         else{cur=test;}
       });
       if(cur)lines.push(cur);
- 
+
       var lineH=fontSize+4;
       var maxLines=Math.floor((h-lineH*2)/lineH);
       lines=lines.slice(0,Math.max(1,maxLines));
- 
+
       var totalTextH=lines.length*lineH;
       var startY=(h-totalTextH)/2;
- 
+
       lines.forEach(function(line,li){
         g.append("text")
           .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
@@ -318,7 +382,7 @@
           .attr("fill","white").attr("font-weight","600")
           .text(line);
       });
- 
+
       // Only show acreage if there's room below the label
       if(h > totalTextH + lineH*2.5){
         g.append("text")
@@ -330,12 +394,13 @@
       }
     });
   }
+
   // ── FISCAL YEAR ──────────────────────────────────────────
   function drawFiscalYear(){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
-    var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return v.length;},
       function(d){
@@ -358,9 +423,9 @@
 
     // Make scrollable if many years
     el.style.overflowX="auto";
-    el.style.overflowY="visible";
+    el.style.overflowY="hidden";
     var minBarW=28;
-    var mL=75,mR=30,mT=20,mB=85;
+    var mL=55,mR=30,mT=20,mB=55;
     var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
     var w=chartW-mL-mR,h=height-mT-mB;
 
@@ -412,7 +477,7 @@
     var el=document.getElementById("heatmap-chart");
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
-    var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var priorities=["PP1","PP2","PP3","PP4"];
     var ppLabels={"PP1":"Priority 1","PP2":"Priority 2","PP3":"Priority 3","PP4":"Priority 4"};
     var cellMap={};var orgs=[];var orgSet={};
@@ -429,11 +494,9 @@
       var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
       return tb-ta;
     });
-    var mL=Math.min(380,width*0.42),mR=20,mT=50,mB=20;
-    var w=width-mL-mR;
-    var cellH=Math.max(36, (height-mT-mB)/orgs.length); // minimum 36px per row
-    var h=cellH*orgs.length;
-    var cellW=w/priorities.length;
+    var mL=Math.min(266,width*0.32),mR=20,mT=50,mB=20;
+    var w=width-mL-mR,h=height-mT-mB;
+    var cellW=w/priorities.length,cellH=h/orgs.length;
     var maxVal=d3.max(Object.values(cellMap))||1;
     var ppColorScales={
       "PP1": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f4fb","#1565c0")),
@@ -449,30 +512,10 @@
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
-      // Alternating row background
-      if(oi%2===0){
-        g.append("rect").attr("x",-mL).attr("y",oi*cellH)
-          .attr("width",width).attr("height",cellH)
-          .attr("fill","#f0f4ff").attr("opacity",0.5);
-      }
       var cleanOrg=org.replace(/_/g," ");
-var words=cleanOrg.split(" ");
-var lines=[],cur="";
-words.forEach(function(word){
-  var test=cur?cur+" "+word:word;
-  if(test.length>18&&cur){lines.push(cur);cur=word;}
-  else{cur=test;}
-});
-if(cur)lines.push(cur);
-lines=lines.slice(0,2);
-var fs=Math.min(18,cellH*0.65);
-var lineH=fs+2;
-var startY=oi*cellH+cellH/2-(lines.length-1)*lineH/2;
-lines.forEach(function(line,li){
-  g.append("text").attr("x",-8).attr("y",startY+li*lineH)
-    .attr("text-anchor","end").attr("dominant-baseline","middle")
-    .attr("font-size",fs).attr("fill","#333").text(line);
-});
+      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
+      g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(18,cellH*0.55)).attr("fill","#333").text(label);
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
@@ -506,18 +549,18 @@ lines.forEach(function(line,li){
       if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[]};groups.push(groupMap[it.group]);}
       groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
     });
- 
+
     var mL=50,mR=10,mT=36,mB=32; // mT=36 gives room for numbers above bars
     var cW=width-mL-mR,cH=height-mT-mB;
     var groupW=cW/groups.length,barW=groupW*0.7;
     var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
     // Scale domain slightly above maxY so top label never clips
     var yScale=d3.scaleLinear().domain([0,maxY*1.15]).range([cH,0]);
- 
+
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
- 
+
     // Y axis — project count
     g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(d3.format("d")))
       .call(function(ax){
@@ -525,7 +568,7 @@ lines.forEach(function(line,li){
         ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");
         ax.selectAll("text").attr("font-size",18);
       });
- 
+
     groups.forEach(function(grp,gi){
       var x=gi*groupW+(groupW-barW)/2,yOff=cH;
       grp.subs.forEach(function(sub,si){
@@ -549,14 +592,15 @@ lines.forEach(function(line,li){
       }
     });
   }
-  function drawAllPlanPriorities(){drawPlanPriority(allData,1,"pp1-chart");drawPlanPriority(allData,2,"pp2-chart");drawPlanPriority(allData,3,"pp3-chart");drawPlanPriority(allData,4,"pp4-chart");}
+  function drawAllPlanPriorities(){drawPlanPriority(filteredData,1,"pp1-chart");drawPlanPriority(filteredData,2,"pp2-chart");drawPlanPriority(filteredData,3,"pp3-chart");drawPlanPriority(filteredData,4,"pp4-chart");}
+
   // ── BUBBLE CHART ─────────────────────────────────────────
   function drawBubbleChart(counts,containerId){
     var el=document.getElementById(containerId);
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var rScale=d3.scalePow().exponent(0.35).domain([1,maxCount]).range([28,Math.min(width,height)*0.13]);
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([28,Math.min(width,height)*0.09]);
     // Multi-color palette with light colors removed — all dark enough for white text
     var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
     var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
@@ -569,20 +613,20 @@ lines.forEach(function(line,li){
       .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);
     node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.88).attr("stroke","white").attr("stroke-width",2);
     node.each(function(d){
-     var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=14,mw=d.r*1.6,fs=Math.max(8,Math.min(15,d.r/4.5));
+      var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=16,mw=d.r*1.7,fs=Math.max(11,Math.min(18,d.r/3.2));
       var lines=[],cur="";
       words.forEach(function(w){var t=cur?cur+" "+w:w;if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}});
       if(cur)lines.push(cur);
       var ml=Math.floor((d.r*1.8)/lh);
-      if(lines.length>ml){lines=lines.slice(0,ml);lines[lines.length-1]=lines[lines.length-1].slice(0,7)+"...";}
+      lines=lines.slice(0,ml);
       var th=lines.length*lh;
       lines.forEach(function(line,li){g.append("text").attr("x",0).attr("y",-th/2+li*lh+lh/2).attr("text-anchor","middle").attr("dominant-baseline","middle").attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","500").text(line);});
-      if(d.r>25)g.append("text").attr("x",0).attr("y",d.r-10).attr("text-anchor","middle").attr("font-size",Math.max(18,fs-1)).attr("font-family",FONT).attr("fill","rgba(255,255,255,0.8)").text(d.count);
+      if(d.r>25)g.append("text").attr("x",0).attr("y",d.r-10).attr("text-anchor","middle").attr("font-size",Math.max(11,fs-2)).attr("font-family",FONT).attr("fill","rgba(255,255,255,0.8)").text(d.count);
     });
   }
 
   function drawSiteChart(){
-    var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return new Set(v.map(function(d){return d.nru_project_title;})).size;},function(d){return d.site_name_long_term_project_nam;});
     drawBubbleChart(grouped.map(function(r){return{label:r[0],count:r[1]};}), "site-chart");
   }
@@ -591,12 +635,12 @@ lines.forEach(function(line,li){
     var el=document.getElementById("org-chart");
     var width=el.clientWidth||window.innerWidth;
 
-    var funded=allData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var ROW_H=62;
+    var ROW_H=46;
     var mL=Math.min(306,width*0.40), mR=60, mT=10, mB=50;
     var totalH=sorted.length*ROW_H+mT+mB;
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
@@ -664,7 +708,7 @@ lines.forEach(function(line,li){
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var sorted=counts.slice().sort(function(a,b){return b.count-a.count;});
-    var mL=Math.min(306,width*0.38),mR=50,mT=10,mB=50;
+    var mL=Math.min(306,width*0.38),mR=50,mT=10,mB=30;
     var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(26,rowH*0.65);
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
@@ -873,9 +917,11 @@ lines.forEach(function(line,li){
 
   async function init(){
     allData=await fetchData();
+    filteredData=allData.slice();
     document.getElementById("loading").style.display="none";
     document.getElementById("app").style.display="flex";
-    drawUpset(allData,"upset-chart");
+    populateYearDropdowns();
+    drawUpset(filteredData,"upset-chart");
     chartDrawn[0]=true;
   }
 
