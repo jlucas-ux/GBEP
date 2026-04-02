@@ -314,7 +314,7 @@
     var funded=physicalFunded;
 
     // Year range for subtitle
-    var years=filteredData.filter(function(d){return d.fiscal_year_awarded;})
+    var years=filteredData.filter(function(d){return d.fiscal_year_awarded;}).map(function(d){
       var fy=d.fiscal_year_awarded;
       if(String(fy).length===4)return parseInt(fy);
       var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
@@ -430,7 +430,6 @@
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
     var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});
-});
 
     var byYear=d3.rollups(funded,
       function(v){return v.length;},
