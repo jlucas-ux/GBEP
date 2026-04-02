@@ -430,8 +430,10 @@
       return tb-ta;
     });
     var mL=Math.min(380,width*0.42),mR=20,mT=50,mB=20;
-    var w=width-mL-mR,h=height-mT-mB;
-    var cellW=w/priorities.length,cellH=h/orgs.length;
+    var w=width-mL-mR;
+    var cellH=Math.max(36, (height-mT-mB)/orgs.length); // minimum 36px per row
+    var h=cellH*orgs.length;
+    var cellW=w/priorities.length;
     var maxVal=d3.max(Object.values(cellMap))||1;
     var ppColorScales={
       "PP1": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f4fb","#1565c0")),
@@ -447,6 +449,12 @@
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
+      // Alternating row background
+      if(oi%2===0){
+        g.append("rect").attr("x",-mL).attr("y",oi*cellH)
+          .attr("width",width).attr("height",cellH)
+          .attr("fill","#f0f4ff").attr("opacity",0.5);
+      }
       var cleanOrg=org.replace(/_/g," ");
 var words=cleanOrg.split(" ");
 var lines=[],cur="";
