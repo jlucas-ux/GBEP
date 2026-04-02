@@ -280,9 +280,26 @@
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
 
-    var funded=filteredData.filter(function(d){
-      return d.gbep_award_amount>0 && d.project_landscape_type && d.numeric_approximate_project_siz>0;
+    // Separate by project scale
+    var physicalFunded=filteredData.filter(function(d){
+      return d.gbep_award_amount>0 && d.project_landscape_type && 
+        d.numeric_approximate_project_siz>0 &&
+        d.project_scale==="Physical project";
     });
+    var largeFunded=filteredData.filter(function(d){
+      return d.gbep_award_amount>0 && d.numeric_approximate_project_siz>0 &&
+        d.project_scale==="Large scale representative proj";
+    });
+
+    // Update indicators
+    var physAcres=d3.sum(physicalFunded,function(d){return d.numeric_approximate_project_siz||0;});
+    var largeAcres=d3.sum(largeFunded,function(d){return d.numeric_approximate_project_siz||0;});
+    var physEl=document.getElementById("physical-acres-val");
+    var resEl=document.getElementById("research-acres-val");
+    if(physEl)physEl.textContent=fmtAcres(physAcres);
+    if(resEl)resEl.textContent=fmtAcres(largeAcres);
+
+    var funded=physicalFunded;
 
     // Year range for subtitle
     var years=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;}).map(function(d){
@@ -423,15 +440,15 @@
 
     // Make scrollable if many years
     el.style.overflowX="auto";
-    el.style.overflowY="hidden";
+    el.style.overflowY="visible";
     var minBarW=28;
-    var mL=55,mR=30,mT=20,mB=55;
+    var mL=55,mR=30,mT=20,mB=85;
     var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
     var w=chartW-mL-mR,h=height-mT-mB;
 
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
     var yMax=d3.max(byYear,function(d){return d.count;})||1;
-    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
+    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);s
 
     // Light-to-dark blue scale
     var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
@@ -512,10 +529,24 @@
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
-      var cleanOrg=org.replace(/_/g," ");
-      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
-      g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(18,cellH*0.55)).attr("fill","#333").text(label);
+var cleanOrg=org.replace(/_/g," ");
+      var words=cleanOrg.split(" ");
+      var lines=[],cur="";
+      words.forEach(function(word){
+        var test=cur?cur+" "+word:word;
+        if(test.length>18&&cur){lines.push(cur);cur=word;}
+        else{cur=test;}
+      });
+      if(cur)lines.push(cur);
+      lines=lines.slice(0,2);
+      var fs=Math.min(18,cellH*0.65);
+      var lineH=fs+2;
+      var startY=oi*cellH+cellH/2-(lines.length-1)*lineH/2;
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",-8).attr("y",startY+li*lineH)
+          .attr("text-anchor","end").attr("dominant-baseline","middle")
+          .attr("font-size",fs).attr("fill","#333").text(line);
+      });
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
