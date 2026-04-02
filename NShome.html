@@ -242,60 +242,60 @@
 
     var totalAcres=d3.sum(grouped,function(d){return d.value;});
 
-    // Waffle chart — 10x10 grid
-    var COLS=10, ROWS=10, CELLS=100;
-    var cellPad=2;
-    var cellSize=Math.min((width-cellPad*(COLS+1))/COLS,(height*0.68-cellPad*(ROWS+1))/ROWS);
-    var gridW=COLS*(cellSize+cellPad)+cellPad;
-    var gridH=ROWS*(cellSize+cellPad)+cellPad;
-    var offsetX=(width-gridW)/2;
-
-    // Assign cells proportionally
-    var cellGoals=[];
-    var remaining=CELLS;
-    grouped.forEach(function(g,gi){
-      var n=gi===grouped.length-1?remaining:Math.round((g.value/totalAcres)*CELLS);
-      remaining-=n;
-      for(var i=0;i<n;i++) cellGoals.push({name:g.name,color:g.color,value:g.value});
-    });
-    while(cellGoals.length<CELLS) cellGoals.push({name:"",color:"#eeeeee",value:0});
+    // Layout — donut on left, legend on right
+    var legW=width*0.42;
+    var donutW=width-legW;
+    var radius=Math.min(donutW,height)/2-8;
+    var innerRadius=radius*0.55;
+    var cx=donutW/2, cy=height/2;
 
     d3.select("#goal-chart").select("svg").remove();
     var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
 
-    // Draw waffle cells
-    for(var ci=0;ci<CELLS;ci++){
-      var col=ci%COLS, row=Math.floor(ci/COLS);
-      var cx=offsetX+cellPad+col*(cellSize+cellPad);
-      var cy=cellPad+row*(cellSize+cellPad);
-      var cell=cellGoals[ci];
-      (function(c){
-        svg.append("rect")
-          .attr("x",cx).attr("y",cy)
-          .attr("width",cellSize).attr("height",cellSize)
-          .attr("fill",c.color).attr("rx",2).attr("opacity",c.name?0.88:0.15)
-          .on("mousemove",function(event){
-            if(c.name)showTooltip(event,"<strong>"+c.name+"</strong><br>"+fmtAcres(c.value));
-          })
-          .on("mouseleave",hideTooltip);
-      })(cell);
-    }
+    var pie=d3.pie().value(function(d){return d.value;}).sort(null);
+    var arc=d3.arc().innerRadius(innerRadius).outerRadius(radius);
+    var arcHover=d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
 
-    // Legend below waffle
-    var legY=gridH+8;
+    var arcs=svg.append("g").attr("transform","translate("+cx+","+cy+")");
+
+    arcs.selectAll("path")
+      .data(pie(grouped))
+      .enter().append("path")
+      .attr("d",arc)
+      .attr("fill",function(d){return d.data.color;})
+      .attr("stroke","white").attr("stroke-width",2)
+      .on("mousemove",function(event,d){
+        d3.select(this).attr("d",arcHover);
+        var pct=Math.round(d.data.value/totalAcres*100);
+        showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+pct+"% of total");
+      })
+      .on("mouseleave",function(event,d){
+        d3.select(this).attr("d",arc);
+        hideTooltip();
+      });
+
+    // Center label
+    arcs.append("text").attr("text-anchor","middle").attr("y",-8)
+      .attr("font-size",13).attr("font-weight","700").attr("fill","#333")
+      .text(fmtAcres(totalAcres));
+    arcs.append("text").attr("text-anchor","middle").attr("y",10)
+      .attr("font-size",10).attr("fill","#888")
+      .text("physical acres");
+
+    // Legend on right
+    var legX=donutW+8;
     var legFS=10;
-    var legLineH=legFS+4;
-    var col1X=4, col2X=width/2;
-    grouped.forEach(function(g,gi){
-      var isRight=gi>=Math.ceil(grouped.length/2);
-      var lx=isRight?col2X:col1X;
-      var ly=legY+(isRight?gi-Math.ceil(grouped.length/2):gi)*legLineH;
-      if(ly+legLineH>height)return;
-      svg.append("rect").attr("x",lx).attr("y",ly).attr("width",legFS).attr("height",legFS)
+    var legLineH=legFS+5;
+    var maxLegItems=Math.floor(height/legLineH);
+    var showItems=Math.min(grouped.length,maxLegItems);
+
+    grouped.slice(0,showItems).forEach(function(g,gi){
+      var ly=gi*legLineH+(height-showItems*legLineH)/2;
+      svg.append("rect").attr("x",legX).attr("y",ly).attr("width",legFS).attr("height",legFS)
         .attr("fill",g.color).attr("rx",2);
       var pct=Math.round(g.value/totalAcres*100);
-      var label=g.name.length>28?g.name.slice(0,26)+"…":g.name;
-      svg.append("text").attr("x",lx+legFS+4).attr("y",ly+legFS*0.9)
+      var label=g.name.length>22?g.name.slice(0,20)+"…":g.name;
+      svg.append("text").attr("x",legX+legFS+4).attr("y",ly+legFS*0.9)
         .attr("font-size",legFS).attr("fill","#444").attr("font-family",FONT)
         .text(label+" ("+pct+"%)");
     });
