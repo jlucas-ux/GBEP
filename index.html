@@ -569,7 +569,7 @@ lines.forEach(function(line,li){
       .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);
     node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.88).attr("stroke","white").attr("stroke-width",2);
     node.each(function(d){
-      var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=16,mw=d.r*1.6,fs=Math.max(11,Math.min(18,d.r/3.2));
+     var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=14,mw=d.r*1.6,fs=Math.max(8,Math.min(15,d.r/4.5));
       var lines=[],cur="";
       words.forEach(function(w){var t=cur?cur+" "+w:w;if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}});
       if(cur)lines.push(cur);
