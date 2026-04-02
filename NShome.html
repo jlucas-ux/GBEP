@@ -120,8 +120,8 @@
   // Light-to-dark scales — smaller values lighter, larger values darker
   // Each chart uses a distinct hue family within the brand palette
   var SCALE_FY   = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1")); // blue — fiscal year bars
-  var SCALE_GOAL = d3.scaleSequential().interpolator(d3.interpolate("#b2dfdb","#00695c")); // teal — treemap
-  var SCALE_SPE  = d3.scaleSequential().interpolator(d3.interpolate("#b2ebf2","#006064")); // aqua — bubbles
+  var SCALE_GOAL = d3.scaleSequential().interpolator(d3.interpolate("#64b5f6","#0d47a1"));
+  var SCALE_SPE = d3.scaleSequential().interpolator(d3.interpolate("#42a5f5","#0d47a1"));
 
   var tooltip=document.getElementById("tooltip");
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
@@ -240,7 +240,7 @@
     var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height);
 
     var total=d3.sum(grouped,function(d){return d.value;});
-    var threshold=total*0.05;
+    var threshold=total*0.08;
 
     var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
       .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
@@ -258,7 +258,7 @@
 
     cell.each(function(d){
       var w=cW(d), h=cH(d);
-      if(d.data.value < threshold || w<60 || h<24) return;
+      if(d.data.value < threshold || w<90 || h<55) return;
       var g=d3.select(this);
       var words=d.data.name.split(/[\s\/]+/);
       var fs=Math.min(16, Math.max(12, w/10));
