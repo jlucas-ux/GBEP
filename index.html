@@ -215,11 +215,11 @@
     var el=document.getElementById("treemap-chart");
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
-
+ 
     var funded=allData.filter(function(d){
       return d.gbep_award_amount>0 && d.project_landscape_type && d.numeric_approximate_project_siz>0;
     });
-
+ 
     // Year range for subtitle
     var years=allData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;}).map(function(d){
       var fy=d.fiscal_year_of_award;
@@ -231,7 +231,7 @@
       var subtitleEl=document.getElementById("treemap-subtitle");
       if(subtitleEl)subtitleEl.textContent="Total approximate acres across GBEP-funded projects per habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Sites with multiple habitats contribute acres to each type.";
     }
-
+ 
     // Sum acres per habitat type (multi-habitat sites contribute to each)
     var acreMap={};
     funded.forEach(function(row){
@@ -241,37 +241,39 @@
         acreMap[type]=(acreMap[type]||0)+acres;
       });
     });
-
+ 
     var leaves=Object.keys(acreMap).map(function(k){
       return {name:k,value:acreMap[k]};
     }).filter(function(d){return d.value>0;});
-
+ 
     if(leaves.length===0)return;
-
+ 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    var colorScale=d3.scaleSequential().domain([0,maxVal])
-  .interpolator(function(t){
-    if(t<0.33) return d3.interpolate("#a8e6e0","#54c4b0")(t*3);
-    if(t<0.66) return d3.interpolate("#54c4b0","#1677bc")((t-0.33)*3);
-    return d3.interpolate("#1677bc","#0d47a1")((t-0.66)*3);
-  });
-
+    // Use sqrt scale for color domain — compresses high end, spreads low end for better variation
+    var sqrtScale=d3.scaleSqrt().domain([0,maxVal]).range([0,1]);
+    var colorScale=function(val){
+      var t=sqrtScale(val);
+      if(t<0.33) return d3.interpolate("#2a9db5","#54c4b0")(t*3);
+      if(t<0.66) return d3.interpolate("#54c4b0","#1677bc")((t-0.33)*3);
+      return d3.interpolate("#1677bc","#0d47a1")((t-0.66)*3);
+    };
+ 
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
-
+ 
     var treemap=d3.treemap().size([width,height]).padding(2).round(true);
     treemap(root);
-
+ 
     d3.select("#treemap-chart").select("svg").remove();
     var svg=d3.select("#treemap-chart").append("svg")
       .attr("width",width).attr("height",height);
-
+ 
     var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
       .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
-
+ 
     var cellW=function(d){return Math.max(18,d.x1-d.x0);};
     var cellH=function(d){return Math.max(18,d.y1-d.y0);};
-
+ 
     cell.append("rect")
       .attr("width",cellW).attr("height",cellH)
       .attr("fill",function(d){return colorScale(d.data.value);})
@@ -279,52 +281,55 @@
       .on("mousemove",function(event,d){
         showTooltip(event,"<strong style='font-size:16px'>"+d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
       }).on("mouseleave",hideTooltip);
-
-    // Clip text to cell
+ 
+    // Only show labels on cells large enough to contain them
+    var totalAcres=d3.sum(leaves,function(d){return d.value;});
     cell.each(function(d){
       var w=cellW(d),h=cellH(d);
-      if(w<80||h<50)return;
+      // Skip tiny cells entirely — tooltip only
+      if(w<80||h<50) return;
       var g=d3.select(this);
       var label=d.data.name.replace(/_/g," ")
         .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
-
+ 
       var fontSize=Math.min(18,Math.max(12,w/12));
       var words=label.split(" ");
       var lines=[],cur="";
       words.forEach(function(word){
         var test=cur?cur+" "+word:word;
-        if(test.length*fontSize*0.55>w-8&&cur){lines.push(cur);cur=word;}
+        if(test.length*fontSize*0.55>w-12&&cur){lines.push(cur);cur=word;}
         else{cur=test;}
       });
       if(cur)lines.push(cur);
-
-      var lineH=fontSize+3;
-      var totalTextH=lines.length*lineH+lineH;
-      if(totalTextH>h)lines=lines.slice(0,Math.floor((h-lineH)/lineH));
-
-      var startY=(h-lines.length*lineH-lineH)/2+lineH;
-
+ 
+      var lineH=fontSize+4;
+      var maxLines=Math.floor((h-lineH*2)/lineH);
+      lines=lines.slice(0,Math.max(1,maxLines));
+ 
+      var totalTextH=lines.length*lineH;
+      var startY=(h-totalTextH)/2;
+ 
       lines.forEach(function(line,li){
         g.append("text")
-          .attr("x",w/2).attr("y",startY+li*lineH)
+          .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",fontSize).attr("font-family",FONT)
-          .attr("fill","white").attr("font-weight","500")
+          .attr("fill","white").attr("font-weight","600")
           .text(line);
       });
-
-      if(h>lines.length*lineH+lineH*2){
+ 
+      // Only show acreage if there's room below the label
+      if(h > totalTextH + lineH*2.5){
         g.append("text")
-          .attr("x",w/2).attr("y",startY+lines.length*lineH+4)
+          .attr("x",w/2).attr("y",startY+totalTextH+lineH)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",Math.max(18,fontSize-2)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.8)")
+          .attr("font-size",Math.max(11,fontSize-3)).attr("font-family",FONT)
+          .attr("fill","rgba(255,255,255,0.85)")
           .text(fmtAcres(d.data.value));
       }
     });
   }
-
   // ── FISCAL YEAR ──────────────────────────────────────────
   function drawFiscalYear(){
     var el=document.getElementById("fy-chart");
