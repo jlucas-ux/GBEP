@@ -7,7 +7,6 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;overflow:hidden;background:#f4f7fb;font-family:'Roboto',sans-serif;}
-
     #app{width:100%;height:100%;display:flex;flex-direction:column;}
 
     /* ── HERO STATS ── */
@@ -16,26 +15,18 @@
       background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
       flex-shrink:0;
     }
-    .stat-card{
-      padding:14px 20px;border-right:1px solid rgba(255,255,255,0.15);
-      display:flex;flex-direction:column;
-    }
+    .stat-card{padding:14px 20px;border-right:1px solid rgba(255,255,255,0.15);display:flex;flex-direction:column;}
     .stat-card:last-child{border-right:none;}
-    .stat-num{font-size:35px;font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
-    .stat-num.loading{color:rgba(255,255,255,0.3);font-size:25px;font-weight:300;}
-    .stat-label{font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
-    .stat-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;}
+    .stat-num{font-size:38px;font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
+    .stat-num.loading{color:rgba(255,255,255,0.3);font-size:28px;font-weight:300;}
+    .stat-label{font-size:16px;font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
+    .stat-sub{font-size:15px;color:rgba(255,255,255,0.45);margin-top:2px;}
 
     /* ── MAIN BODY ── */
     #main{flex:1;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:10px;padding:10px;min-height:0;}
 
     /* ── CHART CARDS ── */
-    .chart-card{
-      background:white;border-radius:10px;
-      box-shadow:0 2px 12px rgba(0,0,0,0.07);
-      display:flex;flex-direction:column;overflow:hidden;
-      min-height:0;
-    }
+    .chart-card{background:white;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,0.07);display:flex;flex-direction:column;overflow:hidden;min-height:0;}
     .chart-card-header{padding:10px 14px 6px;border-bottom:2px solid #f0f4ff;flex-shrink:0;}
     .chart-card-header h3{font-size:19px;font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
     .chart-card-header p{font-size:16px;color:#aaa;margin-top:2px;}
@@ -46,7 +37,7 @@
       position:fixed;background:rgba(15,23,42,0.93);color:white;
       padding:7px 11px;border-radius:7px;font-size:17px;
       pointer-events:none;opacity:0;transition:opacity 0.15s;
-      max-width:220px;line-height:1.5;z-index:9999;
+      max-width:240px;line-height:1.5;z-index:9999;
       box-shadow:0 4px 16px rgba(0,0,0,0.25);font-family:'Roboto',sans-serif;
     }
   </style>
@@ -85,49 +76,61 @@
     <!-- TOP ROW: Fiscal Year full width -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h3>GBEP Funding by Fiscal Year</h3>
-        <p>Award dollars (bars) and project count (line) per fiscal year.</p>
+        <h3>GBEP Projects by Fiscal Year</h3>
+        <p id="fy-subtitle">Number of funded projects per fiscal year.</p>
       </div>
       <div class="chart-body" id="fy-chart"></div>
     </div>
 
-    <!-- BOTTOM RIGHT: split into 2 side by side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;overflow:hidden;">
+    <!-- BOTTOM ROW: watershed + goal treemap + species bubbles -->
+    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;min-height:0;overflow:hidden;">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <h3>Projects by Watershed</h3>
+          <p>Funded projects per watershed. Hover for details.</p>
+        </div>
+        <div class="chart-body" id="watershed-chart"></div>
+      </div>
       <div class="chart-card">
         <div class="chart-card-header">
           <h3>Acres by Project Goal</h3>
-          <p>Approximate acres per broad goal.</p>
+          <p id="goal-subtitle">Physical project acres by broad goal. Each square = 1% of total.</p>
         </div>
         <div class="chart-body" id="goal-chart"></div>
       </div>
       <div class="chart-card">
         <div class="chart-card-header">
           <h3>Projects by Focal Species</h3>
-          <p>Count per targeted focal species.</p>
+          <p>Count of funded projects per targeted species.</p>
         </div>
         <div class="chart-body" id="species-chart"></div>
       </div>
     </div>
 
   </div>
-
 </div>
 
 <script>
   var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var FONT="Roboto,sans-serif";
 
-  // Light-to-dark scales — smaller values lighter, larger values darker
-  // Each chart uses a distinct hue family within the brand palette
-  var SCALE_FY   = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1")); // blue — fiscal year bars
-  var SCALE_GOAL = d3.scaleSequential().interpolator(d3.interpolate("#64b5f6","#0d47a1"));
-  var SCALE_SPE  = d3.scaleSequential().interpolator(d3.interpolate("#42a5f5","#0d47a1"));
+  // Light-to-dark brand scales — smaller values lighter, larger values darker
+  // Used consistently across all charts
+  var SCALE_BLUE = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1")); // bars, lollipops
+  var SCALE_TEAL = d3.scaleSequential().interpolator(d3.interpolate("#b2dfdb","#00695c")); // treemap goal
+  var SCALE_AQUA = d3.scaleSequential().interpolator(d3.interpolate("#b2ebf2","#006064")); // bubbles species
+  var PALETTE_WS  = ["#e8f4fb","#90caf9","#54a9ad","#1677bc","#0d47a1"];                  // choropleth ramp
+
+  // Helper: given a sorted array of values, return a color from light→dark based on rank
+  function scaleColor(scale, value, maxValue){
+    return scale.domain([0, maxValue])(value);
+  }
 
   var tooltip=document.getElementById("tooltip");
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
   function hideTooltip(){tooltip.style.opacity=0;}
 
-  function cleanTick(s){ return String(s).replace(/_/g," "); }
+  function cleanTick(s){return String(s).replace(/_/g," ");}
   function fmtDollars(v){if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";return "$"+Math.round(v);}
   function fmtAcres(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M ac";if(v>=1e3)return (v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
   function fmtNum(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M";if(v>=1e3)return (v/1e3).toFixed(1)+"K";return v.toLocaleString();}
@@ -148,7 +151,7 @@
   }
 
   async function fetchMain(){
-    var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz","lead_organization_name","broad_project_goals","targeted_focal_species"];
+    var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz","lead_organization_name","broad_project_goals","targeted_focal_species","project_scale"];
     var url=LAYER_URL+"?where=1%3D1&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);
     var json=await res.json();
@@ -171,7 +174,7 @@
     var width=el.clientWidth||500,height=el.clientHeight||200;
     var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
-      function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
+      function(v){return v.length;},
       function(d){
         var fy=d.fiscal_year_of_award;
         if(!fy)return null;
@@ -180,107 +183,139 @@
         return parseInt(String(fy).slice(0,4));
       }
     ).filter(function(r){return r[0]!==null;})
-     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .map(function(r){return{year:r[0],count:r[1]};})
      .sort(function(a,b){return a.year-b.year;});
     if(!byYear.length)return;
 
-    var maxDollars=d3.max(byYear,function(d){return d.dollars;})||1;
-    SCALE_FY.domain([0,maxDollars]);
+    // Update subtitle with year range
+    var minY=byYear[0].year, maxY=byYear[byYear.length-1].year;
+    document.getElementById("fy-subtitle").textContent="Number of funded projects per fiscal year, "+minY+"–"+maxY+".";
 
-    var mL=52,mR=40,mT=10,mB=65;
+    var mL=44,mR=24,mT=10,mB=40;
     var w=width-mL-mR,h=height-mT-mB;
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
-    var yScale=d3.scaleLinear().domain([0,maxDollars*1.12]).range([h,0]);
-    var y2Scale=d3.scaleLinear().domain([0,d3.max(byYear,function(d){return d.count;})*1.12]).range([h,0]);
+    var yScale=d3.scaleLinear().domain([0,d3.max(byYear,function(d){return d.count;})*1.15]).range([h,0]);
 
     d3.select("#fy-chart").select("svg").remove();
     var svg=d3.select("#fy-chart").append("svg").attr("width",width).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");ax.selectAll("text").attr("font-size",14).attr("fill","#999");});
-    g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(4).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll("text").attr("font-size",14).attr("fill","#54a9ad");});
+    // Gridlines + left axis (count)
+    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d")))
+      .call(function(ax){
+        ax.select(".domain").remove();
+        ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");
+        ax.selectAll("text").attr("font-size",14).attr("fill","#999");
+      });
 
-    // Bars colored light→dark by dollar value
+    var maxCount=d3.max(byYear,function(d){return d.count;})||1;
+    SCALE_BLUE.domain([0,maxCount]);
+
+    // Bars
     g.selectAll(".bar").data(byYear).enter().append("rect")
-      .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
-      .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.dollars);})
-      .attr("fill",function(d){return SCALE_FY(d.dollars);}).attr("rx",2).attr("opacity",0.88)
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+fmtDollars(d.dollars)+"<br>"+d.count+" projects");})
+      .attr("x",function(d){return xScale(d.year);})
+      .attr("y",function(d){return yScale(d.count);})
+      .attr("width",xScale.bandwidth())
+      .attr("height",function(d){return h-yScale(d.count);})
+      .attr("fill",function(d){return SCALE_BLUE(d.count);}).attr("rx",3).attr("opacity",0.92)
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
       .on("mouseleave",hideTooltip);
 
-    var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
-    g.append("path").datum(byYear).attr("fill","none").attr("stroke","#54a9ad").attr("stroke-width",2).attr("d",line);
-    g.selectAll(".dot2").data(byYear).enter().append("circle")
-      .attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);})
-      .attr("r",3).attr("fill","#54a9ad").attr("stroke","white").attr("stroke-width",1);
+    // Count labels on top of bars
+    g.selectAll(".bar-label").data(byYear).enter().append("text")
+      .attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
+      .attr("y",function(d){return yScale(d.count)-4;})
+      .attr("text-anchor","middle").attr("font-size",13).attr("font-weight","700")
+      .attr("fill","#1677bc").attr("font-family",FONT)
+      .text(function(d){return d.count;});
 
+    // X axis
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",13).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");});
+      .call(function(ax){
+        ax.select(".domain").attr("stroke","#ddd");
+        ax.selectAll("text").attr("font-size",14).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");
+      });
+
+    // Y axis label
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-36)
+      .attr("text-anchor","middle").attr("font-size",14).attr("fill","#aaa").attr("font-family",FONT)
+      .text("Projects");
   }
 
   function drawGoalChart(data){
     var el=document.getElementById("goal-chart");
     var width=el.clientWidth||400, height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.broad_project_goals&&d.numeric_approximate_project_siz>0;});
+    // Add project_scale to fetch — filter to physical only
+    var funded=data.filter(function(d){
+      return d.gbep_award_amount>0 && d.broad_project_goals &&
+        d.numeric_approximate_project_siz>0 &&
+        d.project_scale==="Physical project";
+    });
+
     var grouped=d3.rollups(funded,
       function(v){return d3.sum(v,function(d){return d.numeric_approximate_project_siz||0;});},
       function(d){return d.broad_project_goals;}
-    ).map(function(r){return{name:r[0].replace(/_/g," "),value:r[1]};})
-     .filter(function(d){return d.value>0;});
+    ).map(function(r,i){return{name:r[0].replace(/_/g," "),value:r[1],color:PALETTE_GOAL[i%PALETTE_GOAL.length]};})
+     .filter(function(d){return d.value>0;})
+     .sort(function(a,b){return b.value-a.value;});
 
-    var maxVal=d3.max(grouped,function(d){return d.value;})||1;
-    SCALE_GOAL.domain([0,maxVal]);
+    if(!grouped.length)return;
 
-    var root=d3.hierarchy({children:grouped}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
-    d3.treemap().size([width,height]).padding(3).round(true)(root);
+    var totalAcres=d3.sum(grouped,function(d){return d.value;});
+
+    // ── WAFFLE CHART ──
+    var COLS=10, ROWS=10, CELLS=COLS*ROWS;
+    var cellPad=2;
+    var cellSize=Math.min((width-cellPad*(COLS+1))/COLS, (height*0.72-cellPad*(ROWS+1))/ROWS);
+    var gridW=COLS*(cellSize+cellPad)+cellPad;
+    var gridH=ROWS*(cellSize+cellPad)+cellPad;
+    var offsetX=(width-gridW)/2;
+    var legendH=height-gridH-8;
 
     d3.select("#goal-chart").select("svg").remove();
-    var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height);
+    var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
 
-    var total=d3.sum(grouped,function(d){return d.value;});
-    var threshold=total*0.08;
+    // Assign cells to goals proportionally
+    var cellGoals=[];
+    var remaining=CELLS;
+    grouped.forEach(function(g,gi){
+      var n=gi===grouped.length-1 ? remaining : Math.round((g.value/totalAcres)*CELLS);
+      remaining-=n;
+      for(var i=0;i<n;i++) cellGoals.push({name:g.name,color:g.color,value:g.value});
+    });
+    while(cellGoals.length<CELLS) cellGoals.push({name:"",color:"#f0f0f0",value:0});
 
-    var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
-      .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
+    // Draw cells
+    for(var ci=0;ci<CELLS;ci++){
+      var col=ci%COLS, row=Math.floor(ci/COLS);
+      var cx=offsetX+cellPad+col*(cellSize+cellPad);
+      var cy=cellPad+row*(cellSize+cellPad);
+      var cell=cellGoals[ci];
+      svg.append("rect")
+        .attr("x",cx).attr("y",cy)
+        .attr("width",cellSize).attr("height",cellSize)
+        .attr("fill",cell.color).attr("rx",2).attr("opacity",0.88)
+        .on("mousemove",function(event,c){
+          if(c.name)showTooltip(event,"<strong>"+c.name+"</strong><br>"+fmtAcres(c.value));
+        }.bind(null,cell))
+        .on("mouseleave",hideTooltip);
+    }
 
-    var cW=function(d){return Math.max(0,d.x1-d.x0);};
-    var cH=function(d){return Math.max(0,d.y1-d.y0);};
-
-    cell.append("rect")
-      .attr("width",cW).attr("height",cH)
-      .attr("fill",function(d){return SCALE_GOAL(d.data.value);})
-      .attr("rx",4).attr("opacity",0.88)
-      .on("mousemove",function(event,d){
-        showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value));
-      }).on("mouseleave",hideTooltip);
-
-    cell.each(function(d){
-      var w=cW(d), h=cH(d);
-      if(d.data.value < threshold || w<90 || h<55) return;
-      var g=d3.select(this);
-      var words=d.data.name.split(/[\s\/]+/);
-      var fs=Math.min(16, Math.max(12, w/10));
-      var lines=[], cur="";
-      words.forEach(function(word){
-        var test=cur?cur+" "+word:word;
-        if(test.length*fs*0.55>w-10&&cur){lines.push(cur);cur=word;}
-        else{cur=test;}
-      });
-      if(cur)lines.push(cur);
-      lines=lines.slice(0,Math.floor((h-fs)/(fs+2)));
-      var startY=(h-lines.length*(fs+2))/2+fs;
-      lines.forEach(function(line,li){
-        g.append("text").attr("x",w/2).attr("y",startY+li*(fs+2))
-          .attr("text-anchor","middle").attr("font-size",fs).attr("font-family",FONT)
-          .attr("fill","white").attr("font-weight","500").text(line);
-      });
-      if(h>lines.length*(fs+2)+fs*2){
-        g.append("text").attr("x",w/2).attr("y",startY+lines.length*(fs+2)+2)
-          .attr("text-anchor","middle").attr("font-size",Math.max(11,fs-2)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.8)").text(fmtAcres(d.data.value));
-      }
+    // Legend below waffle
+    var legY=gridH+10;
+    var legX=4;
+    var legFS=10;
+    var legLineH=legFS+5;
+    grouped.forEach(function(g,gi){
+      var ly=legY+gi*legLineH;
+      if(ly+legLineH>height)return;
+      svg.append("rect").attr("x",legX).attr("y",ly).attr("width",legFS).attr("height",legFS)
+        .attr("fill",g.color).attr("rx",2);
+      var pct=Math.round(g.value/totalAcres*100);
+      var label=g.name.length>32?g.name.slice(0,30)+"…":g.name;
+      svg.append("text").attr("x",legX+legFS+4).attr("y",ly+legFS*0.85)
+        .attr("font-size",legFS).attr("fill","#444").attr("font-family",FONT)
+        .text(label+" ("+pct+"%)");
     });
   }
 
@@ -293,19 +328,14 @@
       row.targeted_focal_species.split(",").map(function(s){return s.trim().replace(/_/g," ");}).filter(function(s){return s;})
         .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
     });
-    var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};})
+    var counts=Object.keys(sMap).map(function(k,i){return{label:k,count:sMap[k],color:PALETTE_SPE[i%PALETTE_SPE.length]};})
       .sort(function(a,b){return b.count-a.count;});
     if(!counts.length)return;
 
-    var SPE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([10,Math.min(width,height)*0.18]);
-    var nodes=counts.map(function(d,i){return{
-      label:d.label,count:d.count,r:rScale(d.count),
-      color:SPE_PALETTE[i%SPE_PALETTE.length],
-      x:width*0.2+Math.random()*width*0.6,
-      y:height*0.2+Math.random()*height*0.6
-    };});
+    SCALE_AQUA.domain([0,maxCount]);
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([12,Math.min(width,height)*0.18]);
+    var nodes=counts.map(function(d){return{label:d.label,count:d.count,r:rScale(d.count),color:SCALE_AQUA(d.count),x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
 
     d3.select("#species-chart").select("svg").remove();
     var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height);
@@ -323,9 +353,8 @@
       .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
       .on("mouseleave",hideTooltip);
 
-    node.append("circle").attr("r",function(d){return d.r;})
-      .attr("fill",function(d){return d.color;}).attr("opacity",0.88)
-      .attr("stroke","white").attr("stroke-width",1.5);
+    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;})
+      .attr("opacity",0.9).attr("stroke","white").attr("stroke-width",1.5);
 
     node.each(function(d){
       var g=d3.select(this);
@@ -340,14 +369,87 @@
       lines.forEach(function(line,li){
         g.append("text").attr("x",0).attr("y",-th/2+li*(fs+2)+fs)
           .attr("text-anchor","middle").attr("font-size",fs).attr("font-family",FONT)
-          .attr("fill","white").attr("font-weight","500").text(line);
+          .attr("fill","white").attr("font-weight","600").text(line);
       });
       if(d.r>20){
         g.append("text").attr("x",0).attr("y",d.r-8)
           .attr("text-anchor","middle").attr("font-size",Math.max(11,fs-1)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.8)").text(d.count);
+          .attr("fill","rgba(255,255,255,0.85)").text(d.count);
       }
     });
+  }
+
+  async function drawWatershed(){
+    var el=document.getElementById("watershed-chart");
+    var width=el.clientWidth||400, height=el.clientHeight||200;
+
+    var countsRes=await fetch("watershed_counts.json");
+    var countsData=await countsRes.json();
+    var countMap={};
+    countsData.watersheds.forEach(function(w){countMap[w.name]=w.project_count;});
+
+    var geoRes=await fetch(
+      "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/GBEP_Watersheds_Summary_Stats/FeatureServer/0/query"+
+      "?where=1%3D1&outFields=Name&outSR=4326&f=geojson&resultRecordCount=500"
+    );
+    var geoData=await geoRes.json();
+
+    geoData.features.forEach(function(f){
+      f.properties.project_count=countMap[f.properties.Name]||0;
+    });
+
+    var maxCount=d3.max(geoData.features,function(f){return f.properties.project_count;})||1;
+
+    function wsColor(val){
+      if(val===0)return PALETTE_WS[0];
+      var t=(val-1)/(Math.max(maxCount-1,1));
+      var stops=PALETTE_WS.slice(1);
+      var idx=Math.min(Math.floor(t*(stops.length-1)),stops.length-2);
+      var local=t*(stops.length-1)-idx;
+      return d3.interpolate(stops[idx],stops[idx+1])(local);
+    }
+
+    var projection=d3.geoMercator().fitSize([width,height],geoData);
+    var path=d3.geoPath().projection(projection);
+
+    d3.select("#watershed-chart").select("svg").remove();
+    var svg=d3.select("#watershed-chart").append("svg").attr("width",width).attr("height",height);
+
+    svg.selectAll("path")
+      .data(geoData.features)
+      .enter().append("path")
+      .attr("d",path)
+      .attr("fill",function(d){return wsColor(d.properties.project_count);})
+      .attr("stroke","white").attr("stroke-width",0.8)
+      .on("mousemove",function(event,d){
+        var n=d.properties.Name;
+        var c=d.properties.project_count;
+        showTooltip(event,"<strong>"+n+"</strong><br>"+c+" project"+(c!==1?"s":""));
+      })
+      .on("mouseleave",hideTooltip);
+
+    svg.selectAll(".ws-count")
+      .data(geoData.features.filter(function(d){return d.properties.project_count>0;}))
+      .enter().append("text")
+      .attr("transform",function(d){var c=path.centroid(d);return "translate("+c[0]+","+c[1]+")";})
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size",16).attr("font-weight","700").attr("fill","white").attr("pointer-events","none")
+      .text(function(d){return d.properties.project_count;});
+
+    // Legend
+    var lgW=110,lgH=9,lgX=width-lgW-8,lgY=height-22;
+    var defs=svg.append("defs");
+    var grad=defs.append("linearGradient").attr("id","ws-grad");
+    PALETTE_WS.forEach(function(c,i){grad.append("stop").attr("offset",(i/(PALETTE_WS.length-1)*100)+"%").attr("stop-color",c);});
+    svg.append("rect").attr("x",lgX).attr("y",lgY).attr("width",lgW).attr("height",lgH).attr("fill","url(#ws-grad)").attr("rx",2);
+    svg.append("text").attr("x",lgX).attr("y",lgY-3).attr("font-size",12).attr("fill","#888").attr("font-family",FONT).text("0");
+    svg.append("text").attr("x",lgX+lgW).attr("y",lgY-3).attr("font-size",12).attr("fill","#888").attr("text-anchor","end").attr("font-family",FONT).text(maxCount+" projects");
+
+    if(countsData.updated&&countsData.updated!=="pending first run"){
+      var dt=new Date(countsData.updated);
+      svg.append("text").attr("x",6).attr("y",height-6).attr("font-size",12).attr("fill","#bbb").attr("font-family",FONT)
+        .text("Updated "+dt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}));
+    }
   }
 
   async function init(){
@@ -356,6 +458,7 @@
     drawFiscalYear(data);
     drawGoalChart(data);
     drawSpeciesChart(data);
+    drawWatershed();
   }
 
   init();
