@@ -314,7 +314,7 @@
     var funded=physicalFunded;
 
     // Year range for subtitle
-    var years=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;}).map(function(d){
+    var years=filteredData.filter(function(d){return d.fiscal_year_of_award;})
       var fy=d.fiscal_year_of_award;
       if(String(fy).length===4)return parseInt(fy);
       var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
