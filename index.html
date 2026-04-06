@@ -151,7 +151,7 @@
     <div class="chart-panel" id="panel-6">
       <div class="chart-title">Approximate Project Acres by Habitat Type</div>
       <div class="chart-subtitle" id="treemap-subtitle">Physical project acres per habitat type. Sites with multiple habitats contribute acres to each type.</div>
-      <div style="display:flex;gap:12px;margin-bottom:8px;flex-shrink:0;">
+      <div style="display:flex;gap:12px;margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
         <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Physical Project Acres</div>
           <div id="physical-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
@@ -314,13 +314,14 @@
     var height=el.clientHeight||(window.innerHeight-100);
 
     // Separate by project scale
+    // Count all projects (remove GBEP-funded-only filter)
     var physicalFunded=filteredData.filter(function(d){
-      return d.gbep_award_amount>0 && d.project_landscape_type &&
+      return d.project_landscape_type &&
         d.numeric_approximate_project_siz>0 &&
         d.project_scale==="Physical project";
     });
     var largeFunded=filteredData.filter(function(d){
-      return d.gbep_award_amount>0 && d.numeric_approximate_project_siz>0 &&
+      return d.numeric_approximate_project_siz>0 &&
         d.project_scale==="Large scale representative proj";
     });
 
@@ -363,13 +364,11 @@
     if(leaves.length===0)return;
 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    // Use sqrt scale for color domain — compresses high end, spreads low end for better variation
-    var sqrtScale=d3.scaleSqrt().domain([0,maxVal]).range([0,1]);
+    // Use sqrt scale to spread smaller values, but clamp lightest color so white labels remain readable
+    var tScale=d3.scaleSqrt().domain([0,maxVal]).range([0.12,1]);
+    // Interpolate from a medium-light teal/blue to deep blue for larger values
     var colorScale=function(val){
-      var t=sqrtScale(val);
-      if(t<0.33) return d3.interpolate("#2a9db5","#54c4b0")(t*3);
-      if(t<0.66) return d3.interpolate("#54c4b0","#1677bc")((t-0.33)*3);
-      return d3.interpolate("#1677bc","#0d47a1")((t-0.66)*3);
+      return d3.interpolateRgb("#66c2e8","#0d47a1")(tScale(val));
     };
 
     // Build hierarchy for d3 treemap — fill full width and height
@@ -734,7 +733,7 @@
   }
 
   function drawSiteChart(){
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return new Set(v.map(function(d){return d.nru_project_title;})).size;},function(d){return d.site_name_long_term_project_nam;});
     drawBubbleChart(grouped.map(function(r){return{label:r[0],count:r[1]};}), "site-chart");
   }
@@ -743,7 +742,7 @@
     var el=document.getElementById("org-chart");
     var width=el.clientWidth||window.innerWidth;
 
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
