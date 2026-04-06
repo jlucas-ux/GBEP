@@ -528,7 +528,7 @@
     var el=document.getElementById("heatmap-chart");
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var priorities=["PP1","PP2","PP3","PP4"];
     var ppLabels={"PP1":"Priority 1","PP2":"Priority 2","PP3":"Priority 3","PP4":"Priority 4"};
     var cellMap={};var orgs=[];var orgSet={};
@@ -651,33 +651,90 @@
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([28,Math.min(width,height)*0.09]);
-    // Multi-color palette with light colors removed — all dark enough for white text
+    // Increase minimum bubble radius and allow for a larger max radius on big screens.
+    var minR = 36;
+    var maxR = Math.min(width, height) * 0.12;
+    var rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, Math.max(minR, maxR)]);
+    // Multi-color palette with dark colors for readable white labels
     var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
-    var nodes=counts.map(function(d,i){return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};});
+    var nodes = counts.map(function(d,i){
+      return {
+        label: d.label,
+        count: d.count,
+        r: rScale(d.count),
+        color: SITE_PALETTE[i % SITE_PALETTE.length],
+        x: width*0.2 + Math.random()*width*0.6,
+        y: height*0.2 + Math.random()*height*0.6
+      };
+    });
+
     d3.select("#"+containerId).select("svg").remove();
-    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
-    var sim=d3.forceSimulation(nodes).force("charge",d3.forceManyBody().strength(3)).force("center",d3.forceCenter(width/2,height/2)).force("collision",d3.forceCollide().radius(function(d){return d.r+4;}).strength(1)).stop();
-    for(var i=0;i<400;i++)sim.tick();
-    nodes.forEach(function(d){d.x=Math.max(d.r+5,Math.min(width-d.r-5,d.x));d.y=Math.max(d.r+5,Math.min(height-d.r-5,d.y));});
-    var node=svg.selectAll("g").data(nodes).enter().append("g").attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);
-    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.88).attr("stroke","white").attr("stroke-width",2);
+    var svg = d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
+
+    // Increase collision padding to avoid labels touching circle edges and each other
+    var collisionPadding = 10;
+    var sim = d3.forceSimulation(nodes)
+      .force("charge", d3.forceManyBody().strength(-6))
+      .force("center", d3.forceCenter(width/2, height/2))
+      .force("collision", d3.forceCollide().radius(function(d){ return d.r + collisionPadding; }).strength(1))
+      .stop();
+    for(var i=0;i<600;i++) sim.tick();
+    // Keep nodes inside bounds
+    nodes.forEach(function(d){ d.x = Math.max(d.r+6, Math.min(width-d.r-6, d.x)); d.y = Math.max(d.r+6, Math.min(height-d.r-6, d.y)); });
+
+    var node = svg.selectAll("g").data(nodes).enter().append("g").attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
+      .on("mousemove",function(event,d){ showTooltip(event, "<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":"")); })
+      .on("mouseleave", hideTooltip);
+
+    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.92).attr("stroke","white").attr("stroke-width",2);
+
     node.each(function(d){
-      var g=d3.select(this),words=d.label.split(/[\s,\/]+/),lh=16,mw=d.r*1.7,fs=Math.max(11,Math.min(18,d.r/3.2));
-      var lines=[],cur="";
-      words.forEach(function(w){var t=cur?cur+" "+w:w;if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}});
-      if(cur)lines.push(cur);
-      var ml=Math.floor((d.r*1.8)/lh);
-      lines=lines.slice(0,ml);
-      var th=lines.length*lh;
-      lines.forEach(function(line,li){g.append("text").attr("x",0).attr("y",-th/2+li*lh+lh/2).attr("text-anchor","middle").attr("dominant-baseline","middle").attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","500").text(line);});
-      if(d.r>25)g.append("text").attr("x",0).attr("y",d.r-10).attr("text-anchor","middle").attr("font-size",Math.max(11,fs-2)).attr("font-family",FONT).attr("fill","rgba(255,255,255,0.8)").text(d.count);
+      var g = d3.select(this);
+      var words = d.label.split(/[^\w&'@]+/).filter(function(w){return w;});
+      // Font sizing and line height scale with radius; raise minimum font for readability
+      var minFont = 12, maxFont = 20;
+      var fs = Math.max(minFont, Math.min(maxFont, Math.floor(d.r/3)));
+      var lh = Math.max(14, Math.round(fs * 1.15));
+      var mw = d.r * 1.6; // max text width inside circle
+
+      // Build lines that fit within mw
+      var lines = [], cur = "";
+      words.forEach(function(w){
+        var test = cur ? cur + " " + w : w;
+        if(test.length * fs * 0.55 > mw && cur){ lines.push(cur); cur = w; }
+        else { cur = test; }
+      });
+      if(cur) lines.push(cur);
+
+      // Limit lines to what fits vertically inside the circle
+      var maxLines = Math.max(1, Math.floor((d.r*1.8) / lh));
+      lines = lines.slice(0, maxLines).map(function(line){
+        var maxChars = Math.floor(mw / (fs * 0.55)) || 1;
+        if(line.length > maxChars) return line.slice(0, maxChars-1) + "…";
+        return line;
+      });
+
+      var th = lines.length * lh;
+      var startY = -th/2;
+      lines.forEach(function(line, li){
+        g.append("text")
+          .attr("x", 0).attr("y", startY + li*lh + lh/2)
+          .attr("text-anchor", "middle").attr("dominant-baseline","middle")
+          .attr("font-size", fs).attr("font-family", FONT)
+          .attr("fill", "white").attr("font-weight","600").text(line);
+      });
+
+      // Show count only if there is clear space below the label inside the circle
+      if(d.r > minFont && (d.r - th/2) > (lh + 8)){
+        g.append("text").attr("x",0).attr("y", d.r - Math.max(10, Math.round(lh/2)))
+          .attr("text-anchor","middle").attr("font-size", Math.max(11, fs-2)).attr("font-family", FONT)
+          .attr("fill","rgba(255,255,255,0.9)").attr("font-weight","700").text(d.count);
+      }
     });
   }
 
   function drawSiteChart(){
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return new Set(v.map(function(d){return d.nru_project_title;})).size;},function(d){return d.site_name_long_term_project_nam;});
     drawBubbleChart(grouped.map(function(r){return{label:r[0],count:r[1]};}), "site-chart");
   }
