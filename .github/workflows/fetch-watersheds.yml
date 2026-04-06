@@ -1,7 +1,7 @@
 name: Fetch Watershed Geometry
 
 on:
-  workflow_dispatch:   # manual trigger only — run once and done
+  workflow_dispatch:
 
 jobs:
   fetch:
@@ -16,7 +16,7 @@ jobs:
         env:
           WATERSHED_URL: ${{ secrets.WATERSHED_URL }}
         run: |
-          curl -s "${WATERSHED_URL}?where=1%3D1&outFields=Name&outSR=4326&f=geojson&resultRecordCount=500" \
+          curl -s "${WATERSHED_URL}" \
             > data/watersheds.geojson
 
       - name: Commit and push
