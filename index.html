@@ -39,9 +39,9 @@
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
     .tooltip {
       position: absolute; background: rgba(15,23,42,0.92); color: white;
-      padding: 7px 11px; border-radius: 7px; font-size: 12px;
+      padding: 9px 14px; border-radius: 7px; font-size: 15px;
       pointer-events: none; opacity: 0; transition: opacity 0.15s;
-      max-width: 240px; line-height: 1.5; z-index: 999;
+      max-width: 340px; line-height: 1.5; z-index: 999;
       box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
   </style>
@@ -116,12 +116,12 @@
           <div class="grid-cell"><div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Restoration, Sustainability &amp; Capacity</div><div class="grid-chart" id="pp4-chart"></div></div>
         </div>
         <div id="pp-definitions" style="
-          background:white;border-radius:10px;
-          box-shadow:0 1px 6px rgba(0,0,0,0.07);
-          padding:14px 20px;margin-top:10px;
-          font-family:'Roboto',sans-serif;
-          flex-shrink:0;
-        ">
+            background:white;border-radius:10px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.07);
+            padding:14px 20px;margin-top:10px;
+            font-family:'Roboto',sans-serif;
+            flex-shrink:0; font-size:16px;
+          ">
           <div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;">
             <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
@@ -670,6 +670,9 @@
     d3.select("#"+containerId).select("svg").remove();
     var svg = d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
 
+    // Create a zoomable group so users can pan/zoom the bubble chart
+    var gZoom = svg.append("g").attr("class","zoom-root");
+
     // Increase collision padding to avoid labels touching circle edges and each other
     var collisionPadding = 10;
     var sim = d3.forceSimulation(nodes)
@@ -681,7 +684,7 @@
     // Keep nodes inside bounds
     nodes.forEach(function(d){ d.x = Math.max(d.r+6, Math.min(width-d.r-6, d.x)); d.y = Math.max(d.r+6, Math.min(height-d.r-6, d.y)); });
 
-    var node = svg.selectAll("g").data(nodes).enter().append("g").attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
+    var node = gZoom.selectAll("g.node").data(nodes).enter().append("g").attr("class","node").attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
       .on("mousemove",function(event,d){ showTooltip(event, "<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":"")); })
       .on("mouseleave", hideTooltip);
 
@@ -730,6 +733,10 @@
           .attr("fill","rgba(255,255,255,0.9)").attr("font-weight","700").text(d.count);
       }
     });
+
+    // Add zoom behavior to svg, targeting the zoom-root group
+    var zoom = d3.zoom().scaleExtent([0.5,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
+    svg.call(zoom);
   }
 
   function drawSiteChart(){
