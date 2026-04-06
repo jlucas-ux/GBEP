@@ -1,0 +1,35 @@
+name: Fetch Index Data
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch layer data and save as JSON
+        env:
+          LAYER_URL: ${{ secrets.INDEX_LAYER_URL }}
+        run: |
+          curl -s "${LAYER_URL}?where=1%3D1&outFields=project_landscape_type,site_name_long_term_project_nam,lead_organization_name,gbep_award_amount,nru_project_title,total_cost_of_project,fiscal_year_awarded,numeric_approximate_project_siz,project_scale,nps_1,nps_2,nps_3,nps_4,ps_1,ps_2,ps_3,pha_1,pha_2,pha_3,pha_4,pha_5,hc_1,hc_2,hc_3,sc_1,sc_2,fwi_1,fwi_2,fwi_3,spo_1,spo_2,spo_3,spo_4,pea_1,pea_2,pea_3,res_1,res_2,res_3,res_4,res_5,res_6,res_7,res_8,acs_1,acs_2,acs_3&f=json&resultRecordCount=2000" \
+            | python3 -c "
+          import json,sys
+          raw = json.load(sys.stdin)
+          records = [f['attributes'] for f in raw.get('features', [])]
+          print(json.dumps(records, indent=2))
+          " > data/index_data.json
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/index_data.json
+          git diff --staged --quiet || git commit -m "Auto-update index data"
+          git push
