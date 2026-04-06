@@ -385,10 +385,23 @@
       return numSmallBuckets + Math.min(numLargeBuckets-1, Math.floor(above / largeStep));
     }
 
-    // Pre-sample discrete colors for each bucket to ensure strong step differences
+    // Pre-sample discrete colors for each bucket, biasing toward darker tones
+    // so that small buckets (<=5k) are darker and have readable white text,
+    // while larger buckets remain distinct.
+    var idx5000 = bucketIndex(5000);
     var bucketColors = d3.range(totalBuckets).map(function(i){
-      var t = totalBuckets <= 1 ? 0 : (i / (totalBuckets - 1));
-      return interp(t);
+      if(totalBuckets <= 1) return interp(0.8);
+      if(i <= idx5000){
+        // Map low buckets to t in [0.40, 0.70]
+        var denom = Math.max(1, idx5000);
+        var t = 0.40 + 0.30 * (i / denom);
+        return interp(t);
+      } else {
+        // Map high buckets to t in [0.70, 1.0]
+        var denom2 = Math.max(1, totalBuckets - 1 - idx5000);
+        var t2 = 0.70 + 0.30 * ((i - idx5000) / denom2);
+        return interp(t2);
+      }
     });
 
     function colorScale(val){
