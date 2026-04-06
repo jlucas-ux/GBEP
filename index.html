@@ -734,7 +734,7 @@
   }
 
   function drawSiteChart(){
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return new Set(v.map(function(d){return d.nru_project_title;})).size;},function(d){return d.site_name_long_term_project_nam;});
     drawBubbleChart(grouped.map(function(r){return{label:r[0],count:r[1]};}), "site-chart");
   }
@@ -743,7 +743,7 @@
     var el=document.getElementById("org-chart");
     var width=el.clientWidth||window.innerWidth;
 
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
