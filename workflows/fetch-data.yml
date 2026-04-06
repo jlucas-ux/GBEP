@@ -1,0 +1,35 @@
+name: Fetch GBEP Data
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch layer data and save as JSON
+        env:
+          LAYER_URL: ${{ secrets.NSHOME_LAYER_URL }}
+        run: |
+          curl -s "${LAYER_URL}?where=1%3D1&outFields=gbep_award_amount,fiscal_year_of_award,numeric_approximate_project_siz,lead_organization_name,broad_project_goals,targeted_focal_species,project_scale&f=json&resultRecordCount=2000" \
+            | python3 -c "
+          import json,sys
+          raw = json.load(sys.stdin)
+          records = [f['attributes'] for f in raw.get('features', [])]
+          print(json.dumps(records, indent=2))
+          " > data/gbep_data.json
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/gbep_data.json
+          git diff --staged --quiet || git commit -m "Auto-update GBEP data"
+          git push
