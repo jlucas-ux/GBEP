@@ -157,7 +157,7 @@
   }
 
   function drawHeroStats(data){
-    var funded=data.filter(function(d){return d.gbep_award_amount>0;});
+    var funded=data.filter(function(d){return d.gbep_award_amount;});
     var totalDollars=d3.sum(funded,function(d){return d.gbep_award_amount;});
     var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
     var orgs=new Set(funded.filter(function(d){return d.lead_organization_name;}).map(function(d){return d.lead_organization_name.trim();}));
@@ -170,7 +170,7 @@
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
+    var funded=data.filter(function(d){return d.gbep_award_amount&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
       function(d){
@@ -304,7 +304,7 @@
   function drawSpeciesChart(data){
     var el=document.getElementById("species-chart");
     var width=el.clientWidth||400, height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.targeted_focal_species&&d.targeted_focal_species.trim()!="";});
+    var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!="";});
     var sMap={};
     funded.forEach(function(row){
       row.targeted_focal_species.split(",").map(function(s){return s.trim().replace(/_/g," ");}).filter(function(s){return s;})
