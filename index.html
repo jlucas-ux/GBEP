@@ -364,12 +364,32 @@
     if(leaves.length===0)return;
 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    // Use sqrt scale to spread smaller values, but clamp lightest color so white labels remain readable
-    var tScale=d3.scaleSqrt().domain([0,maxVal]).range([0.12,1]);
-    // Interpolate from a medium-light teal/blue to deep blue for larger values
-    var colorScale=function(val){
-      return d3.interpolateRgb("#66c2e8","#0d47a1")(tScale(val));
-    };
+    // Build discrete buckets: under 1000 use 200-acre buckets, 1000+ use 1000-acre buckets
+    var smallStep = 200, smallMax = 1000;
+    var largeStep = 1000;
+    var numSmallBuckets = Math.ceil(smallMax / smallStep); // e.g., 5 buckets for 0-1000
+    var numLargeBuckets = Math.max(1, Math.ceil((Math.max(0, maxVal - smallMax)) / largeStep));
+    var totalBuckets = numSmallBuckets + numLargeBuckets;
+
+    // Create a color interpolator across a broader range while staying brand-aligned
+    var paletteStops = ["#e0f7fa","#b2ebf2","#66c2e8","#29b6f6","#039be5","#1677bc","#0d47a1","#013a63"];
+    var interp = d3.interpolateRgbBasis(paletteStops);
+
+    // Map a value to a discrete bucket index, then to a color
+    function bucketIndex(val){
+      if(val <= 0) return 0;
+      if(val < smallMax){
+        return Math.min(numSmallBuckets-1, Math.floor(val / smallStep));
+      }
+      var above = val - smallMax;
+      return numSmallBuckets + Math.min(numLargeBuckets-1, Math.floor(above / largeStep));
+    }
+
+    function colorScale(val){
+      var idx = bucketIndex(val);
+      var t = totalBuckets <= 1 ? 0 : (idx / (totalBuckets - 1));
+      return interp(t);
+    }
 
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
@@ -381,7 +401,10 @@
     var svg=d3.select("#treemap-chart").append("svg")
       .attr("width",width).attr("height",height);
 
-    var cell=svg.selectAll("g").data(root.leaves()).enter().append("g")
+    // Make treemap zoomable by placing cells inside a zoom group
+    var gZoom = svg.append("g").attr("class","zoom-root");
+
+    var cell=gZoom.selectAll("g").data(root.leaves()).enter().append("g")
       .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
 
     var cellW=function(d){return Math.max(18,d.x1-d.x0);};
@@ -392,7 +415,8 @@
       .attr("fill",function(d){return colorScale(d.data.value);})
       .attr("rx",4).attr("opacity",0.88)
       .on("mousemove",function(event,d){
-        showTooltip(event,"<strong style='font-size:16px'>"+d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
+        var title = d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
+        showTooltip(event,"<strong style='font-size:16px'>"+title+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
       }).on("mouseleave",hideTooltip);
 
     // Only show labels on cells large enough to contain them
@@ -424,24 +448,33 @@
       var startY=(h-totalTextH)/2;
 
       lines.forEach(function(line,li){
+        // choose readable text color based on background luminance
+        var bg = colorScale(d.data.value);
+        var col = (d3.color(bg).luminance && d3.color(bg).luminance() > 0.55) ? '#111' : 'white';
         g.append("text")
           .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",fontSize).attr("font-family",FONT)
-          .attr("fill","white").attr("font-weight","600")
+          .attr("fill",col).attr("font-weight","600")
           .text(line);
       });
 
       // Only show acreage if there's room below the label
       if(h > totalTextH + lineH*2.5){
+        var bg2 = colorScale(d.data.value);
+        var col2 = (d3.color(bg2).luminance && d3.color(bg2).luminance() > 0.55) ? '#111' : 'rgba(255,255,255,0.9)';
         g.append("text")
           .attr("x",w/2).attr("y",startY+totalTextH+lineH)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",Math.max(11,fontSize-3)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.85)")
+          .attr("fill",col2)
           .text(fmtAcres(d.data.value));
       }
     });
+
+    // Add zoom behavior to the treemap svg
+    var zoom = d3.zoom().scaleExtent([0.6,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
+    svg.call(zoom);
   }
 
   // ── FISCAL YEAR ──────────────────────────────────────────
