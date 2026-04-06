@@ -169,7 +169,6 @@
 </div>
 
 <script>
-  var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
   var PALETTE=[C1,C2,C3,C4,"#90caf9","#b2ebf2","#80deea","#4dd0e1","#006994","#0288d1","#29b6f6","#81d4fa","#0097a7","#00acc1","#00bcd4","#4fc3f7","#039be5","#0277bd","#01579b","#26c6da"];
@@ -295,16 +294,8 @@
   }
 
   async function fetchData(){
-    var ppFields=[];
-    for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
-    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name",
-              "gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded",
-              "numeric_approximate_project_siz","project_scale"];
-    var all=base.concat(ppFields);
-    var url=LAYER_URL+"?where=1%3D1&outFields="+all.join(",")+"&f=json&resultRecordCount=2000";
-    var res=await fetch(url);
-    var json=await res.json();
-    return json.features.map(function(f){return f.attributes;});
+    var res=await fetch("data/index_data.json");
+    return await res.json();
   }
 
   // ── TREEMAP ──────────────────────────────────────────────
