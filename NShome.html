@@ -170,7 +170,7 @@
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount&d.fiscal_year_of_award;});
+    var funded=data.filter(function(d){return d.gbep_award_amount&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
       function(d){
