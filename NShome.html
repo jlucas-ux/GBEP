@@ -158,9 +158,35 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
   "other": "Other"
 };
 function normalizeSpecies(raw){
+  if(!raw) return raw;
   var key = raw.toLowerCase().replace(/[_\/\-]/g, " ").replace(/\s+/g, " ").trim();
-  return SPECIES_LABELS[key] || raw;
+
+  // Exact match first
+  if(SPECIES_LABELS[key]) return SPECIES_LABELS[key];
+
+  // Keyword fallback — handles truncations and variants
+  if(key.indexOf("state listed") !== -1 ||
+     key.indexOf("species of greatest") !== -1 ||
+     key.indexOf("greatest conservation") !== -1)
+    return "State listed species/Species of Greatest Conservation Need";
+
+  if(key.indexOf("endangered") !== -1 || key.indexOf("threatened") !== -1)
+    return "Endangered/threatened species";
+
+  if(key.indexOf("nongame") !== -1)
+    return "Nongame Wildlife";
+
+  if(key.indexOf("invasive") !== -1)
+    return "Invasive species control/eradication";
+
+  if(key.indexOf("no focal") !== -1)
+    return "No focal species during planning";
+
+  if(key === "other") return "Other";
+
+  return raw;
 }
+
 
 
   async function fetchMain(){
@@ -404,13 +430,15 @@ function drawSpeciesChart(data){
 
   var width = el.clientWidth || 400, height = el.clientHeight || 200;
 
-  var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
+  var funded = data.filter(function(d){ return d.gbep_award_amount && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
   var sMap = {};
   funded.forEach(function(row){
-    row.targeted_focal_species.split(",").map(function(s){ return normalizeSpecies(s.trim()); }).filter(function(s){ return s; })
+    row.targeted_focal_species.split(",")
+      .map(function(s){ return normalizeSpecies(s.trim()); })
+      .filter(function(s){ return s; })
       .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
+});
 
-  });
   var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; })
     .sort(function(a,b){ return b.count - a.count; });
   if(!counts.length) return;
