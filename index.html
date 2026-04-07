@@ -107,7 +107,11 @@
     </div>
     <div class="chart-panel" id="panel-3">
       <div class="chart-title">GBEP Projects by Plan Priority</div>
-      <div class="chart-subtitle">Number of funded projects by activity group and subcategory for each plan priority.</div>
+      <div class="chart-subtitle">
+        Number of funded projects by activity group and subcategory for each plan priority.
+        <strong id="pp-total"></strong>
+        Note: a single project may touch on many different plan priorities and subcategories, so counts across priorities will exceed the total number of projects.
+  </div>
       <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;">
         <div class="grid-2x2">
           <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
@@ -122,8 +126,8 @@
             font-family:'Roboto',sans-serif;
             flex-shrink:0; font-size:16px;
           ">
-          <div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;">
+          <div style="font-size:16px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:16px;line-height:1.6;">
             <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
             <span><strong style="color:#1565c0">PS</strong> — Improve water quality through point source pollution abatement.</span>
             <span><strong style="color:#1565c0">PHA</strong> — Promote public health and awareness.</span>
@@ -684,7 +688,15 @@
       }
     });
   }
-  function drawAllPlanPriorities(){drawPlanPriority(filteredData,1,"pp1-chart");drawPlanPriority(filteredData,2,"pp2-chart");drawPlanPriority(filteredData,3,"pp3-chart");drawPlanPriority(filteredData,4,"pp4-chart");}
+  function drawAllPlanPriorities(){
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0;});
+    var totalEl=document.getElementById("pp-total");
+    if(totalEl)totalEl.textContent="Representing "+funded.length.toLocaleString()+" total funded projects. ";
+    drawPlanPriority(filteredData,1,"pp1-chart");
+    drawPlanPriority(filteredData,2,"pp2-chart");
+    drawPlanPriority(filteredData,3,"pp3-chart");
+    drawPlanPriority(filteredData,4,"pp4-chart");
+  }
 
   // ── BUBBLE CHART ─────────────────────────────────────────
   function drawBubbleChart(counts,containerId){
