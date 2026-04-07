@@ -114,6 +114,7 @@
 </div>
 
 <script>
+  var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var FONT="Roboto,sans-serif";
 
   var SCALE_FY = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1"));
@@ -147,9 +148,13 @@
   }
 
   async function fetchMain(){
-  var res = await fetch("data/gbep_data.json");
-  return await res.json();
-}
+    var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz",
+                "lead_organization_name","broad_project_goals","targeted_focal_species","project_scale"];
+    var url=LAYER_URL+"?where=1%3D1&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000";
+    var res=await fetch(url);
+    var json=await res.json();
+    return json.features.map(function(f){return f.attributes;});
+  }
 
   function drawHeroStats(data){
     var funded=data.filter(function(d){return d.gbep_award_amount;});
@@ -165,7 +170,7 @@
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount&&d.fiscal_year_of_award;});
+    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
       function(d){
@@ -269,96 +274,155 @@
         hideTooltip();
       });
 
-    // Center label
-    arcs.append("text").attr("text-anchor","middle").attr("y",-8)
-      .attr("font-size",13).attr("font-weight","700").attr("fill","#333")
-      .text(fmtAcres(totalAcres));
-    arcs.append("text").attr("text-anchor","middle").attr("y",10)
-      .attr("font-size",10).attr("fill","#888")
-      .text("physical acres");
+    // Center label — size to fit the donut's inner circle as large as possible
+    var centerMaxW = innerRadius * 1.6; // approximate available width in center
+    var centerTop = fmtAcres(totalAcres);
+    var centerBottom = "physical acres";
+    // estimate font size by decreasing until the text fits horizontally
+    function estimateFontForText(text,initial){
+      var f = initial;
+      var maxChars = Math.max(1, Math.floor(centerMaxW / (f * 0.55)));
+      while(f>8 && text.length > maxChars){ f--; maxChars = Math.max(1, Math.floor(centerMaxW / (f * 0.55))); }
+      return f;
+    }
+    var topFs = estimateFontForText(centerTop, Math.min(48, Math.floor(innerRadius*0.6)));
+    var bottomFs = Math.max(10, Math.floor(topFs*0.42));
+    // If two-line height exceeds inner diameter, reduce sizes
+    var totalTextH = topFs + 6 + bottomFs;
+    var maxH = innerRadius * 1.6;
+    while(totalTextH > maxH && topFs>10){ topFs = Math.max(10, topFs-1); bottomFs = Math.max(8, Math.floor(topFs*0.42)); totalTextH = topFs+6+bottomFs; }
 
-    // Legend on right
-    var legX=donutW+8;
-    var legFS=10;
-    var legLineH=legFS+5;
-    var maxLegItems=Math.floor(height/legLineH);
-    var showItems=Math.min(grouped.length,maxLegItems);
+    arcs.append("text").attr("text-anchor","middle").attr("y", -Math.round(totalTextH/2)+Math.round(topFs/2))
+      .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").attr("font-family",FONT)
+      .text(centerTop);
+    arcs.append("text").attr("text-anchor","middle").attr("y", Math.round(totalTextH/2)-Math.round(bottomFs/2))
+      .attr("font-size", bottomFs).attr("fill","#666").attr("font-family",FONT)
+      .text(centerBottom);
 
-    grouped.slice(0,showItems).forEach(function(g,gi){
-      var ly=gi*legLineH+(height-showItems*legLineH)/2;
-      svg.append("rect").attr("x",legX).attr("y",ly).attr("width",legFS).attr("height",legFS)
-        .attr("fill",g.color).attr("rx",2);
-      var pct=Math.round(g.value/totalAcres*100);
-      var label=g.name.length>22?g.name.slice(0,20)+"…":g.name;
-      svg.append("text").attr("x",legX+legFS+4).attr("y",ly+legFS*0.9)
-        .attr("font-size",legFS).attr("fill","#444").attr("font-family",FONT)
-        .text(label+" ("+pct+"%)");
+    // Legend on right — fill vertical space and maximize font size per item
+    var legX = donutW + 8;
+    var legendPadding = 12;
+    var legendY0 = legendPadding;
+    var legendH = height - legendPadding*2;
+    var items = grouped.slice();
+    var numItems = items.length;
+    var perItem = Math.max(1, Math.floor(legendH / numItems));
+    // Compute font size to fit horizontally within legend area
+    var maxLegendFont = Math.min(20, Math.floor((perItem-6) * 0.6));
+    var legFS = Math.max(10, Math.min(maxLegendFont, 16));
+    var legBox = Math.max(12, Math.floor(perItem*0.5));
+    // Vertical center the block of legend items
+    var usedH = perItem * numItems;
+    var offsetY = Math.round((height - usedH) / 2);
+
+    items.forEach(function(g,gi){
+      var ly = offsetY + gi*perItem + Math.round((perItem - legBox)/2);
+      svg.append("rect").attr("x",legX).attr("y",ly).attr("width",legBox).attr("height",legBox)
+        .attr("fill",g.color).attr("rx",3);
+      var pct = Math.round(g.value/totalAcres*100);
+      var label = g.name.replace(/_/g," ");
+      // truncate label if it's too long to fit in remaining width
+      var availW = width - (legX + legBox + 16);
+      var approxMaxChars = Math.max(6, Math.floor(availW / (legFS * 0.55)));
+      if(label.length > approxMaxChars) label = label.slice(0, approxMaxChars-1) + "…";
+      svg.append("text").attr("x", legX + legBox + 8).attr("y", ly + Math.round(perItem/2) + Math.round(legFS/3))
+        .attr("font-size", legFS).attr("fill", "#222").attr("font-family", FONT).text(label + " (" + pct + "%)");
     });
   }
 
   function drawSpeciesChart(data){
-    var el=document.getElementById("species-chart");
-    var width=el.clientWidth||400, height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!="";});
-    var sMap={};
+    // Silhouette-stacked species chart — fills the whole panel, labels on the right, tooltips with count & percent
+    var el = document.getElementById("species-chart");
+    var width = el.clientWidth || 400, height = el.clientHeight || 200;
+    var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
+    var sMap = {};
     funded.forEach(function(row){
-      row.targeted_focal_species.split(",").map(function(s){return s.trim().replace(/_/g," ");}).filter(function(s){return s;})
-        .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+      row.targeted_focal_species.split(",").map(function(s){ return s.trim().replace(/_/g," "); }).filter(function(s){ return s; })
+        .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
     });
-    var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};})
-      .sort(function(a,b){return b.count-a.count;});
-    if(!counts.length)return;
+    var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; }).sort(function(a,b){ return b.count - a.count; });
+    if(!counts.length) return;
 
-    var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var rScale=d3.scalePow().exponent(0.35).domain([1,maxCount]).range([28,Math.min(width,height)*0.13]);
-    var nodes=counts.map(function(d,i){return{
-      label:d.label,count:d.count,r:rScale(d.count),
-      color:SPE_PALETTE[i%SPE_PALETTE.length],
-      x:width*0.2+Math.random()*width*0.6,
-      y:height*0.2+Math.random()*height*0.6
-    };});
+    var total = d3.sum(counts, function(d){ return d.count; });
 
     d3.select("#species-chart").select("svg").remove();
-    var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height);
+    var svg = d3.select("#species-chart").append("svg").attr("width", width).attr("height", height).style("font-family", FONT);
 
-    var sim=d3.forceSimulation(nodes)
-      .force("charge",d3.forceManyBody().strength(2))
-      .force("center",d3.forceCenter(width/2,height/2))
-      .force("collision",d3.forceCollide().radius(function(d){return d.r+3;}).strength(1))
-      .stop();
-    for(var i=0;i<400;i++)sim.tick();
-    nodes.forEach(function(d){d.x=Math.max(d.r+3,Math.min(width-d.r-3,d.x));d.y=Math.max(d.r+3,Math.min(height-d.r-3,d.y));});
+    // Silhouette base path in 200x200 coordinate space (leaf/teardrop shape)
+    var basePath = "M0,100 C50,0 150,0 200,100 C150,200 50,200 0,100 Z";
+    var vbW = 200, vbH = 200;
+    // Fit silhouette to panel (leave room on right for labels)
+    var rightPad = Math.max(110, width * 0.20);
+    var silW = width - rightPad - 20; // 20px left padding
+    var silH = height - 12; // small vertical padding
+    var scale = Math.min(silW / vbW, silH / vbH);
+    var drawW = vbW * scale, drawH = vbH * scale;
+    var silX = 12, silY = (height - drawH) / 2;
 
-    var node=svg.selectAll("g").data(nodes).enter().append("g")
-      .attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
-      .on("mouseleave",hideTooltip);
+    // Unique clip id so redraws are safe
+    var clipId = 'sil-clip-' + (new Date()).getTime();
+    var defs = svg.append('defs');
+    defs.append('clipPath').attr('id', clipId).append('path').attr('d', basePath).attr('transform', 'scale(' + scale + ') translate(0,0)');
 
-    node.append("circle").attr("r",function(d){return d.r;})
-      .attr("fill",function(d){return d.color;}).attr("opacity",0.88)
-      .attr("stroke","white").attr("stroke-width",1.5);
+    // group to position silhouette
+    var gSil = svg.append('g').attr('transform', 'translate(' + silX + ',' + silY + ') scale(' + scale + ')');
 
-    node.each(function(d){
-      var g=d3.select(this);
-      var fs=Math.max(8,Math.min(15,d.r/4.5));
-      var words=d.label.split(/[\s_\/]+/);
-      var lines=[],cur="",mw=d.r*1.7;
-      words.forEach(function(w){var t=cur?cur+" "+w:w;if(t.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}else{cur=t;}});
-      if(cur)lines.push(cur);
-      var maxLines=Math.floor(d.r*1.6/(fs+2));
-      lines=lines.slice(0,maxLines);
-      var th=lines.length*(fs+2);
-      lines.forEach(function(line,li){
-        g.append("text").attr("x",0).attr("y",-th/2+li*(fs+2)+fs)
-          .attr("text-anchor","middle").attr("font-size",fs).attr("font-family",FONT)
-          .attr("fill","white").attr("font-weight","500").text(line);
-      });
-      if(d.r>20){
-        g.append("text").attr("x",0).attr("y",d.r-8)
-          .attr("text-anchor","middle").attr("font-size",Math.max(8,fs-1)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.8)").text(d.count);
-      }
+    // Build stacked rects in base coordinate space (0..vbW, 0..vbH), top->bottom
+    var y0 = 0;
+    counts.forEach(function(item, i){
+      var h = Math.max(0.5, Math.round((item.count / total) * vbH));
+      // Append rects clipped to silhouette
+      gSil.append('rect')
+        .attr('x', 0).attr('y', y0).attr('width', vbW).attr('height', h)
+        .attr('fill', SPE_PALETTE[i % SPE_PALETTE.length])
+        .attr('opacity', 0.95)
+        .attr('clip-path', 'url(#' + clipId + ')')
+        .on('mousemove', function(event){
+          var pct = Math.round(item.count / total * 100);
+          showTooltip(event, '<strong>' + item.label + '</strong><br>' + item.count + ' project' + (item.count!==1?'s':'') + '<br>' + pct + '%');
+        })
+        .on('mouseleave', hideTooltip);
+      y0 += h;
     });
+
+    // Silhouette outline on top
+    gSil.append('path').attr('d', basePath).attr('fill', 'none').attr('stroke', '#fff').attr('stroke-width', 2).attr('transform', 'translate(0,0)');
+
+    // Labels on right side — line connectors from silhouette edge to label
+    var labelX = silX + drawW + 18;
+    var labelFontBase = Math.max(11, Math.min(18, Math.floor(drawH * 0.045)));
+    // compute centers for each segment in screen coords and draw labels
+    var cum = 0;
+    counts.forEach(function(item, i){
+      var segH = Math.max(0.5, (item.count / total) * vbH);
+      var cyBase = cum + segH/2; // in base coords
+      var screenY = silY + cyBase * scale;
+      var pct = Math.round(item.count / total * 100);
+      var label = item.label.replace(/_/g, ' ');
+      var lbl = label.length > 32 ? label.slice(0,29) + '…' : label;
+
+      // connector line
+      svg.append('line').attr('x1', silX + drawW).attr('y1', screenY)
+        .attr('x2', labelX - 8).attr('y2', screenY).attr('stroke', '#ccc').attr('stroke-width', 1);
+
+      // label text and percent
+      svg.append('text').attr('x', labelX).attr('y', screenY - 4)
+        .attr('font-size', labelFontBase).attr('font-weight', 700).attr('fill', '#222').text(lbl);
+      svg.append('text').attr('x', labelX).attr('y', screenY + 12)
+        .attr('font-size', Math.max(11, Math.floor(labelFontBase * 0.78))).attr('fill', '#666')
+        .text(item.count + ' projects — ' + pct + '%');
+
+      // invisible hit area for tooltip (also makes labels interactive)
+      svg.append('rect').attr('x', labelX - 6).attr('y', screenY - perLabelHit())
+        .attr('width', Math.max(60, width - labelX - 12)).attr('height', perLabelHit()*2)
+        .attr('fill', 'transparent')
+        .on('mousemove', function(event){ showTooltip(event, '<strong>' + item.label + '</strong><br>' + item.count + ' project' + (item.count!==1?'s':'') + '<br>' + pct + '%'); })
+        .on('mouseleave', hideTooltip);
+
+      cum += segH;
+    });
+
+    function perLabelHit(){ return Math.max(12, Math.floor(drawH * 0.04)); }
   }
 
   async function init(){
