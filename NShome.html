@@ -122,7 +122,7 @@
   // Waffle chart palette — distinct colors per goal
   var WAFFLE_PALETTE=["#0d47a1","#1677bc","#006994","#54a9ad","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#26c6da","#1976d2","#2e7d32"];
 
-  var SPE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
+var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b"];
 
   var tooltip=document.getElementById("tooltip");
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
@@ -221,114 +221,127 @@
   }
 
   function drawGoalChart(data){
-    var el=document.getElementById("goal-chart");
-    var width=el.clientWidth||400, height=el.clientHeight||200;
+  var el = document.getElementById("goal-chart");
+  var width = el.clientWidth || 400, height = el.clientHeight || 200;
 
-    // Physical projects only
-    var funded=data.filter(function(d){
-      return d.gbep_award_amount>0 && d.broad_project_goals &&
-        d.numeric_approximate_project_siz>0 &&
-        d.project_scale==="Physical project";
+  var funded = data.filter(function(d){
+    return d.gbep_award_amount>0 && d.broad_project_goals &&
+      d.numeric_approximate_project_siz>0 &&
+      d.project_scale==="Physical project";
+  });
+
+  var grouped = d3.rollups(funded,
+    function(v){return d3.sum(v, function(d){return d.numeric_approximate_project_siz||0;});},
+    function(d){return d.broad_project_goals;}
+  ).map(function(r,i){return{name:r[0].replace(/_/g," "), value:r[1], color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};})
+   .filter(function(d){return d.value>0;})
+   .sort(function(a,b){return b.value-a.value;});
+  if(!grouped.length) return;
+
+  var totalAcres = d3.sum(grouped, function(d){return d.value;});
+
+  d3.select("#goal-chart").select("svg").remove();
+  var svg = d3.select("#goal-chart").append("svg")
+    .attr("width", width).attr("height", height).style("font-family", FONT);
+
+  var radius = Math.min(width, height)/2 - 14;
+  var innerRadius = radius * 0.55;
+  var cx = width/2, cy = height/2;
+
+  var pie = d3.pie().value(function(d){return d.value;}).sort(null);
+  var arc = d3.arc().innerRadius(innerRadius).outerRadius(radius);
+  var arcHover = d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
+  var g = svg.append("g").attr("transform","translate("+cx+","+cy+")");
+
+  var slices = pie(grouped);
+
+  g.selectAll("path").data(slices).enter().append("path")
+    .attr("d", arc)
+    .attr("fill", function(d){return d.data.color;})
+    .attr("stroke","white").attr("stroke-width",2)
+    .on("mousemove", function(event,d){
+      d3.select(this).attr("d", arcHover);
+      var pct = Math.round(d.data.value/totalAcres*100);
+      showTooltip(event, "<strong>" + d.data.name + "</strong><br>" + fmtAcres(d.data.value) + "<br>" + pct + "% of total");
+    })
+    .on("mouseleave", function(){
+      d3.select(this).attr("d", arc);
+      hideTooltip();
     });
 
-    var grouped=d3.rollups(funded,
-      function(v){return d3.sum(v,function(d){return d.numeric_approximate_project_siz||0;});},
-      function(d){return d.broad_project_goals;}
-    ).map(function(r,i){return{name:r[0].replace(/_/g," "),value:r[1],color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};})
-     .filter(function(d){return d.value>0;})
-     .sort(function(a,b){return b.value-a.value;});
+  // Center total (sized to fit inner circle)
+  var centerTop = fmtAcres(totalAcres);
+  var centerBottom = "physical acres";
+  var topFs = Math.min(44, Math.floor(innerRadius*0.55));
+  var bottomFs = Math.max(12, Math.floor(topFs*0.36));
+  g.append("text").attr("text-anchor","middle").attr("y", 0)
+    .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").text(centerTop);
+  g.append("text").attr("text-anchor","middle").attr("y", topFs * 0.7)
+    .attr("font-size", bottomFs).attr("fill","#666").text(centerBottom);
 
-    if(!grouped.length)return;
-
-    var totalAcres=d3.sum(grouped,function(d){return d.value;});
-
-    // Layout — donut on left, legend on right
-    var legW=width*0.42;
-    var donutW=width-legW;
-    var radius=Math.min(donutW,height)/2-8;
-    var innerRadius=radius*0.55;
-    var cx=donutW/2, cy=height/2;
-
-    d3.select("#goal-chart").select("svg").remove();
-    var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
-
-    var pie=d3.pie().value(function(d){return d.value;}).sort(null);
-    var arc=d3.arc().innerRadius(innerRadius).outerRadius(radius);
-    var arcHover=d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
-
-    var arcs=svg.append("g").attr("transform","translate("+cx+","+cy+")");
-
-    arcs.selectAll("path")
-      .data(pie(grouped))
-      .enter().append("path")
-      .attr("d",arc)
-      .attr("fill",function(d){return d.data.color;})
-      .attr("stroke","white").attr("stroke-width",2)
-      .on("mousemove",function(event,d){
-        d3.select(this).attr("d",arcHover);
-        var pct=Math.round(d.data.value/totalAcres*100);
-        showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+pct+"% of total");
-      })
-      .on("mouseleave",function(event,d){
-        d3.select(this).attr("d",arc);
-        hideTooltip();
-      });
-
-    // Center label — size to fit the donut's inner circle as large as possible
-    var centerMaxW = innerRadius * 1.6; // approximate available width in center
-    var centerTop = fmtAcres(totalAcres);
-    var centerBottom = "physical acres";
-    // estimate font size by decreasing until the text fits horizontally
-    function estimateFontForText(text,initial){
-      var f = initial;
-      var maxChars = Math.max(1, Math.floor(centerMaxW / (f * 0.55)));
-      while(f>8 && text.length > maxChars){ f--; maxChars = Math.max(1, Math.floor(centerMaxW / (f * 0.55))); }
-      return f;
+  // Middle-anchored word wrap with line limit
+  function wrapMid(textEl, text, maxWidth, lineHeight, maxLines){
+    textEl.text(null);
+    var tspan = textEl.append("tspan").attr("x", 0).attr("dy", "0em");
+    var line = [], lineCount = 1;
+    var words = text.split(/\s+/);
+    for(var i = 0; i < words.length; i++){
+      line.push(words[i]);
+      tspan.text(line.join(" "));
+      if(tspan.node().getComputedTextLength() > maxWidth){
+        if(line.length === 1) return false; // single word too wide
+        line.pop();
+        tspan.text(line.join(" "));
+        if(lineCount >= maxLines) return false;
+        line = [words[i]];
+        lineCount++;
+        tspan = textEl.append("tspan").attr("x", 0).attr("dy", lineHeight + "px").text(words[i]);
+      }
     }
-    var topFs = estimateFontForText(centerTop, Math.min(48, Math.floor(innerRadius*0.6)));
-    var bottomFs = Math.max(10, Math.floor(topFs*0.42));
-    // If two-line height exceeds inner diameter, reduce sizes
-    var totalTextH = topFs + 6 + bottomFs;
-    var maxH = innerRadius * 1.6;
-    while(totalTextH > maxH && topFs>10){ topFs = Math.max(10, topFs-1); bottomFs = Math.max(8, Math.floor(topFs*0.42)); totalTextH = topFs+6+bottomFs; }
-
-    arcs.append("text").attr("text-anchor","middle").attr("y", -Math.round(totalTextH/2)+Math.round(topFs/2))
-      .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").attr("font-family",FONT)
-      .text(centerTop);
-    arcs.append("text").attr("text-anchor","middle").attr("y", Math.round(totalTextH/2)-Math.round(bottomFs/2))
-      .attr("font-size", bottomFs).attr("fill","#666").attr("font-family",FONT)
-      .text(centerBottom);
-
-    // Legend on right — fill vertical space and maximize font size per item
-    var legX = donutW + 8;
-    var legendPadding = 12;
-    var legendY0 = legendPadding;
-    var legendH = height - legendPadding*2;
-    var items = grouped.slice();
-    var numItems = items.length;
-    var perItem = Math.max(1, Math.floor(legendH / numItems));
-    // Compute font size to fit horizontally within legend area
-    var maxLegendFont = Math.min(20, Math.floor((perItem-6) * 0.6));
-    var legFS = Math.max(10, Math.min(maxLegendFont, 16));
-    var legBox = Math.max(12, Math.floor(perItem*0.5));
-    // Vertical center the block of legend items
-    var usedH = perItem * numItems;
-    var offsetY = Math.round((height - usedH) / 2);
-
-    items.forEach(function(g,gi){
-      var ly = offsetY + gi*perItem + Math.round((perItem - legBox)/2);
-      svg.append("rect").attr("x",legX).attr("y",ly).attr("width",legBox).attr("height",legBox)
-        .attr("fill",g.color).attr("rx",3);
-      var pct = Math.round(g.value/totalAcres*100);
-      var label = g.name.replace(/_/g," ");
-      // truncate label if it's too long to fit in remaining width
-      var availW = width - (legX + legBox + 16);
-      var approxMaxChars = Math.max(6, Math.floor(availW / (legFS * 0.55)));
-      if(label.length > approxMaxChars) label = label.slice(0, approxMaxChars-1) + "…";
-      svg.append("text").attr("x", legX + legBox + 8).attr("y", ly + Math.round(perItem/2) + Math.round(legFS/3))
-        .attr("font-size", legFS).attr("fill", "#222").attr("font-family", FONT).text(label + " (" + pct + "%)");
-    });
+    return true;
   }
+
+  // In-slice labels for larger groups (>=8%)
+  var midR = (innerRadius + radius) / 2;
+  var ringThickness = radius - innerRadius;
+  var nameFs = Math.max(12, Math.floor(radius * 0.10));
+  var pctFs  = Math.max(13, Math.floor(radius * 0.12));
+
+  slices.forEach(function(d){
+    var pct = d.data.value / totalAcres * 100;
+    if(pct < 8) return;
+    var sliceAngle = d.endAngle - d.startAngle;
+    var maxW = Math.max(40, midR * sliceAngle * 0.88);
+    var c = arc.centroid(d);
+
+    var grp = g.append("g")
+      .attr("transform", "translate(" + c[0] + "," + c[1] + ")")
+      .style("pointer-events", "none");
+
+    // Try to fit name on up to 2 lines
+    var nameText = grp.append("text")
+      .attr("text-anchor", "middle")
+      .attr("font-size", nameFs)
+      .attr("font-weight", 700)
+      .attr("fill", "white")
+      .attr("y", -nameFs * 0.2);
+    var fit = wrapMid(nameText, d.data.name, maxW, nameFs + 2, 2);
+    if(!fit){
+      nameText.remove();
+      // Fall back to percent only
+      grp.append("text").attr("text-anchor","middle")
+        .attr("font-size", pctFs).attr("font-weight", 900).attr("fill","white")
+        .attr("y", pctFs * 0.35).text(Math.round(pct) + "%");
+      return;
+    }
+    var nameLines = nameText.selectAll("tspan").size();
+    grp.append("text").attr("text-anchor","middle")
+      .attr("font-size", pctFs).attr("font-weight", 900).attr("fill","white")
+      .attr("y", nameFs * nameLines + 4)
+      .text(Math.round(pct) + "%");
+  });
+}
+
 
 function drawSpeciesChart(data){
   var el = document.getElementById("species-chart");
@@ -349,29 +362,19 @@ function drawSpeciesChart(data){
   var svg = d3.select("#species-chart").append("svg")
     .attr("width", width).attr("height", height).style("font-family", FONT);
 
-  // ── Layout: infographic callouts left, droplet right ──
-  var leftW = Math.max(160, width * 0.46);
+  // Layout — callouts left, wider droplet right
+  var leftW = Math.max(150, width * 0.40);
   var dropX = leftW, dropY = 6;
   var dropW = width - leftW - 10;
   var dropH = height - 12;
 
-  // Droplet: pointed top + semicircle bottom
-  var r = Math.min(dropW * 0.48, dropH * 0.34);
+  // Droplet outline: point top, round bottom
+  var r = Math.min(dropW * 0.52, dropH * 0.36);
   var cx = dropX + dropW / 2;
   var bottomCy = dropY + dropH - r - 4;
   var topY = dropY + 4;
 
-  function insideDrop(x, y){
-    var dx = x - cx, dy = y - bottomCy;
-    if(dy >= 0 && dx*dx + dy*dy <= r*r) return true;              // bottom circle
-    if(y >= topY && y <= bottomCy){                                // top triangle
-      var t = (y - topY) / (bottomCy - topY);
-      if(Math.abs(x - cx) <= t * r) return true;
-    }
-    return false;
-  }
-
-  // Outline stroke so shape is always readable
+  // Outline path (full size)
   svg.append("path")
     .attr("d", "M " + cx + "," + topY +
                " L " + (cx + r) + "," + bottomCy +
@@ -379,11 +382,25 @@ function drawSpeciesChart(data){
                " Z")
     .attr("fill", "none").attr("stroke", "#cfe3f3").attr("stroke-width", 1.5);
 
-  // Dot count scales with projects, clamped so shape stays readable
+  // Spacing + dot radius first, THEN define eroded inside-test so dots stay in outline
   var targetDots = Math.max(45, Math.min(total, 260));
   var dropArea = Math.PI * r * r * 0.5 + r * (bottomCy - topY);
   var spacing = Math.sqrt(dropArea / targetDots) * 1.05;
   var dotR = spacing * 0.38;
+  var pad = dotR + 2;
+
+  function insideDrop(x, y){
+    var rInner = r - pad;
+    if(rInner <= 0) return false;
+    var topYi = topY + pad * 2;  // extra top pad — triangle slope needs perpendicular margin
+    var dx = x - cx, dy = y - bottomCy;
+    if(dy >= 0 && dx*dx + dy*dy <= rInner*rInner) return true;
+    if(y >= topYi && y <= bottomCy){
+      var t = (y - topYi) / (bottomCy - topYi);
+      if(Math.abs(x - cx) <= t * rInner) return true;
+    }
+    return false;
+  }
 
   var dots = [], rowIdx = 0;
   for(var y = topY + spacing/2; y <= dropY + dropH; y += spacing){
@@ -395,7 +412,6 @@ function drawSpeciesChart(data){
   }
   if(!dots.length) return;
 
-  // Fill top-down so species form clean bands from the tip
   dots.sort(function(a,b){ return (a.y - b.y) || (a.x - b.x); });
 
   var n = dots.length, assigned = [];
@@ -420,7 +436,7 @@ function drawSpeciesChart(data){
       .on("mouseleave", hideTooltip);
   });
 
-  // ── Word-wrap helper for labels (no truncation) ──
+  // Word-wrap helper (left-anchored)
   function wrapText(textEl, text, maxWidth, lineHeight){
     var x = parseFloat(textEl.attr("x"));
     textEl.text(null);
@@ -438,17 +454,16 @@ function drawSpeciesChart(data){
     });
   }
 
-  // ── Infographic callouts: top 3 species, stacked, no abbreviation ──
+  // Infographic callouts — top 3, larger text, no truncation
   var topN = Math.min(3, counts.length);
   var blockH = (height - 16) / topN;
   var labelMaxW = leftW - 20;
-
   for(var i = 0; i < topN; i++){
     var c = counts[i];
     var pct = Math.round(c.count / total * 100);
     var color = SPE_PALETTE[i % SPE_PALETTE.length];
-    var bigFS = Math.min(40, Math.floor(blockH * 0.40));
-    var smallFS = Math.max(11, Math.floor(bigFS * 0.30));
+    var bigFS = Math.min(42, Math.floor(blockH * 0.40));
+    var smallFS = Math.max(15, Math.floor(bigFS * 0.38));
     var by = 8 + i * blockH;
 
     svg.append("text")
@@ -458,18 +473,19 @@ function drawSpeciesChart(data){
       .text(pct + "%");
 
     svg.append("text")
-      .attr("x", 12).attr("y", by + bigFS + smallFS + 2)
+      .attr("x", 12).attr("y", by + bigFS + smallFS + 4)
       .attr("font-size", smallFS).attr("font-weight", 500)
       .attr("fill", "#777").attr("font-family", FONT)
       .text("of projects target");
 
     var labelText = svg.append("text")
-      .attr("x", 12).attr("y", by + bigFS + smallFS*2 + 4)
+      .attr("x", 12).attr("y", by + bigFS + smallFS*2 + 6)
       .attr("font-size", smallFS).attr("font-weight", 700)
       .attr("fill", "#222").attr("font-family", FONT);
     wrapText(labelText, c.label + " (" + c.count + ")", labelMaxW, smallFS + 2);
   }
 }
+
 
 
 
