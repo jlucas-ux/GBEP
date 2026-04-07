@@ -103,7 +103,7 @@
       <div class="chart-card">
         <div class="chart-card-header">
           <h3>Projects by Focal Species</h3>
-          <p>Count per targeted focal species.</p>
+          <p>Each dot = a project. Sized by share of targeted focal species.</p>
         </div>
         <div class="chart-body" id="species-chart"></div>
       </div>
@@ -330,100 +330,136 @@
     });
   }
 
-  function drawSpeciesChart(data){
-    // Silhouette-stacked species chart — fills the whole panel, labels on the right, tooltips with count & percent
-    var el = document.getElementById("species-chart");
-    var width = el.clientWidth || 400, height = el.clientHeight || 200;
-    var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
-    var sMap = {};
-    funded.forEach(function(row){
-      row.targeted_focal_species.split(",").map(function(s){ return s.trim().replace(/_/g," "); }).filter(function(s){ return s; })
-        .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
-    });
-    var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; }).sort(function(a,b){ return b.count - a.count; });
-    if(!counts.length) return;
+function drawSpeciesChart(data){
+  var el = document.getElementById("species-chart");
+  var width = el.clientWidth || 400, height = el.clientHeight || 200;
 
-    var total = d3.sum(counts, function(d){ return d.count; });
+  var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
+  var sMap = {};
+  funded.forEach(function(row){
+    row.targeted_focal_species.split(",").map(function(s){ return s.trim().replace(/_/g," "); }).filter(function(s){ return s; })
+      .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
+  });
+  var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; })
+    .sort(function(a,b){ return b.count - a.count; });
+  if(!counts.length) return;
+  var total = d3.sum(counts, function(d){ return d.count; });
 
-    d3.select("#species-chart").select("svg").remove();
-    var svg = d3.select("#species-chart").append("svg").attr("width", width).attr("height", height).style("font-family", FONT);
+  d3.select("#species-chart").select("svg").remove();
+  var svg = d3.select("#species-chart").append("svg")
+    .attr("width", width).attr("height", height).style("font-family", FONT);
 
-    // Silhouette base path in 200x200 coordinate space (leaf/teardrop shape)
-    var basePath = "M0,100 C50,0 150,0 200,100 C150,200 50,200 0,100 Z";
-    var vbW = 200, vbH = 200;
-    // Fit silhouette to panel (leave room on right for labels)
-    var rightPad = Math.max(110, width * 0.20);
-    var silW = width - rightPad - 20; // 20px left padding
-    var silH = height - 12; // small vertical padding
-    var scale = Math.min(silW / vbW, silH / vbH);
-    var drawW = vbW * scale, drawH = vbH * scale;
-    var silX = 12, silY = (height - drawH) / 2;
+  // Layout: infographic callouts on left, fish dot-matrix on right
+  var leftW = Math.max(130, width * 0.38);
+  var fishX = leftW + 6;
+  var fishY = 8;
+  var fishW = width - leftW - 14;
+  var fishH = height - 16;
 
-    // Unique clip id so redraws are safe
-    var clipId = 'sil-clip-' + (new Date()).getTime();
-    var defs = svg.append('defs');
-    defs.append('clipPath').attr('id', clipId).append('path').attr('d', basePath).attr('transform', 'scale(' + scale + ') translate(0,0)');
+  // Fish geometry: body ellipse + tail triangle
+  var bodyRx = fishW * 0.36;
+  var bodyRy = fishH * 0.42;
+  var bodyCx = fishX + fishW * 0.40;
+  var bodyCy = fishY + fishH / 2;
+  var tailStart = bodyCx + bodyRx * 0.55;
+  var tailEnd   = bodyCx + bodyRx + fishW * 0.22;
+  var tailHalfH = fishH * 0.30;
 
-    // group to position silhouette
-    var gSil = svg.append('g').attr('transform', 'translate(' + silX + ',' + silY + ') scale(' + scale + ')');
-
-    // Build stacked rects in base coordinate space (0..vbW, 0..vbH), top->bottom
-    var y0 = 0;
-    counts.forEach(function(item, i){
-      var h = Math.max(0.5, Math.round((item.count / total) * vbH));
-      // Append rects clipped to silhouette
-      gSil.append('rect')
-        .attr('x', 0).attr('y', y0).attr('width', vbW).attr('height', h)
-        .attr('fill', SPE_PALETTE[i % SPE_PALETTE.length])
-        .attr('opacity', 0.95)
-        .attr('clip-path', 'url(#' + clipId + ')')
-        .on('mousemove', function(event){
-          var pct = Math.round(item.count / total * 100);
-          showTooltip(event, '<strong>' + item.label + '</strong><br>' + item.count + ' project' + (item.count!==1?'s':'') + '<br>' + pct + '%');
-        })
-        .on('mouseleave', hideTooltip);
-      y0 += h;
-    });
-
-    // Silhouette outline on top
-    gSil.append('path').attr('d', basePath).attr('fill', 'none').attr('stroke', '#fff').attr('stroke-width', 2).attr('transform', 'translate(0,0)');
-
-    // Labels on right side — line connectors from silhouette edge to label
-    var labelX = silX + drawW + 18;
-    var labelFontBase = Math.max(11, Math.min(18, Math.floor(drawH * 0.045)));
-    // compute centers for each segment in screen coords and draw labels
-    var cum = 0;
-    counts.forEach(function(item, i){
-      var segH = Math.max(0.5, (item.count / total) * vbH);
-      var cyBase = cum + segH/2; // in base coords
-      var screenY = silY + cyBase * scale;
-      var pct = Math.round(item.count / total * 100);
-      var label = item.label.replace(/_/g, ' ');
-      var lbl = label.length > 32 ? label.slice(0,29) + '…' : label;
-
-      // connector line
-      svg.append('line').attr('x1', silX + drawW).attr('y1', screenY)
-        .attr('x2', labelX - 8).attr('y2', screenY).attr('stroke', '#ccc').attr('stroke-width', 1);
-
-      // label text and percent
-      svg.append('text').attr('x', labelX).attr('y', screenY - 4)
-        .attr('font-size', labelFontBase).attr('font-weight', 700).attr('fill', '#222').text(lbl);
-      svg.append('text').attr('x', labelX).attr('y', screenY + 12)
-        .attr('font-size', Math.max(11, Math.floor(labelFontBase * 0.78))).attr('fill', '#666')
-        .text(item.count + ' projects — ' + pct + '%');
-
-      // invisible hit area for tooltip (also makes labels interactive)
-      svg.append('rect').attr('x', labelX - 6).attr('y', screenY - perLabelHit())
-        .attr('width', Math.max(60, width - labelX - 12)).attr('height', perLabelHit()*2)
-        .attr('fill', 'transparent')
-        .on('mousemove', function(event){ showTooltip(event, '<strong>' + item.label + '</strong><br>' + item.count + ' project' + (item.count!==1?'s':'') + '<br>' + pct + '%'); })
-        .on('mouseleave', hideTooltip);
-
-      cum += segH;
-    });
-
-    function perLabelHit(){ return Math.max(12, Math.floor(drawH * 0.04)); }
+  function insideFish(x, y){
+    var dx = (x - bodyCx) / bodyRx;
+    var dy = (y - bodyCy) / bodyRy;
+    if(dx*dx + dy*dy <= 1) return true;
+    if(x >= tailStart && x <= tailEnd){
+      var t = (x - tailStart) / (tailEnd - tailStart);
+      if(Math.abs(y - bodyCy) <= t * tailHalfH) return true;
+    }
+    return false;
   }
+
+  // Build dot grid sized so we get ~one dot per project when possible
+  var targetDots = Math.min(total, 260);
+  var areaEstimate = Math.PI * bodyRx * bodyRy + tailHalfH * (tailEnd - tailStart);
+  var spacing = Math.max(7, Math.sqrt(areaEstimate / targetDots) * 1.05);
+  var dotR = spacing * 0.38;
+  var dots = [];
+  for(var y = fishY + spacing/2; y <= fishY + fishH; y += spacing){
+    var rowOffset = ((Math.round((y - fishY)/spacing)) % 2) * (spacing/2);
+    for(var x = fishX + spacing/2 + rowOffset; x <= fishX + fishW; x += spacing){
+      if(insideFish(x, y)) dots.push({x:x, y:y});
+    }
+  }
+  if(!dots.length) return;
+
+  // Sort dots left-to-right, top-to-bottom so species fill in contiguous bands
+  dots.sort(function(a,b){ return (a.x - b.x) || (a.y - b.y); });
+
+  // Assign species to dots proportionally
+  var n = dots.length;
+  var assigned = [];
+  counts.forEach(function(c, i){
+    var k = Math.round(c.count / total * n);
+    for(var j = 0; j < k; j++) assigned.push(i);
+  });
+  while(assigned.length < n) assigned.push(0);
+  while(assigned.length > n) assigned.pop();
+
+  // Draw dots
+  dots.forEach(function(pt, i){
+    var idx = assigned[i];
+    var c = counts[idx];
+    svg.append("circle")
+      .attr("cx", pt.x).attr("cy", pt.y).attr("r", dotR)
+      .attr("fill", SPE_PALETTE[idx % SPE_PALETTE.length])
+      .attr("opacity", 0.92)
+      .style("cursor", "pointer")
+      .on("mousemove", function(event){
+        var pct = Math.round(c.count / total * 100);
+        showTooltip(event, "<strong>" + c.label + "</strong><br>" +
+          c.count + " project" + (c.count!==1?"s":"") + "<br>" + pct + "%");
+      })
+      .on("mouseleave", hideTooltip);
+  });
+
+  // Eye
+  svg.append("circle")
+    .attr("cx", bodyCx - bodyRx * 0.55).attr("cy", bodyCy - bodyRy * 0.28)
+    .attr("r", Math.max(3, dotR * 1.6))
+    .attr("fill", "#fff").attr("stroke", "#0d47a1").attr("stroke-width", 1.2);
+  svg.append("circle")
+    .attr("cx", bodyCx - bodyRx * 0.55).attr("cy", bodyCy - bodyRy * 0.28)
+    .attr("r", Math.max(1, dotR * 0.6)).attr("fill", "#0d47a1");
+
+  // Infographic callouts — top 3 species, stacked on the left
+  var topN = Math.min(3, counts.length);
+  var blockH = (height - 16) / topN;
+  for(var i = 0; i < topN; i++){
+    var c = counts[i];
+    var pct = Math.round(c.count / total * 100);
+    var color = SPE_PALETTE[i % SPE_PALETTE.length];
+    var bigFS = Math.min(46, Math.floor(blockH * 0.48));
+    var smallFS = Math.max(10, Math.floor(bigFS * 0.26));
+    var by = 10 + i * blockH;
+
+    svg.append("text")
+      .attr("x", 12).attr("y", by + bigFS)
+      .attr("font-size", bigFS).attr("font-weight", 900)
+      .attr("fill", color).attr("font-family", FONT)
+      .text(pct + "%");
+
+    var label = c.label.length > 28 ? c.label.slice(0,26) + "…" : c.label;
+    svg.append("text")
+      .attr("x", 12).attr("y", by + bigFS + smallFS + 2)
+      .attr("font-size", smallFS).attr("font-weight", 700)
+      .attr("fill", "#555").attr("font-family", FONT)
+      .text("of projects target");
+    svg.append("text")
+      .attr("x", 12).attr("y", by + bigFS + smallFS*2 + 4)
+      .attr("font-size", smallFS).attr("font-weight", 700)
+      .attr("fill", "#222").attr("font-family", FONT)
+      .text(label + " (" + c.count + ")");
+  }
+}
+
 
   async function init(){
     var data=await fetchMain();
