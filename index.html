@@ -2,568 +2,1131 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;overflow:hidden;background:#f4f7fb;font-family:'Roboto',sans-serif;}
-
-    #app{width:100%;height:100%;display:flex;flex-direction:column;}
-
-    /* ── HERO STATS ── */
-    #hero-stats{
-      display:grid;grid-template-columns:repeat(4,1fr);
-      background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
-      flex-shrink:0;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: 'Roboto', sans-serif; }
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+    #nav {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 12px 16px; background: white;
+      border-bottom: 2px solid #e8f0fe; flex-shrink: 0; flex-wrap: wrap;
     }
-    .stat-card{
-      padding:14px 20px;border-right:1px solid rgba(255,255,255,0.15);
-      display:flex;flex-direction:column;
+    .nav-btn {
+      padding: 10px 24px; border: 2px solid #1677bc; border-radius: 20px;
+      background: white; color: #1677bc; font-family: 'Roboto', sans-serif;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap;
     }
-    .stat-card:last-child{border-right:none;}
-    .stat-num{font-size:35px;font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
-    .stat-num.loading{color:rgba(255,255,255,0.3);font-size:25px;font-weight:300;}
-    .stat-label{font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
-    .stat-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;}
-
-    /* ── MAIN BODY ── */
-    #main{flex:1;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:10px;padding:10px;min-height:0;}
-
-    /* ── CHART CARDS ── */
-    .chart-card{
-      background:white;border-radius:10px;
-      box-shadow:0 2px 12px rgba(0,0,0,0.07);
-      display:flex;flex-direction:column;overflow:hidden;
-      min-height:0;
+    .nav-btn:hover { background: #e8f4fb; }
+    .nav-btn.active { background: #1677bc; color: white; box-shadow: 0 2px 8px rgba(22,119,188,0.25); }
+    #charts { flex: 1; overflow: hidden; position: relative; }
+    .chart-panel {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      overflow: hidden; display: none; padding: 16px 20px; background: #f8fafc;
     }
-    .chart-card-header{padding:10px 14px 6px;border-bottom:2px solid #f0f4ff;flex-shrink:0;}
-    .chart-card-header h3{font-size:19px;font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
-    .chart-card-header p{font-size:16px;color:#aaa;margin-top:2px;}
-    .chart-body{flex:1;padding:6px;min-height:0;overflow:hidden;}
-
-    /* ── TOOLTIP ── */
-    .tooltip{
-      position:fixed;background:rgba(15,23,42,0.93);color:white;
-      padding:7px 11px;border-radius:7px;font-size:17px;
-      pointer-events:none;opacity:0;transition:opacity 0.15s;
-      max-width:220px;line-height:1.5;z-index:9999;
-      box-shadow:0 4px 16px rgba(0,0,0,0.25);font-family:'Roboto',sans-serif;
+    .chart-panel.active { display: flex; flex-direction: column; }
+    .chart-title { font-size: 19px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
+    .chart-subtitle { font-size:18px; color: #888; margin-bottom: 10px; flex-shrink: 0; line-height:1.7; }
+    .chart-subtitle strong { color: #1677bc; font-weight: 700; }
+    .chart-subtitle strong.green { color: #009988; }
+    .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
+    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; width: 100%; height: 100%; }
+    .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
+    .grid-cell-title { font-size: 14px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
+    svg { display: block; }
+    #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
+    .tooltip {
+      position: absolute; background: rgba(15,23,42,0.92); color: white;
+      padding: 9px 14px; border-radius: 7px; font-size: 15px;
+      pointer-events: none; opacity: 0; transition: opacity 0.15s;
+      max-width: 340px; line-height: 1.5; z-index: 999;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
+<div id="loading">Loading data…</div>
 <div id="tooltip" class="tooltip"></div>
-<div id="app">
-
-  <!-- HERO STATS -->
-  <section id="hero-stats">
-    <div class="stat-card">
-      <div class="stat-num loading" id="stat-projects">—</div>
-      <div class="stat-label">Projects Funded</div>
-      <div class="stat-sub">GBEP award &gt; $0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num loading" id="stat-dollars">—</div>
-      <div class="stat-label">Total GBEP Awarded</div>
-      <div class="stat-sub">All funded projects</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num loading" id="stat-acres">—</div>
-      <div class="stat-label">Acres Impacted</div>
-      <div class="stat-sub">Approximate project size</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num loading" id="stat-orgs">—</div>
-      <div class="stat-label">Lead Organizations</div>
-      <div class="stat-sub">Distinct funded orgs</div>
-    </div>
-  </section>
-
-  <!-- MAIN GRID -->
-  <div id="main">
-
-    <!-- TOP ROW: Fiscal Year full width -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h3>GBEP Funding by Fiscal Year</h3>
-        <p>Award dollars (bars) and project count (line) per fiscal year.</p>
-      </div>
-      <div class="chart-body" id="fy-chart"></div>
-    </div>
-
-    <!-- BOTTOM: split into 2 side by side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;overflow:hidden;">
-      <div class="chart-card">
-        <div class="chart-card-header">
-          <h3>Acres by Project Goal</h3>
-          <p>Physical project acres by broad goal. Each square = 1% of total.</p>
-        </div>
-        <div class="chart-body" id="goal-chart"></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-card-header">
-          <h3>Projects by Focal Species</h3>
-          <p>Each dot = a project. Sized by share of targeted focal species.</p>
-        </div>
-        <div class="chart-body" id="species-chart"></div>
-      </div>
-    </div>
-
+<div id="app" style="display:none">
+  <!-- DATE RANGE FILTER -->
+  <div id="date-filter" style="
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    padding:10px 16px;background:white;border-bottom:1px solid #e8f0fe;
+    flex-shrink:0;font-family:'Roboto',sans-serif;
+  ">
+    <span style="font-size:15px;font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
+    <select id="year-from" onchange="applyYearFilter()" style="
+      padding:6px 12px;border:2px solid #1677bc;border-radius:20px;
+      font-size:15px;font-family:'Roboto',sans-serif;color:#1677bc;
+      background:white;cursor:pointer;outline:none;
+    ">
+      <option value="">From</option>
+    </select>
+    <span style="font-size:15px;color:#888;">—</span>
+    <select id="year-to" onchange="applyYearFilter()" style="
+      padding:6px 12px;border:2px solid #1677bc;border-radius:20px;
+      font-size:15px;font-family:'Roboto',sans-serif;color:#1677bc;
+      background:white;cursor:pointer;outline:none;
+    ">
+      <option value="">To</option>
+    </select>
+    <button onclick="clearYearFilter()" style="
+      padding:6px 16px;border:2px solid #aaa;border-radius:20px;
+      font-size:14px;font-family:'Roboto',sans-serif;color:#888;
+      background:white;cursor:pointer;
+    ">Clear</button>
+    <span id="filter-count" style="font-size:14px;color:#aaa;"></span>
   </div>
 
+  <div id="nav">
+    <button class="nav-btn active" onclick="showChart(0)">Habitat Types</button>
+    <button class="nav-btn" onclick="showChart(1)">Projects by Site</button>
+    <button class="nav-btn" onclick="showChart(2)">Projects by Organization</button>
+    <button class="nav-btn" onclick="showChart(3)">Plan Priorities</button>
+    <button class="nav-btn" onclick="showChart(4)">Projects by Fiscal Year</button>
+    <button class="nav-btn" onclick="showChart(5)">Org × Priority</button>
+    <button class="nav-btn" onclick="showChart(6)">Acres by Habitat</button>
+  </div>
+  <div id="charts">
+    <div class="chart-panel active" id="panel-0">
+      <div class="chart-title">Project Habitat Type Combinations</div>
+      <div class="chart-subtitle">How to read: Each <strong>column</strong> represents a unique set of habitat types. The <strong>bar</strong> height above shows how many projects have that exact combination. <strong class="green">Filled dots</strong> show which habitats are included — a <strong>blue connector</strong> between dots means a project spans multiple types. The <strong class="green">green bars</strong> on the right show each habitat's total project count across all combinations.</div>
+      <div class="chart-area" id="upset-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-1">
+      <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
+      <div class="chart-subtitle">Bubble size = number of distinct NRU projects with GBEP funding. Hover for details.</div>
+      <div style="flex-shrink:0;margin-bottom:6px;">
+        <button onclick="resetZoom('site-chart')" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:13px;">Reset zoom</button>
+      </div>
+      <div class="chart-area" id="site-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-2">
+      <div class="chart-title">Projects by Lead Organization</div>
+      <div class="chart-subtitle">Count of GBEP-funded projects per lead organization.</div>
+      <div class="chart-area" id="org-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-3">
+      <div class="chart-title">GBEP Projects by Plan Priority</div>
+      <div class="chart-subtitle">Number of funded projects by activity group and subcategory for each plan priority.</div>
+      <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;">
+        <div class="grid-2x2">
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#2e7d32">Plan Priority 2 — Habitat, Stewardship &amp; Field Work</div><div class="grid-chart" id="pp2-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#6a1b9a">Plan Priority 3 — Outreach, Education &amp; Partnerships</div><div class="grid-chart" id="pp3-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Restoration, Sustainability &amp; Capacity</div><div class="grid-chart" id="pp4-chart"></div></div>
+        </div>
+        <div id="pp-definitions" style="
+            background:white;border-radius:10px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.07);
+            padding:14px 20px;margin-top:10px;
+            font-family:'Roboto',sans-serif;
+            flex-shrink:0; font-size:16px;
+          ">
+          <div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;">
+            <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
+            <span><strong style="color:#1565c0">PS</strong> — Improve water quality through point source pollution abatement.</span>
+            <span><strong style="color:#1565c0">PHA</strong> — Promote public health and awareness.</span>
+            <span><strong style="color:#1b5e20">HC</strong> — Support habitat conservation.</span>
+            <span><strong style="color:#1b5e20">SC</strong> — Support species conservation.</span>
+            <span><strong style="color:#1b5e20">FWI</strong> — Sustain freshwater inflows.</span>
+            <span><strong style="color:#6a1b9a">SPO</strong> — Preserve Galveston Bay through stakeholder and partner outreach.</span>
+            <span><strong style="color:#6a1b9a">PEA</strong> — Support public education and awareness initiatives.</span>
+            <span><strong style="color:#bf360c">RES</strong> — Collaborate with research institutions to support focus area applied research and monitoring.</span>
+            <span><strong style="color:#bf360c">ACS</strong> — Increase access to Galveston Bay ecosystem information.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-panel" id="panel-4">
+      <div class="chart-title">GBEP Projects by Fiscal Year</div>
+      <div class="chart-subtitle" id="fy-subtitle">Number of GBEP-funded projects per fiscal year.</div>
+      <div class="chart-area" id="fy-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-5">
+      <div class="chart-title">Lead Organization × Plan Priority</div>
+      <div class="chart-subtitle">Number of projects per organization per plan priority. Darker = more projects. Hover for count and dollar total.</div>
+      <div class="chart-area" id="heatmap-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-6">
+      <div class="chart-title">Approximate Project Acres by Habitat Type</div>
+      <div class="chart-subtitle" id="treemap-subtitle">Physical project acres per habitat type. Sites with multiple habitats contribute acres to each type.</div>
+      <div style="display:flex;gap:12px;margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
+        <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Physical Project Acres</div>
+          <div id="physical-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
+          <div style="font-size:10px;opacity:0.6;">Habitat-specific, shown in chart below</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Large Scale Project Acres</div>
+          <div id="research-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
+          <div style="font-size:10px;opacity:0.6;">Research-affected, not habitat-specific</div>
+        </div>
+      </div>
+      <div style="flex-shrink:0;margin-bottom:6px;">
+        <button onclick="resetZoom('treemap-chart')" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:13px;">Reset zoom</button>
+      </div>
+      <div class="chart-area" id="treemap-chart"></div>
+    </div>
+  </div>
 </div>
 
 <script>
-  var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
-  var FONT="Roboto,sans-serif";
+  var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+  var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
+  var FONT="Roboto, sans-serif";
+  var PALETTE=[C1,C2,C3,C4,"#90caf9","#b2ebf2","#80deea","#4dd0e1","#006994","#0288d1","#29b6f6","#81d4fa","#0097a7","#00acc1","#00bcd4","#4fc3f7","#039be5","#0277bd","#01579b","#26c6da"];
 
-  var SCALE_FY = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1"));
+  var PP_PALETTES={
+    1:["#1565c0","#1976d2","#1e88e5","#42a5f5","#90caf9","#bbdefb","#e3f2fd","#1677bc","#0d47a1","#2196f3","#64b5f6","#b3e5fc"],
+    2:["#1b5e20","#2e7d32","#388e3c","#43a047","#66bb6a","#a5d6a7","#c8e6c9","#4caf50","#81c784"],
+    3:["#4a148c","#6a1b9a","#7b1fa2","#8e24aa","#ab47bc","#ce93d8","#e1bee7","#9c27b0","#ba68c8"],
+    4:["#bf360c","#d84315","#e64a19","#f4511e","#ff7043","#ffab91","#fbe9e7","#ff5722","#ff8a65","#ffccbc","#e65100"]
+  };
 
-  // Waffle chart palette — distinct colors per goal
-  var WAFFLE_PALETTE=["#0d47a1","#1677bc","#006994","#54a9ad","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#26c6da","#1976d2","#2e7d32"];
+  var PLAN_DEFS={
+    1:[{field:"nps_1",group:"NPS",label:"NPS-1"},{field:"nps_2",group:"NPS",label:"NPS-2"},{field:"nps_3",group:"NPS",label:"NPS-3"},{field:"nps_4",group:"NPS",label:"NPS-4"},{field:"ps_1",group:"PS",label:"PS-1"},{field:"ps_2",group:"PS",label:"PS-2"},{field:"ps_3",group:"PS",label:"PS-3"},{field:"pha_1",group:"PHA",label:"PHA-1"},{field:"pha_2",group:"PHA",label:"PHA-2"},{field:"pha_3",group:"PHA",label:"PHA-3"},{field:"pha_4",group:"PHA",label:"PHA-4"},{field:"pha_5",group:"PHA",label:"PHA-5"}],
+    2:[{field:"hc_1",group:"HC",label:"HC-1"},{field:"hc_2",group:"HC",label:"HC-2"},{field:"hc_3",group:"HC",label:"HC-3"},{field:"sc_1",group:"SC",label:"SC-1"},{field:"sc_2",group:"SC",label:"SC-2"},{field:"fwi_1",group:"FWI",label:"FWI-1"},{field:"fwi_2",group:"FWI",label:"FWI-2"},{field:"fwi_3",group:"FWI",label:"FWI-3"}],
+    3:[{field:"spo_1",group:"SPO",label:"SPO-1"},{field:"spo_2",group:"SPO",label:"SPO-2"},{field:"spo_3",group:"SPO",label:"SPO-3"},{field:"spo_4",group:"SPO",label:"SPO-4"},{field:"pea_1",group:"PEA",label:"PEA-1"},{field:"pea_2",group:"PEA",label:"PEA-2"},{field:"pea_3",group:"PEA",label:"PEA-3"}],
+    4:[{field:"res_1",group:"RES",label:"RES-1"},{field:"res_2",group:"RES",label:"RES-2"},{field:"res_3",group:"RES",label:"RES-3"},{field:"res_4",group:"RES",label:"RES-4"},{field:"res_5",group:"RES",label:"RES-5"},{field:"res_6",group:"RES",label:"RES-6"},{field:"res_7",group:"RES",label:"RES-7"},{field:"res_8",group:"RES",label:"RES-8"},{field:"acs_1",group:"ACS",label:"ACS-1"},{field:"acs_2",group:"ACS",label:"ACS-2"},{field:"acs_3",group:"ACS",label:"ACS-3"}]
+  };
 
-var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b"];
+  var PP_FIELD_MAP={
+    "PP1":["nps_1","nps_2","nps_3","nps_4","ps_1","ps_2","ps_3","pha_1","pha_2","pha_3","pha_4","pha_5"],
+    "PP2":["hc_1","hc_2","hc_3","sc_1","sc_2","fwi_1","fwi_2","fwi_3"],
+    "PP3":["spo_1","spo_2","spo_3","spo_4","pea_1","pea_2","pea_3"],
+    "PP4":["res_1","res_2","res_3","res_4","res_5","res_6","res_7","res_8","acs_1","acs_2","acs_3"]
+  };
 
+  var allData=[];
+  var filteredData=[];
+  var chartDrawn=[false,false,false,false,false,false,false];
   var tooltip=document.getElementById("tooltip");
-  function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
-  function hideTooltip(){tooltip.style.opacity=0;}
 
-  function fmtDollars(v){if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";return "$"+Math.round(v);}
-  function fmtAcres(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M ac";if(v>=1e3)return (v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
-  function fmtNum(v){if(v>=1e6)return (v/1e6).toFixed(1)+"M";if(v>=1e3)return (v/1e3).toFixed(1)+"K";return v.toLocaleString();}
-
-  function animateStat(id,finalText,numericVal){
-    var el=document.getElementById(id);
-    el.classList.remove("loading");
-    var startTime=null;
-    function step(ts){
-      if(!startTime)startTime=ts;
-      var p=Math.min((ts-startTime)/1200,1);
-      var ease=1-Math.pow(1-p,3);
-      el.textContent=fmtNum(Math.floor(ease*numericVal));
-      if(p<1)requestAnimationFrame(step);
-      else el.textContent=finalText;
-    }
-    requestAnimationFrame(step);
+  function getYear(d){
+    var fy=d.fiscal_year_awarded;
+    if(!fy)return null;
+    if(String(fy).length===4)return parseInt(fy);
+    var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
+    return parseInt(String(fy).slice(0,4));
   }
 
-  var SPECIES_LABELS = {
-  "endangered threatened species": "Endangered/threatened species",
-  "state listed species species of greatest conservation need": "State listed species/Species of Greatest Conservation Need",
-  "state listed species": "State listed species/Species of Greatest Conservation Need",
-  "nongame wildlife": "Nongame Wildlife",
-  "invasive species control eradication": "Invasive species control/eradication",
-  "invasive species control": "Invasive species control/eradication",
-  "no focal species during planning": "No focal species during planning",
-  "other": "Other"
-};
-function normalizeSpecies(raw){
-  if(!raw) return raw;
-  var key = raw.toLowerCase().replace(/[_\/\-]/g, " ").replace(/\s+/g, " ").trim();
+  function populateYearDropdowns(){
+    var years=Array.from(new Set(allData.map(getYear).filter(Boolean))).sort();
+    var fromSel=document.getElementById("year-from");
+    var toSel=document.getElementById("year-to");
+    years.forEach(function(y){
+      var o1=document.createElement("option");o1.value=y;o1.textContent=y;fromSel.appendChild(o1);
+      var o2=document.createElement("option");o2.value=y;o2.textContent=y;toSel.appendChild(o2);
+    });
+    // Default to last value in To
+    toSel.value=years[years.length-1]||"";
+  }
 
-  // Exact match first
-  if(SPECIES_LABELS[key]) return SPECIES_LABELS[key];
+  function applyYearFilter(){
+    var from=parseInt(document.getElementById("year-from").value)||null;
+    var to=parseInt(document.getElementById("year-to").value)||null;
+    filteredData=allData.filter(function(d){
+      var y=getYear(d);
+      if(!y)return true;
+      if(from&&y<from)return false;
+      if(to&&y>to)return false;
+      return true;
+    });
+    var count=filteredData.filter(function(d){return d.gbep_award_amount>0;}).length;
+    document.getElementById("filter-count").textContent=count+" funded projects";
+    redrawAll();
+  }
 
-  // Keyword fallback — handles truncations and variants
-  if(key.indexOf("state listed") !== -1 ||
-     key.indexOf("species of greatest") !== -1 ||
-     key.indexOf("greatest conservation") !== -1)
-    return "State listed species/Species of Greatest Conservation Need";
+  function clearYearFilter(){
+    document.getElementById("year-from").value="";
+    document.getElementById("year-to").value="";
+    filteredData=allData.slice();
+    document.getElementById("filter-count").textContent="";
+    redrawAll();
+  }
 
-  if(key.indexOf("endangered") !== -1 || key.indexOf("threatened") !== -1)
-    return "Endangered/threatened species";
+  function redrawAll(){
+    chartDrawn=[false,false,false,false,false,false,false];
+    var active=document.querySelector(".chart-panel.active");
+    if(active){
+      var idx=parseInt(active.id.replace("panel-",""));
+      chartDrawn[idx]=false;
+      showChart(idx);
+    }
+  }
 
-  if(key.indexOf("nongame") !== -1)
-    return "Nongame Wildlife";
+  function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.pageX+14)+"px";tooltip.style.top=(evt.pageY-32)+"px";}
+  function hideTooltip(){tooltip.style.opacity=0;}
 
-  if(key.indexOf("invasive") !== -1)
-    return "Invasive species control/eradication";
-
-  if(key.indexOf("no focal") !== -1)
-    return "No focal species during planning";
-
-  if(key === "other") return "Other";
-
-  return raw;
-}
+  function isYes(v){
+    if(v===null||v===undefined)return false;
+    if(v===true||v===1)return true;
+    var s=String(v).toLowerCase().trim();
+    return s==="1"||s==="true"||s==="yes"||s==="y";
+  }
 
 
+  function cleanTick(s){ return String(s).replace(/_/g," "); }
+  function fmtDollars(v){
+    if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";
+    if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";
+    return "$"+Math.round(v);
+  }
 
-  async function fetchMain(){
-    var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz",
-                "lead_organization_name","broad_project_goals","targeted_focal_species","project_scale"];
-    var url=LAYER_URL+"?where=1%3D1&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000";
+  function fmtAcres(v){
+    if(v>=1e6)return (v/1e6).toFixed(1)+"M ac";
+    if(v>=1e3)return (v/1e3).toFixed(0)+"K ac";
+    return Math.round(v)+" ac";
+  }
+
+  function showChart(i){
+    document.querySelectorAll('.chart-panel').forEach(function(p,j){p.classList.toggle('active',i===j);});
+    document.querySelectorAll('.nav-btn').forEach(function(b,j){b.classList.toggle('active',i===j);});
+    if(!chartDrawn[i]&&filteredData.length>0){
+      setTimeout(function(){
+        if(i===0)drawUpset(filteredData,"upset-chart");
+        if(i===1)drawSiteChart();
+        if(i===2)drawOrgChart();
+        if(i===3)drawAllPlanPriorities();
+        if(i===4)drawFiscalYear();
+        if(i===5)drawHeatmap();
+        if(i===6)drawTreemap();
+        chartDrawn[i]=true;
+      },50);
+    }
+  }
+
+  async function fetchData(){
+    var ppFields=[];
+    for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name",
+              "gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded",
+              "numeric_approximate_project_siz","project_scale"];
+    var all=base.concat(ppFields);
+    var url=LAYER_URL+"?where=1%3D1&outFields="+all.join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);
     var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
   }
 
-  function drawHeroStats(data){
-    var funded=data.filter(function(d){return d.gbep_award_amount;});
-    var totalDollars=d3.sum(funded,function(d){return d.gbep_award_amount;});
-    var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
-    var orgs=new Set(funded.filter(function(d){return d.lead_organization_name;}).map(function(d){return d.lead_organization_name.trim();}));
-    animateStat("stat-projects",funded.length.toLocaleString(),funded.length);
-    animateStat("stat-dollars",fmtDollars(totalDollars),totalDollars);
-    animateStat("stat-acres",fmtAcres(totalAcres),totalAcres);
-    animateStat("stat-orgs",orgs.size.toLocaleString(),orgs.size);
+  // ── TREEMAP ──────────────────────────────────────────────
+  function drawTreemap(){
+    var el=document.getElementById("treemap-chart");
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-100);
+
+    // Separate by project scale
+    // Count all projects (remove GBEP-funded-only filter)
+    var physicalFunded=filteredData.filter(function(d){
+      return d.project_landscape_type &&
+        d.numeric_approximate_project_siz>0 &&
+        d.project_scale==="Physical project";
+    });
+    var largeFunded=filteredData.filter(function(d){
+      return d.numeric_approximate_project_siz>0 &&
+        d.project_scale==="Large scale representative proj";
+    });
+
+    // Update indicators
+    var physAcres=d3.sum(physicalFunded,function(d){return d.numeric_approximate_project_siz||0;});
+    var largeAcres=d3.sum(largeFunded,function(d){return d.numeric_approximate_project_siz||0;});
+    var physEl=document.getElementById("physical-acres-val");
+    var resEl=document.getElementById("research-acres-val");
+    if(physEl)physEl.textContent=fmtAcres(physAcres);
+    if(resEl)resEl.textContent=fmtAcres(largeAcres);
+
+    var funded=physicalFunded;
+
+    // Year range for subtitle
+    var years=filteredData.filter(function(d){return d.fiscal_year_awarded;}).map(function(d){
+      var fy=d.fiscal_year_awarded;
+      if(String(fy).length===4)return parseInt(fy);
+      var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
+      return parseInt(String(fy).slice(0,4));
+    }).filter(Boolean);
+    if(years.length){
+      var subtitleEl=document.getElementById("treemap-subtitle");
+      if(subtitleEl)subtitleEl.textContent="Total approximate acres across GBEP-funded projects per habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Sites with multiple habitats contribute acres to each type.";
+    }
+
+    // Sum acres per habitat type (multi-habitat sites contribute to each)
+    var acreMap={};
+    funded.forEach(function(row){
+      var acres=row.numeric_approximate_project_siz||0;
+      var types=row.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
+      types.forEach(function(type){
+        acreMap[type]=(acreMap[type]||0)+acres;
+      });
+    });
+
+    var leaves=Object.keys(acreMap).map(function(k){
+      return {name:k,value:acreMap[k]};
+    }).filter(function(d){return d.value>0;});
+
+    if(leaves.length===0)return;
+
+    var maxVal=d3.max(leaves,function(d){return d.value;})||1;
+    // Build discrete buckets: under 1000 use 200-acre buckets, 1000+ use 1000-acre buckets
+    var smallStep = 200, smallMax = 1000;
+    var largeStep = 1000;
+    var numSmallBuckets = Math.ceil(smallMax / smallStep); // e.g., 5 buckets for 0-1000
+    var numLargeBuckets = Math.max(1, Math.ceil((Math.max(0, maxVal - smallMax)) / largeStep));
+    var totalBuckets = numSmallBuckets + numLargeBuckets;
+
+    // Create a brand-aligned green→blue interpolator (light -> dark green-blue)
+    // User-provided palette (light -> dark): will be sampled and reversed so
+    // interp(0)=light, interp(1)=dark. Hex list provided by user.
+    var userPalette = ["#025043","#036cd5","#037c6e","#048c7f","#05998c","#28a99e","#4fb9af"];
+    // Reverse to go from light -> dark for the interpolator
+    var paletteStops = userPalette.slice().reverse();
+    var interp = d3.interpolateRgbBasis(paletteStops);
+
+    // Map a value to a discrete bucket index
+    function bucketIndex(val){
+      if(val <= 0) return 0;
+      if(val < smallMax){
+        return Math.min(numSmallBuckets-1, Math.floor(val / smallStep));
+      }
+      var above = val - smallMax;
+      return numSmallBuckets + Math.min(numLargeBuckets-1, Math.floor(above / largeStep));
+    }
+
+    // Pre-sample discrete colors for each bucket, biasing toward darker tones
+    // so that small buckets (<=5k) are darker and have readable white text,
+    // while larger buckets remain distinct.
+    var idx5000 = bucketIndex(5000);
+    var bucketColors = d3.range(totalBuckets).map(function(i){
+      if(totalBuckets <= 1) return interp(0.8);
+      if(i <= idx5000){
+        // Map low buckets to t in [0.40, 0.70]
+        var denom = Math.max(1, idx5000);
+        var t = 0.40 + 0.30 * (i / denom);
+        return interp(t);
+      } else {
+        // Map high buckets to t in [0.70, 1.0]
+        var denom2 = Math.max(1, totalBuckets - 1 - idx5000);
+        var t2 = 0.70 + 0.30 * ((i - idx5000) / denom2);
+        return interp(t2);
+      }
+    });
+
+    function colorScale(val){
+      var idx = bucketIndex(val);
+      return bucketColors[Math.max(0, Math.min(bucketColors.length-1, idx))];
+    }
+
+    // Build hierarchy for d3 treemap — fill full width and height
+    var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
+
+    var treemap=d3.treemap().size([width,height]).padding(2).round(true);
+    treemap(root);
+
+    d3.select("#treemap-chart").select("svg").remove();
+    var svg=d3.select("#treemap-chart").append("svg")
+      .attr("width",width).attr("height",height);
+
+    // Make treemap zoomable by placing cells inside a zoom group
+    var gZoom = svg.append("g").attr("class","zoom-root");
+
+    var cell=gZoom.selectAll("g").data(root.leaves()).enter().append("g")
+      .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
+
+    var cellW=function(d){return Math.max(18,d.x1-d.x0);};
+    var cellH=function(d){return Math.max(18,d.y1-d.y0);};
+
+    cell.append("rect")
+      .attr("width",cellW).attr("height",cellH)
+      .attr("fill",function(d){return colorScale(d.data.value);})
+      .attr("rx",4).attr("opacity",0.88)
+      .on("mousemove",function(event,d){
+        var title = d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
+        showTooltip(event,"<strong style='font-size:16px'>"+title+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
+      }).on("mouseleave",hideTooltip);
+
+    // Only show labels on cells large enough to contain them
+    var totalAcres=d3.sum(leaves,function(d){return d.value;});
+    cell.each(function(d){
+      var w=cellW(d),h=cellH(d);
+      // Skip tiny cells entirely — tooltip only
+      if(w<80||h<50) return;
+      var g=d3.select(this);
+      var label=d.data.name.replace(/_/g," ")
+        .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
+        .replace(/\b\w/g,function(c){return c.toUpperCase();});
+
+      var fontSize=Math.min(18,Math.max(12,w/12));
+      var words=label.split(" ");
+      var lines=[],cur="";
+      words.forEach(function(word){
+        var test=cur?cur+" "+word:word;
+        if(test.length*fontSize*0.55>w-12&&cur){lines.push(cur);cur=word;}
+        else{cur=test;}
+      });
+      if(cur)lines.push(cur);
+
+      var lineH=fontSize+4;
+      var maxLines=Math.floor((h-lineH*2)/lineH);
+      lines=lines.slice(0,Math.max(1,maxLines));
+
+      var totalTextH=lines.length*lineH;
+      var startY=(h-totalTextH)/2;
+
+      lines.forEach(function(line,li){
+        // choose readable text color based on background luminance
+        var bg = colorScale(d.data.value);
+        var col = (d3.color(bg).luminance && d3.color(bg).luminance() > 0.55) ? '#111' : 'white';
+        g.append("text")
+          .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
+          .attr("text-anchor","middle").attr("dominant-baseline","middle")
+          .attr("font-size",fontSize).attr("font-family",FONT)
+          .attr("fill",col).attr("font-weight","600")
+          .text(line);
+      });
+
+      // Only show acreage if there's room below the label
+      if(h > totalTextH + lineH*2.5){
+        var bg2 = colorScale(d.data.value);
+        var col2 = (d3.color(bg2).luminance && d3.color(bg2).luminance() > 0.55) ? '#111' : 'rgba(255,255,255,0.9)';
+        g.append("text")
+          .attr("x",w/2).attr("y",startY+totalTextH+lineH)
+          .attr("text-anchor","middle").attr("dominant-baseline","middle")
+          .attr("font-size",Math.max(11,fontSize-3)).attr("font-family",FONT)
+          .attr("fill",col2)
+          .text(fmtAcres(d.data.value));
+      }
+    });
+
+    // Add zoom behavior to the treemap svg and register it for reset
+    var zoom = d3.zoom().scaleExtent([0.6,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
+    svg.call(zoom);
+    window._zoomBehaviors = window._zoomBehaviors || {};
+    window._zoomBehaviors['treemap-chart'] = { svg: svg, zoom: zoom };
   }
 
-  function drawFiscalYear(data){
+  // ── FISCAL YEAR ──────────────────────────────────────────
+  function drawFiscalYear(){
     var el=document.getElementById("fy-chart");
-    var width=el.clientWidth||500,height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-100);
+    var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});
+
     var byYear=d3.rollups(funded,
-      function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
+      function(v){return v.length;},
       function(d){
-        var fy=d.fiscal_year_of_award;
+        var fy=d.fiscal_year_awarded;
         if(!fy)return null;
         if(String(fy).length===4)return parseInt(fy);
-        var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
+        var parsed=new Date(fy);
+        if(!isNaN(parsed))return parsed.getFullYear();
         return parseInt(String(fy).slice(0,4));
       }
     ).filter(function(r){return r[0]!==null;})
-     .map(function(r){return{year:r[0],dollars:r[1].dollars,count:r[1].count};})
+     .map(function(r){return{year:r[0],count:r[1]};})
      .sort(function(a,b){return a.year-b.year;});
-    if(!byYear.length)return;
+    if(byYear.length===0)return;
 
-    var maxDollars=d3.max(byYear,function(d){return d.dollars;})||1;
-    SCALE_FY.domain([0,maxDollars]);
+    // Update subtitle with year range
+    var minY=byYear[0].year, maxY=byYear[byYear.length-1].year;
+    var subtitleEl=document.querySelector("#panel-4 .chart-subtitle");
+    if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"–"+maxY+".";
 
-    var mL=52,mR=40,mT=10,mB=65;
-    var w=width-mL-mR,h=height-mT-mB;
+    // Make scrollable if many years
+    el.style.overflowX="auto";
+    el.style.overflowY="visible";
+    var minBarW=28;
+    var mL=55,mR=30,mT=20,mB=85;
+    var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
+    var w=chartW-mL-mR,h=height-mT-mB;
+
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
-    var yScale=d3.scaleLinear().domain([0,maxDollars*1.12]).range([h,0]);
-    var y2Scale=d3.scaleLinear().domain([0,d3.max(byYear,function(d){return d.count;})*1.12]).range([h,0]);
+    var yMax=d3.max(byYear,function(d){return d.count;})||1;
+    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
+
+    // Light-to-dark blue scale
+    var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
 
     d3.select("#fy-chart").select("svg").remove();
-    var svg=d3.select("#fy-chart").append("svg").attr("width",width).attr("height",height);
+    var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");ax.selectAll("text").attr("font-size",14).attr("fill","#999");});
-    g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(4).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll("text").attr("font-size",14).attr("fill","#54a9ad");});
+    // Left axis — project count
+    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d")))
+      .call(function(ax){ax.select(".domain").remove();})
+      .call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",18).attr("fill","#666");});
 
-    g.selectAll(".bar").data(byYear).enter().append("rect")
-      .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
-      .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.dollars);})
-      .attr("fill",function(d){return SCALE_FY(d.dollars);}).attr("rx",2).attr("opacity",0.88)
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+fmtDollars(d.dollars)+"<br>"+d.count+" projects");})
+    // Y axis label — inside margin, won't get cut off
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-42)
+      .attr("text-anchor","middle").attr("font-size",18).attr("fill","#888").attr("font-weight","500").text("Projects");
+
+    // Bars — light-to-dark by count
+    g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
+      .attr("x",function(d){return xScale(d.year);})
+      .attr("y",function(d){return yScale(d.count);})
+      .attr("width",xScale.bandwidth())
+      .attr("height",function(d){return h-yScale(d.count);})
+      .attr("fill",function(d){return colorScale(d.count);}).attr("rx",3).attr("opacity",0.9)
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
       .on("mouseleave",hideTooltip);
 
-    var line=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return y2Scale(d.count);}).curve(d3.curveCatmullRom);
-    g.append("path").datum(byYear).attr("fill","none").attr("stroke","#54a9ad").attr("stroke-width",2).attr("d",line);
-    g.selectAll(".dot2").data(byYear).enter().append("circle")
-      .attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return y2Scale(d.count);})
-      .attr("r",3).attr("fill","#54a9ad").attr("stroke","white").attr("stroke-width",1);
+    // Count labels on top of bars
+    g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label")
+      .attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
+      .attr("y",function(d){return yScale(d.count)-4;})
+      .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","700")
+      .attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});
 
+    // X axis
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",13).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");});
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");})
+      .call(function(ax){ax.selectAll("text").attr("font-size",18).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
   }
 
-  function drawGoalChart(data){
-  var el = document.getElementById("goal-chart");
-  el.innerHTML = "";
-  el.style.position = "relative";
-
-  var width = el.clientWidth || 400, height = el.clientHeight || 200;
-
-  var funded = data.filter(function(d){
-    return d.gbep_award_amount>0 && d.broad_project_goals &&
-      d.numeric_approximate_project_siz>0 &&
-      d.project_scale==="Physical project";
-  });
-  var grouped = d3.rollups(funded,
-    function(v){return d3.sum(v, function(d){return d.numeric_approximate_project_siz||0;});},
-    function(d){return d.broad_project_goals;}
-  ).map(function(r,i){return{name:r[0].replace(/_/g," "), value:r[1], color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};})
-   .filter(function(d){return d.value>0;})
-   .sort(function(a,b){return b.value-a.value;});
-  if(!grouped.length) return;
-  var totalAcres = d3.sum(grouped, function(d){return d.value;});
-
-  // ── Layout: label width drives sidePad, sidePad drives radius ──
-  var labelW  = Math.max(80, Math.floor(width * 0.22));
-  var sidePad = labelW + 36;
-  var radius  = Math.max(42, Math.min((width - sidePad*2)/2, height/2 - 14));
-  var innerRadius = radius * 0.55;
-  var cx = width/2, cy = height/2;
-
-  var svg = d3.select("#goal-chart").append("svg")
-    .attr("width", width).attr("height", height).style("font-family", FONT);
-
-  var pie = d3.pie().value(function(d){return d.value;}).sort(null);
-  var arc = d3.arc().innerRadius(innerRadius).outerRadius(radius);
-  var arcHover = d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
-
-  var g = svg.append("g").attr("transform","translate("+cx+","+cy+")");
-  var slices = pie(grouped);
-
-  g.selectAll("path").data(slices).enter().append("path")
-    .attr("d", arc)
-    .attr("fill", function(d){return d.data.color;})
-    .attr("stroke","white").attr("stroke-width",2)
-    .on("mousemove", function(event,d){
-      d3.select(this).attr("d", arcHover);
-      var pct = Math.round(d.data.value/totalAcres*100);
-      showTooltip(event, "<strong>" + d.data.name + "</strong><br>" + fmtAcres(d.data.value) + "<br>" + pct + "% of total");
-    })
-    .on("mouseleave", function(){
-      d3.select(this).attr("d", arc);
-      hideTooltip();
+  // ── HEATMAP ──────────────────────────────────────────────
+  function drawHeatmap(){
+    var el=document.getElementById("heatmap-chart");
+    var width=el.clientWidth||window.innerWidth;
+    var height=el.clientHeight||(window.innerHeight-100);
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var priorities=["PP1","PP2","PP3","PP4"];
+    var ppLabels={"PP1":"Priority 1","PP2":"Priority 2","PP3":"Priority 3","PP4":"Priority 4"};
+    var cellMap={};var orgs=[];var orgSet={};
+    funded.forEach(function(row){
+      var org=row.lead_organization_name.trim();
+      if(!orgSet[org]){orgSet[org]=true;orgs.push(org);}
+      priorities.forEach(function(pp){
+        var hasAny=PP_FIELD_MAP[pp].some(function(f){return isYes(row[f]);});
+        if(hasAny){var key=org+"||"+pp;cellMap[key]=(cellMap[key]||0)+1;}
+      });
     });
-
-  // Center total
-  var topFs = Math.min(40, Math.floor(innerRadius*0.55));
-  var bottomFs = Math.max(11, Math.floor(topFs*0.36));
-  g.append("text").attr("text-anchor","middle").attr("y", 0)
-    .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").text(fmtAcres(totalAcres));
-  g.append("text").attr("text-anchor","middle").attr("y", topFs*0.7)
-    .attr("font-size", bottomFs).attr("fill","#666").text("physical acres");
-
-  // Inner percentage labels (>=4%)
-  var pctFs = Math.max(11, Math.floor(radius * 0.14));
-  slices.forEach(function(d){
-    var pct = d.data.value/totalAcres*100;
-    if(pct < 4) return;
-    var c = arc.centroid(d);
-    g.append("text").attr("text-anchor","middle")
-      .attr("x", c[0]).attr("y", c[1] + pctFs*0.35)
-      .attr("font-size", pctFs).attr("font-weight", 900)
-      .attr("fill", "white").style("pointer-events","none")
-      .text(Math.round(pct) + "%");
-  });
-
-  // ── External callouts ──
-  var labeled = [];
-  slices.forEach(function(d){
-    var pct = d.data.value/totalAcres*100;
-    if(pct < 5) return;
-    var midAngle = (d.startAngle + d.endAngle) / 2;
-    var sinA = Math.sin(midAngle);
-    var cosA = -Math.cos(midAngle);
-    labeled.push({
-      pct: pct,
-      name: d.data.name,
-      color: d.data.color,
-      side: sinA >= 0 ? 1 : -1,
-      startX: sinA * radius,
-      startY: cosA * radius
+    orgs.sort(function(a,b){
+      var ta=priorities.reduce(function(s,pp){return s+(cellMap[a+"||"+pp]||0);},0);
+      var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
+      return tb-ta;
     });
-  });
-
-  var leftList  = labeled.filter(function(c){return c.side < 0;}).sort(function(a,b){return a.startY - b.startY;});
-  var rightList = labeled.filter(function(c){return c.side > 0;}).sort(function(a,b){return a.startY - b.startY;});
-
-  var minSpacing = 36;
-  var usable = height - 24;
-  var maxPerSide = Math.max(1, Math.floor(usable / minSpacing));
-
-  // If too many callouts for a side, keep the biggest (by pct) and preserve Y ordering
-  function trimList(list){
-    if(list.length <= maxPerSide) return list;
-    var keepSet = list.slice().sort(function(a,b){return b.pct - a.pct;}).slice(0, maxPerSide);
-    return list.filter(function(c){return keepSet.indexOf(c) !== -1;});
-  }
-  leftList  = trimList(leftList);
-  rightList = trimList(rightList);
-
-  // Evenly distribute vertically, centered on cy
-  function distribute(list, xSign){
-    if(!list.length) return;
-    var n = list.length;
-    var step = Math.min(minSpacing + 14, usable / Math.max(n,1));
-    var totalH = step * (n - 1);
-    var startY = -totalH/2;
-    list.forEach(function(c, i){
-      c.labelY = startY + i * step;
-      c.labelX = xSign * (radius + 22);
+    var mL=Math.min(266,width*0.32),mR=20,mT=50,mB=20;
+    var w=width-mL-mR,h=height-mT-mB;
+    var cellW=w/priorities.length,cellH=h/orgs.length;
+    var maxVal=d3.max(Object.values(cellMap))||1;
+    var ppColorScales={
+      "PP1": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f4fb","#1565c0")),
+      "PP2": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f5e9","#1b5e20")),
+      "PP3": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#f3e5f5","#4a148c")),
+      "PP4": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#fbe9e7","#bf360c"))
+    };
+    d3.select("#heatmap-chart").select("svg").remove();
+    var svg=d3.select("#heatmap-chart").append("svg").attr("width",width).attr("height",height);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    priorities.forEach(function(pp,pi){
+      g.append("text").attr("x",pi*cellW+cellW/2).attr("y",-12).attr("text-anchor","middle").attr("font-size",18).attr("font-weight","700")
+        .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
+    });
+    orgs.forEach(function(org,oi){
+      var cleanOrg=org.replace(/_/g," ");
+      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
+      g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(18,cellH*0.55)).attr("fill","#333").text(label);
+      priorities.forEach(function(pp,pi){
+        var val=cellMap[org+"||"+pp]||0;
+        var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
+        var x=pi*cellW,y=oi*cellH,pad=2;
+        g.append("rect").attr("x",x+pad).attr("y",y+pad).attr("width",cellW-pad*2).attr("height",cellH-pad*2)
+          .attr("fill",val>0?ppColorScales[pp](val):"#f5f5f5").attr("rx",4)
+          .on("mousemove",function(event){
+            showTooltip(event,val>0?"<strong>"+org+"</strong><br>"+ppLabels[pp]+"<br>"+val+" project"+(val!==1?"s":"")+"<br>"+fmtDollars(dollars):"<strong>"+org+"</strong><br>"+ppLabels[pp]+"<br>No projects");
+          }).on("mouseleave",hideTooltip);
+        if(val>0&&cellH>14){
+          g.append("text").attr("x",x+cellW/2).attr("y",y+cellH/2).attr("text-anchor","middle").attr("dominant-baseline","middle")
+            .attr("font-size",Math.min(19,cellH*0.45)).attr("font-weight","600")
+            .attr("fill",val>maxVal*0.5?"white":{"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#4a148c","PP4":"#bf360c"}[pp]).text(val);
+        }
+      });
     });
   }
-  distribute(leftList, -1);
-  distribute(rightList, 1);
 
-  // Draw leader lines (SVG) + labels (HTML)
-  [leftList, rightList].forEach(function(list){
-    list.forEach(function(c){
-      var xSign = c.side;
-      var xOut = c.startX + xSign * 8;
-      var yOut = c.startY;
-      var xEnd = c.labelX - xSign * 4;
-      var yEnd = c.labelY;
-
-      g.append("polyline")
-        .attr("points", c.startX + "," + c.startY + " " + xOut + "," + yOut + " " + xEnd + "," + yEnd)
-        .attr("fill","none").attr("stroke","#aaa").attr("stroke-width", 1);
-
-      var label = document.createElement("div");
-      var isRight = xSign > 0;
-      label.style.cssText =
-        "position:absolute;" +
-        "top:" + (cy + c.labelY) + "px;" +
-        (isRight
-          ? "left:" + (cx + c.labelX) + "px;"
-          : "right:" + (width - (cx + c.labelX)) + "px;") +
-        "width:" + labelW + "px;" +
-        "transform:translateY(-50%);" +
-        "font-family:" + FONT + ";" +
-        "font-size:12px;font-weight:700;" +
-        "color:" + c.color + ";" +
-        "text-align:" + (isRight ? "left" : "right") + ";" +
-        "line-height:1.2;" +
-        "pointer-events:none;" +
-        "word-wrap:break-word;overflow-wrap:break-word;";
-      label.textContent = c.name;
-      el.appendChild(label);
+  // ── PLAN PRIORITY BARS ───────────────────────────────────
+  function drawPlanPriority(data,priority,containerId){
+    var el=document.getElementById(containerId);
+    var width=el.clientWidth||400,height=el.clientHeight||300;
+    var items=PLAN_DEFS[priority],palette=PP_PALETTES[priority];
+    var totals={};
+    items.forEach(function(it){totals[it.field]=0;});
+    data.forEach(function(row){
+      items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=1;});
     });
-  });
-}
+    var groups=[],groupMap={};
+    items.forEach(function(it){
+      if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[]};groups.push(groupMap[it.group]);}
+      groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
+    });
 
+    var mL=50,mR=10,mT=36,mB=32; // mT=36 gives room for numbers above bars
+    var cW=width-mL-mR,cH=height-mT-mB;
+    var groupW=cW/groups.length,barW=groupW*0.7;
+    var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
+    // Scale domain slightly above maxY so top label never clips
+    var yScale=d3.scaleLinear().domain([0,maxY*1.15]).range([cH,0]);
 
+    d3.select("#"+containerId).select("svg").remove();
+    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
+    // Y axis — project count
+    g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(d3.format("d")))
+      .call(function(ax){
+        ax.select(".domain").remove();
+        ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");
+        ax.selectAll("text").attr("font-size",18);
+      });
 
-function drawSpeciesChart(data){
-  var el = document.getElementById("species-chart");
-  el.innerHTML = "";
-  el.style.position = "relative";
-
-  var width = el.clientWidth || 400, height = el.clientHeight || 200;
-
-  var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
-  var sMap = {};
-  funded.forEach(function(row){
-    row.targeted_focal_species.split(",").map(function(s){ return normalizeSpecies(s.trim()); }).filter(function(s){ return s; })
-      .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
-
-
-  });
-  var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; })
-    .sort(function(a,b){ return b.count - a.count; });
-  if(!counts.length) return;
-  var total = d3.sum(counts, function(d){ return d.count; });
-
-  // Layout — list on left (HTML), droplet on right (SVG)
-  var leftW = Math.max(170, width * 0.44);
-
-  // ── SVG droplet ──
-  var svg = d3.select("#species-chart").append("svg")
-    .attr("width", width).attr("height", height).style("font-family", FONT);
-
-  var dropX = leftW, dropY = 6;
-  var dropW = width - leftW - 10;
-  var dropH = height - 12;
-
-  var r = Math.min(dropW * 0.52, dropH * 0.36);
-  var cx = dropX + dropW / 2;
-  var bottomCy = dropY + dropH - r - 4;
-  var topY = dropY + 4;
-
-  svg.append("path")
-    .attr("d", "M " + cx + "," + topY +
-               " L " + (cx + r) + "," + bottomCy +
-               " A " + r + "," + r + " 0 0 1 " + (cx - r) + "," + bottomCy +
-               " Z")
-    .attr("fill", "none").attr("stroke", "#cfe3f3").attr("stroke-width", 1.5);
-
-  var targetDots = Math.max(45, Math.min(total, 260));
-  var dropArea = Math.PI * r * r * 0.5 + r * (bottomCy - topY);
-  var spacing = Math.sqrt(dropArea / targetDots) * 1.05;
-  var dotR = spacing * 0.38;
-  var pad = dotR + 2;
-
-  function insideDrop(x, y){
-    var rInner = r - pad;
-    if(rInner <= 0) return false;
-    var topYi = topY + pad * 2;
-    var dx = x - cx, dy = y - bottomCy;
-    if(dy >= 0 && dx*dx + dy*dy <= rInner*rInner) return true;
-    if(y >= topYi && y <= bottomCy){
-      var t = (y - topYi) / (bottomCy - topYi);
-      if(Math.abs(x - cx) <= t * rInner) return true;
-    }
-    return false;
+    groups.forEach(function(grp,gi){
+      var x=gi*groupW+(groupW-barW)/2,yOff=cH;
+      grp.subs.forEach(function(sub,si){
+        var col=palette[(gi*4+si)%palette.length];
+        var bH=cH-yScale(sub.value);if(bH<0)bH=0;
+        yOff-=bH;
+        g.append("rect").attr("x",x).attr("y",yOff).attr("width",barW).attr("height",bH).attr("fill",col).attr("rx",1)
+          .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+sub.value+" project"+(sub.value!==1?"s":""));})
+          .on("mouseleave",hideTooltip);
+      });
+      // Group label below bars
+      g.append("text").attr("x",x+barW/2).attr("y",cH+22)
+        .attr("text-anchor","middle").attr("font-size",19).attr("font-weight","700").attr("fill","#333")
+        .text(grp.group);
+      // Total above bars — safely inside chart area due to 1.15 domain padding
+      var total=d3.sum(grp.subs,function(s){return s.value;});
+      if(total>0){
+        g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-6)
+          .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","600").attr("fill","#555")
+          .text(total);
+      }
+    });
   }
+  function drawAllPlanPriorities(){drawPlanPriority(filteredData,1,"pp1-chart");drawPlanPriority(filteredData,2,"pp2-chart");drawPlanPriority(filteredData,3,"pp3-chart");drawPlanPriority(filteredData,4,"pp4-chart");}
 
-  var dots = [], rowIdx = 0;
-  for(var y = topY + spacing/2; y <= dropY + dropH; y += spacing){
-    var off = (rowIdx % 2) * (spacing/2);
-    rowIdx++;
-    for(var x = dropX + spacing/2 + off; x <= dropX + dropW; x += spacing){
-      if(insideDrop(x, y)) dots.push({x:x, y:y});
-    }
-  }
-  if(!dots.length) return;
+  // ── BUBBLE CHART ─────────────────────────────────────────
+  function drawBubbleChart(counts,containerId){
+    var el=document.getElementById(containerId);
+    var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
+    if(!counts||counts.length===0)return;
+    var maxCount=d3.max(counts,function(d){return d.count;})||1;
+    // Increase minimum bubble radius and allow for a larger max radius on big screens.
+    var minR = 36;
+    var maxR = Math.min(width, height) * 0.12;
+    var rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, Math.max(minR, maxR)]);
+    // Multi-color palette with dark colors for readable white labels
+    var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
+    var nodes = counts.map(function(d,i){
+      return {
+        label: d.label,
+        count: d.count,
+        r: rScale(d.count),
+        color: SITE_PALETTE[i % SITE_PALETTE.length],
+        x: width*0.2 + Math.random()*width*0.6,
+        y: height*0.2 + Math.random()*height*0.6
+      };
+    });
 
-  dots.sort(function(a,b){ return (a.y - b.y) || (a.x - b.x); });
+    d3.select("#"+containerId).select("svg").remove();
+    var svg = d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
 
-  var nDots = dots.length, assigned = [];
-  counts.forEach(function(c, i){
-    var k = Math.round(c.count / total * nDots);
-    for(var j = 0; j < k; j++) assigned.push(i);
-  });
-  while(assigned.length < nDots) assigned.push(0);
-  while(assigned.length > nDots) assigned.pop();
+    // Create a zoomable group so users can pan/zoom the bubble chart
+    var gZoom = svg.append("g").attr("class","zoom-root");
 
-  dots.forEach(function(pt, i){
-    var idx = assigned[i], c = counts[idx];
-    svg.append("circle")
-      .attr("cx", pt.x).attr("cy", pt.y).attr("r", dotR)
-      .attr("fill", SPE_PALETTE[idx % SPE_PALETTE.length])
-      .attr("opacity", 0.92).style("cursor", "pointer")
-      .on("mousemove", function(event){
-        var pct = Math.round(c.count / total * 100);
-        showTooltip(event, "<strong>" + c.label + "</strong><br>" +
-          c.count + " project" + (c.count!==1?"s":"") + "<br>" + pct + "%");
-      })
+    // Increase collision padding to avoid labels touching circle edges and each other
+    var collisionPadding = 10;
+    var sim = d3.forceSimulation(nodes)
+      .force("charge", d3.forceManyBody().strength(-6))
+      .force("center", d3.forceCenter(width/2, height/2))
+      .force("collision", d3.forceCollide().radius(function(d){ return d.r + collisionPadding; }).strength(1))
+      .stop();
+    for(var i=0;i<600;i++) sim.tick();
+    // Keep nodes inside bounds
+    nodes.forEach(function(d){ d.x = Math.max(d.r+6, Math.min(width-d.r-6, d.x)); d.y = Math.max(d.r+6, Math.min(height-d.r-6, d.y)); });
+
+    var node = gZoom.selectAll("g.node").data(nodes).enter().append("g").attr("class","node").attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
+      .on("mousemove",function(event,d){ showTooltip(event, "<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":"")); })
       .on("mouseleave", hideTooltip);
-  });
 
-  // ── HTML list overlay — all species, auto-sized ──
-  var list = document.createElement("div");
-  list.style.cssText =
-    "position:absolute;left:10px;top:8px;" +
-    "width:" + (leftW - 18) + "px;" +
-    "height:" + (height - 16) + "px;" +
-    "display:flex;flex-direction:column;justify-content:space-around;" +
-    "font-family:" + FONT + ";overflow:hidden;pointer-events:none;" +
-    "box-sizing:border-box;";
+    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.92).attr("stroke","white").attr("stroke-width",2);
 
-  var nItems = counts.length;
-  var rowH = (height - 16) / nItems;
-  var pctFS  = Math.max(12, Math.min(26, Math.floor(rowH * 0.48)));
-  var nameFS = Math.max(11, Math.min(16, Math.floor(pctFS * 0.72)));
-  var swatch = Math.max(8, Math.floor(pctFS * 0.55));
+    node.each(function(d){
+      var g = d3.select(this);
+      var words = d.label.split(/[^\w&'@]+/).filter(function(w){return w;});
+      // Font sizing and line height scale with radius; raise minimum font for readability
+      var minFont = 12, maxFont = 20;
+      var fs = Math.max(minFont, Math.min(maxFont, Math.floor(d.r/3)));
+      var lh = Math.max(14, Math.round(fs * 1.15));
+      var mw = d.r * 1.6; // max text width inside circle
 
-  counts.forEach(function(c, i){
-    var pct = Math.round(c.count / total * 100);
-    var color = SPE_PALETTE[i % SPE_PALETTE.length];
-    var row = document.createElement("div");
-    row.style.cssText =
-      "display:flex;align-items:center;gap:7px;line-height:1.15;min-height:0;";
-    row.innerHTML =
-      '<div style="width:' + swatch + 'px;height:' + swatch + 'px;background:' + color +
-        ';border-radius:50%;flex-shrink:0;"></div>' +
-      '<div style="font-size:' + pctFS + 'px;font-weight:900;color:' + color +
-        ';flex-shrink:0;letter-spacing:-0.5px;">' + pct + '%</div>' +
-      '<div style="font-size:' + nameFS + 'px;font-weight:600;color:#333;' +
-        'word-wrap:break-word;overflow-wrap:break-word;min-width:0;flex:1;">' +
-        c.label + '</div>';
-    list.appendChild(row);
-  });
-  el.appendChild(list);
-}
+      // Build lines that fit within mw
+      var lines = [], cur = "";
+      words.forEach(function(w){
+        var test = cur ? cur + " " + w : w;
+        if(test.length * fs * 0.55 > mw && cur){ lines.push(cur); cur = w; }
+        else { cur = test; }
+      });
+      if(cur) lines.push(cur);
 
+      // Limit lines to what fits vertically inside the circle
+      var maxLines = Math.max(1, Math.floor((d.r*1.8) / lh));
+      lines = lines.slice(0, maxLines).map(function(line){
+        var maxChars = Math.floor(mw / (fs * 0.55)) || 1;
+        if(line.length > maxChars) return line.slice(0, maxChars-1) + "…";
+        return line;
+      });
 
+      var th = lines.length * lh;
+      var startY = -th/2;
+      lines.forEach(function(line, li){
+        g.append("text")
+          .attr("x", 0).attr("y", startY + li*lh + lh/2)
+          .attr("text-anchor", "middle").attr("dominant-baseline","middle")
+          .attr("font-size", fs).attr("font-family", FONT)
+          .attr("fill", "white").attr("font-weight","600").text(line);
+      });
 
+      // Show count only if there is clear space below the label inside the circle
+      if(d.r > minFont && (d.r - th/2) > (lh + 8)){
+        g.append("text").attr("x",0).attr("y", d.r - Math.max(10, Math.round(lh/2)))
+          .attr("text-anchor","middle").attr("font-size", Math.max(11, fs-2)).attr("font-family", FONT)
+          .attr("fill","rgba(255,255,255,0.9)").attr("font-weight","700").text(d.count);
+      }
+    });
 
+    // Add zoom behavior to svg, targeting the zoom-root group, and register for reset
+    var zoom = d3.zoom().scaleExtent([0.5,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
+    svg.call(zoom);
+    window._zoomBehaviors = window._zoomBehaviors || {};
+    window._zoomBehaviors['site-chart'] = { svg: svg, zoom: zoom };
+  }
+
+  function drawSiteChart(){
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.site_name_long_term_project_nam&&d.site_name_long_term_project_nam.trim()!=""&&d.nru_project_title&&d.nru_project_title.trim()!="";});
+    var grouped=d3.rollups(funded,function(v){return new Set(v.map(function(d){return d.nru_project_title;})).size;},function(d){return d.site_name_long_term_project_nam;});
+    drawBubbleChart(grouped.map(function(r){return{label:r[0],count:r[1]};}), "site-chart");
+  }
+
+  function drawOrgChart(){
+    var el=document.getElementById("org-chart");
+    var width=el.clientWidth||window.innerWidth;
+
+    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
+    var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
+    var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
+    if(!sorted.length)return;
+
+    var ROW_H=46;
+    var mL=Math.min(306,width*0.40), mR=60, mT=10, mB=50;
+    var totalH=sorted.length*ROW_H+mT+mB;
+    var xMax=d3.max(sorted,function(d){return d.count;})||1;
+    var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
+    var dotR=Math.min(ROW_H*0.22,8);
+
+    // Make container scrollable
+    el.style.overflowY="auto";
+    el.style.overflowX="hidden";
+
+    d3.select("#org-chart").select("svg").remove();
+    var svg=d3.select("#org-chart").append("svg").attr("width",width).attr("height",totalH).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    // X axis pinned at bottom of full SVG
+    var axisG=g.append("g").attr("transform","translate(0,"+(totalH-mT-mB)+")");
+    axisG.call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
+      .call(function(gr){
+        gr.select(".domain").remove();
+        gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0");
+        gr.selectAll("text").attr("font-size",18).attr("fill","#555").attr("dy","1em");
+      });
+
+    sorted.forEach(function(d,i){
+      var y=i*ROW_H+ROW_H/2;
+      var xEnd=xScale(d.count);
+      var col=i%3===0?C1:i%3===1?C2:C3;
+
+      if(i%2===0){
+        g.append("rect").attr("x",-mL).attr("y",i*ROW_H).attr("width",width).attr("height",ROW_H).attr("fill","#fafbff").attr("opacity",0.7);
+      }
+
+      g.append("line").attr("x1",0).attr("x2",xEnd).attr("y1",y).attr("y2",y).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.5);
+
+      g.append("circle").attr("cx",xEnd).attr("cy",y).attr("r",dotR).attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
+        .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
+        .on("mouseleave",hideTooltip);
+
+      g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle").attr("font-size",18).attr("font-weight","700").attr("fill",col).text(d.count);
+
+      // Stacked label — wrap dynamically to fit the left margin and avoid overflow
+      var cleanLabel = d.label.replace(/_/g, " ");
+      // Available pixel width to the left of the chart for labels (leave a bit of padding)
+      var availablePx = Math.max(80, mL - 24);
+      var fs = 20, minFs = 12;
+      function maxCharsForFs(f){ return Math.max(1, Math.floor(availablePx / (f * 0.55))); }
+      var maxChars = maxCharsForFs(fs);
+      // Reduce font size if the available width is too small so we get a reasonable chars-per-line
+      while(fs > minFs && maxChars < 8){ fs--; maxChars = maxCharsForFs(fs); }
+
+      var words = cleanLabel.split(/\s+/).filter(Boolean);
+      var lines = [], cur = "";
+      words.forEach(function(word){
+        var test = cur ? cur + " " + word : word;
+        if(test.length > maxChars && cur){ lines.push(cur); cur = word; }
+        else { cur = test; }
+      });
+      if(cur) lines.push(cur);
+
+      // Limit to a few lines depending on row height
+      var maxLines = Math.min(3, Math.max(1, Math.floor((ROW_H*0.9) / (fs + 3))));
+      lines = lines.slice(0, maxLines).map(function(line){
+        var m = maxChars;
+        return line.length > m ? line.slice(0, m-1) + "…" : line;
+      });
+
+      var lineH = fs + 3;
+      var startY = y - (lines.length-1) * lineH / 2;
+      lines.forEach(function(line, li){
+        g.append("text").attr("x", -8).attr("y", startY + li*lineH)
+          .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+          .attr("font-size", fs).attr("fill", "#333").text(line);
+      });
+    });
+  }
+
+  function drawHorizontalBar(counts,containerId,color){
+    var el=document.getElementById(containerId);
+    var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
+    if(!counts||counts.length===0)return;
+    var sorted=counts.slice().sort(function(a,b){return b.count-a.count;});
+    var mL=Math.min(306,width*0.38),mR=50,mT=10,mB=30;
+    var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(26,rowH*0.65);
+    var xMax=d3.max(sorted,function(d){return d.count;})||1;
+    var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
+    d3.select("#"+containerId).select("svg").remove();
+    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d"))).attr("transform","translate(0,"+baH+")")
+      .call(function(gr){gr.select(".domain").remove();}).call(function(gr){gr.selectAll(".tick line").attr("y1",-baH).attr("y2",0).attr("stroke","#eee");gr.selectAll("text").attr("font-size",20);});
+    sorted.forEach(function(d,i){
+      var y=i*rowH+(rowH-barH)/2;
+      g.append("rect").attr("x",0).attr("y",y).attr("width",xScale(d.count)).attr("height",barH).attr("fill",color).attr("rx",2);
+      g.append("text").attr("x",xScale(d.count)+4).attr("y",y+barH/2).attr("dominant-baseline","middle").attr("font-size",20).attr("fill","#333").text(d.count);
+      g.append("text").attr("x",-6).attr("y",y+barH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",20).attr("fill","#333").text(d.label.length>42?d.label.slice(0,40)+"...":d.label);
+    });
+  }
+
+  // ── UPSET ────────────────────────────────────────────────
+  function drawUpset(data,container){
+    var el=document.getElementById(container);
+    var width=el.clientWidth,height=el.clientHeight;
+
+    var raw=data.map(function(d){return d.project_landscape_type;}).filter(function(d){return d;})
+      .map(function(d){return d.split(",").map(function(s){
+        return s.trim().replace(/_/g," ").replace(/\s+/g," "); // clean underscores and extra spaces
+      }).filter(function(s){return s;}).sort();});
+
+    // Deduplicate using lowercase key but preserve original casing
+    var seenTypes={};
+    raw=raw.map(function(combo){
+      var seen={};
+      return combo.filter(function(t){
+        var key=t.toLowerCase().trim();
+        if(seen[key])return false;
+        seen[key]=true;
+        return true;
+      });
+    });
+
+    // Build canonical type names — prefer the version without underscores
+    var typeMap={};
+    raw.forEach(function(combo){
+      combo.forEach(function(t){
+        var key=t.toLowerCase().trim();
+        if(!typeMap[key]) typeMap[key]=t;
+      });
+    });
+    // Re-map raw to use canonical names
+    raw=raw.map(function(combo){
+      return combo.map(function(t){return typeMap[t.toLowerCase().trim()]||t;}).sort();
+    });
+
+    var cMap=new Map();
+    raw.forEach(function(c){var k=c.slice().sort().join(" | ");cMap.set(k,(cMap.get(k)||0)+1);});
+    var sc=Array.from(cMap,function(e){return{key:e[0],count:e[1]};}).sort(function(a,b){return b.count-a.count;});
+    if(sc.length===0)return;
+
+    var allT=Array.from(new Set(raw.reduce(function(a,b){return a.concat(b);},[])));
+    allT.sort();
+    var tT=new Map();
+    allT.forEach(function(t){tT.set(t,0);});
+    raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});
+
+    // Colorblind-safe colors
+    var DOT_FILLED  = "#009988"; // green/teal — matches right bars (habitat totals)
+    var DOT_CONNECT = "#0077bb"; // blue — matches top bars (combination counts)
+    var BAR_TOP     = "#0077bb"; // blue for top bars
+    var BAR_RIGHT   = "#009988"; // teal for right bars — matches filled dots
+    var DOT_EMPTY   = "#eeeeee";
+
+    // Layout constants
+    var SECTION_LABEL_H = 20;
+    var INSTRUCTION_H = 0;   // instruction text moved to HTML above chart
+    var rBW=110, mL=290, mR=rBW+56, mT=SECTION_LABEL_H+8;
+    var bH2=Math.floor((height-mT-INSTRUCTION_H)*0.28);
+    var dotAreaH=height-mT-bH2-INSTRUCTION_H-24;
+    var rH=dotAreaH/allT.length;
+    var cW=(width-mL-mR)/sc.length;
+    var dotTop=bH2+mT+22;
+
+    d3.select("#"+container).select("svg").remove();
+    var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+
+    // ── SUMMARY COUNT top-right ──
+    svg.append("text")
+      .attr("x",width-mR+rBW/2).attr("y",mT-6)
+      .attr("text-anchor","middle").attr("font-size",18).attr("fill","#aaa")
+      .text(sc.length+" combinations");
+
+    // ── SECTION HEADER: Combination Count (top bars) ──
+    svg.append("text")
+      .attr("x",mL+(sc.length*cW)/2).attr("y",mT-6)
+      .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","700").attr("fill",DOT_FILLED)
+      .attr("letter-spacing","0.5")
+      .text("▲  Projects per Habitat Combination");
+
+    // ── SECTION HEADER: Habitat Types (dot rows) ──
+    svg.append("text")
+      .attr("x",mL-8).attr("y",dotTop-6)
+      .attr("text-anchor","end").attr("font-size",18).attr("font-weight","700").attr("fill",DOT_FILLED)
+      .text("Habitat Types  →");
+
+    // ── SECTION HEADER: Total Projects (right bars) — darker and bolder ──
+    svg.append("text")
+      .attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-6)
+      .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","900").attr("fill","#333")
+      .text("Total Projects");
+
+    // ── TOP BARS (combination counts) ──
+    var mxC=d3.max(sc,function(d){return d.count;});
+    var yB=d3.scaleLinear().domain([0,mxC]).range([bH2,0]);
+    var bG=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    bG.append("g").call(d3.axisLeft(yB).ticks(Math.min(mxC,6)).tickFormat(d3.format("d")))
+      .call(function(g){g.select(".domain").remove();})
+      .call(function(g){
+        g.selectAll(".tick line").attr("x2",sc.length*cW).attr("stroke","#f0f0f0");
+        g.selectAll("text").style("font-size","18px").attr("fill","#888");
+      });
+
+    sc.forEach(function(d,i){
+      var bx=i*cW+cW*0.18, bw=cW*0.64;
+      bG.append("rect").attr("x",bx).attr("y",yB(d.count)).attr("width",bw).attr("height",bH2-yB(d.count))
+        .attr("fill",BAR_TOP).attr("rx",2).attr("opacity",0.9)
+        .on("mousemove",function(event){
+          var label=d.key.split(" | ").map(function(t){return t.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});}).join(", ");
+          showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='font-size:18px;opacity:0.85'>"+label+"</span>");
+        }).on("mouseleave",hideTooltip);
+      if(cW>16)
+        bG.append("text").attr("x",bx+bw/2).attr("y",yB(d.count)-3)
+          .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","600").attr("fill","#444").text(d.count);
+    });
+
+    // ── DOT MATRIX ──
+    var dG=svg.append("g").attr("transform","translate("+mL+","+dotTop+")");
+
+    // Alternating row backgrounds
+    allT.forEach(function(type,ri){
+      if(ri%2===0){
+        dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);
+      }
+    });
+
+    // Horizontal grid lines
+    for(var ri=0;ri<=allT.length;ri++){
+      dG.append("line").attr("x1",-mL).attr("x2",sc.length*cW+mR)
+        .attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#e8e8e8").attr("stroke-width",1);
+    }
+
+    // Habitat type row labels — fix SAV parenthesis, longer labels, bolder
+    allT.forEach(function(type,ri){
+      var label=type.replace(/_/g," ")
+        .replace(/Submerged Aquatic Vegetation\s*\(/i,"Submerged Aquatic Vegetation (SAV)")
+        .replace(/Submerged Aquatic Veg[a-z]*\s*\(?[^)]*\)?/i,"Submerged Aquatic Vegetation (SAV)")
+        .replace(/\b\w/g,function(c){return c.toUpperCase();});
+      // Add closing paren to SAV if missing
+      if(label.toLowerCase().indexOf("sav")>=0 && label.indexOf(")")<0){
+        label=label.replace(/\(sav/i,"(SAV)");
+      }
+      dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2)
+        .attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(19,rH*0.52)).attr("font-weight","700").attr("fill","#222")
+        .text(label);
+    });
+
+    // Vertical column grid lines — thin light gray, gives structure without implying data
+    sc.forEach(function(d,ci){
+      var cx=ci*cW+cW/2;
+      dG.append("line").attr("x1",cx).attr("x2",cx)
+        .attr("y1",0).attr("y2",allT.length*rH)
+        .attr("stroke","#e0e0e0").attr("stroke-width",1);
+    });
+
+    // Dots and connectors
+    sc.forEach(function(d,ci){
+      var types=d.key.split(" | ");
+      var cx=ci*cW+cW/2;
+      var r=Math.min(cW,rH)*0.30;
+
+      // All dots — single color filled/empty, no connector
+      allT.forEach(function(type,ri){
+        var filled=types.indexOf(type)>=0;
+        dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r)
+          .attr("fill",filled?DOT_FILLED:DOT_EMPTY)
+          .attr("stroke",filled?"white":"#d0d0d0")
+          .attr("stroke-width",filled?1.5:0.5);
+      });
+    });
+
+    // ── RIGHT BARS (totals per habitat type) — light turquoise ──
+    var mxT=d3.max(Array.from(tT.values()))||1;
+    var xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]);
+    var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");
+
+    allT.forEach(function(type,ri){
+      var total=tT.get(type)||0;
+      var cy=ri*rH+rH/2;
+      var bh=Math.min(rH*0.55,14);
+      sBG.append("rect").attr("x",0).attr("y",cy-bh/2)
+        .attr("width",xSB(total)).attr("height",bh)
+        .attr("fill",BAR_RIGHT).attr("rx",2).attr("opacity",0.9);
+      sBG.append("text").attr("x",xSB(total)+4).attr("y",cy)
+        .attr("dominant-baseline","middle").attr("font-size",18).attr("font-weight","700").attr("fill","#222")
+        .text(total);
+    });
+  }
 
   async function init(){
-    var data=await fetchMain();
-    drawHeroStats(data);
-    drawFiscalYear(data);
-    drawGoalChart(data);
-    drawSpeciesChart(data);
+    allData=await fetchData();
+    filteredData=allData.slice();
+    document.getElementById("loading").style.display="none";
+    document.getElementById("app").style.display="flex";
+    populateYearDropdowns();
+    drawUpset(filteredData,"upset-chart");
+    chartDrawn[0]=true;
+  }
+
+  // Reset zoom for any registered chart. Pass the container id used when drawing (e.g., 'site-chart' or 'treemap-chart').
+  function resetZoom(containerId){
+    if(!window._zoomBehaviors||!window._zoomBehaviors[containerId])return;
+    var obj=window._zoomBehaviors[containerId];
+    try{
+      obj.svg.transition().duration(400).call(obj.zoom.transform, d3.zoomIdentity);
+    }catch(e){
+      console.warn('resetZoom failed for',containerId,e);
+    }
   }
 
   init();
