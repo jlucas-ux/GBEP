@@ -147,6 +147,22 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
     requestAnimationFrame(step);
   }
 
+  var SPECIES_LABELS = {
+  "endangered threatened species": "Endangered/threatened species",
+  "state listed species species of greatest conservation need": "State listed species/Species of Greatest Conservation Need",
+  "state listed species": "State listed species/Species of Greatest Conservation Need",
+  "nongame wildlife": "Nongame Wildlife",
+  "invasive species control eradication": "Invasive species control/eradication",
+  "invasive species control": "Invasive species control/eradication",
+  "no focal species during planning": "No focal species during planning",
+  "other": "Other"
+};
+function normalizeSpecies(raw){
+  var key = raw.toLowerCase().replace(/[_\/\-]/g, " ").replace(/\s+/g, " ").trim();
+  return SPECIES_LABELS[key] || raw;
+}
+
+
   async function fetchMain(){
     var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz",
                 "lead_organization_name","broad_project_goals","targeted_focal_species","project_scale"];
@@ -391,8 +407,9 @@ function drawSpeciesChart(data){
   var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
   var sMap = {};
   funded.forEach(function(row){
-    row.targeted_focal_species.split(",").map(function(s){ return s.trim().replace(/_/g," "); }).filter(function(s){ return s; })
+    row.targeted_focal_species.split(",").map(function(s){ return normalizeSpecies(s.trim()); }).filter(function(s){ return s; })
       .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
+
   });
   var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; })
     .sort(function(a,b){ return b.count - a.count; });
