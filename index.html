@@ -158,9 +158,35 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
   "other": "Other"
 };
 function normalizeSpecies(raw){
+  if(!raw) return raw;
   var key = raw.toLowerCase().replace(/[_\/\-]/g, " ").replace(/\s+/g, " ").trim();
-  return SPECIES_LABELS[key] || raw;
+
+  // Exact match first
+  if(SPECIES_LABELS[key]) return SPECIES_LABELS[key];
+
+  // Keyword fallback — handles truncations and variants
+  if(key.indexOf("state listed") !== -1 ||
+     key.indexOf("species of greatest") !== -1 ||
+     key.indexOf("greatest conservation") !== -1)
+    return "State listed species/Species of Greatest Conservation Need";
+
+  if(key.indexOf("endangered") !== -1 || key.indexOf("threatened") !== -1)
+    return "Endangered/threatened species";
+
+  if(key.indexOf("nongame") !== -1)
+    return "Nongame Wildlife";
+
+  if(key.indexOf("invasive") !== -1)
+    return "Invasive species control/eradication";
+
+  if(key.indexOf("no focal") !== -1)
+    return "No focal species during planning";
+
+  if(key === "other") return "Other";
+
+  return raw;
 }
+
 
 
   async function fetchMain(){
