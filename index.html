@@ -358,52 +358,45 @@
 
     if(leaves.length===0)return;
 
-    var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    // Build discrete buckets: under 1000 use 200-acre buckets, 1000+ use 1000-acre buckets
-    var smallStep = 200, smallMax = 1000;
-    var largeStep = 1000;
-    var numSmallBuckets = Math.ceil(smallMax / smallStep); // e.g., 5 buckets for 0-1000
-    var numLargeBuckets = Math.max(1, Math.ceil((Math.max(0, maxVal - smallMax)) / largeStep));
-    var totalBuckets = numSmallBuckets + numLargeBuckets;
+   var maxVal=d3.max(leaves,function(d){return d.value;})||1;
 
-    // Create a brand-aligned green→blue interpolator (light -> dark green-blue)
-    var paletteStops = ["#e0f7fa","#b3e5fc","#81d4fa","#29b6f6","#039be5","#0288d1","#00695c","#004d40"];
-    var interp = d3.interpolateRgbBasis(paletteStops);
-
-    // Map a value to a discrete bucket index
-    function bucketIndex(val){
-      if(val <= 0) return 0;
-      if(val < smallMax){
-        return Math.min(numSmallBuckets-1, Math.floor(val / smallStep));
-      }
-      var above = val - smallMax;
-      return numSmallBuckets + Math.min(numLargeBuckets-1, Math.floor(above / largeStep));
-    }
-
-    // Pre-sample discrete colors for each bucket, biasing toward darker tones
-    // so that small buckets (<=5k) are darker and have readable white text,
-    // while larger buckets remain distinct.
-    var idx5000 = bucketIndex(5000);
-    var bucketColors = d3.range(totalBuckets).map(function(i){
-      if(totalBuckets <= 1) return interp(0.8);
-      if(i <= idx5000){
-        // Map low buckets to t in [0.40, 0.70]
-        var denom = Math.max(1, idx5000);
-        var t = 0.40 + 0.30 * (i / denom);
-        return interp(t);
-      } else {
-        // Map high buckets to t in [0.70, 1.0]
-        var denom2 = Math.max(1, totalBuckets - 1 - idx5000);
-        var t2 = 0.70 + 0.30 * ((i - idx5000) / denom2);
-        return interp(t2);
-      }
-    });
+    // Discrete buckets: <1000 = per 100ac steps, >=1000 = per 1000ac steps
+    // Colors go dark (high) → light (low), all readable with white text
+    // Dark greens/teals for high, medium blues for mid, lighter blues for low
+    var BUCKET_COLORS_SMALL = [
+      "#1a6b8a", // 0–99
+      "#1a7a7a", // 100–199
+      "#1a8a6a", // 200–299
+      "#1a9060", // 300–399
+      "#1a9658", // 400–499
+      "#1a9c50", // 500–599
+      "#1aaa48", // 600–699
+      "#0f8060", // 700–799
+      "#0d7060", // 800–899
+      "#0b6060", // 900–999
+    ];
+    var BUCKET_COLORS_LARGE = [
+      "#0d5560", // 1K–2K
+      "#0d4d5a", // 2K–3K
+      "#0d4455", // 3K–4K
+      "#0c3c50", // 4K–5K
+      "#0b344a", // 5K–6K
+      "#0a2c44", // 6K–7K
+      "#09243e", // 7K–8K
+      "#081c38", // 8K–9K
+      "#071432", // 9K–10K
+      "#060c2c", // 10K+
+    ];
 
     function colorScale(val){
-      var idx = bucketIndex(val);
-      return bucketColors[Math.max(0, Math.min(bucketColors.length-1, idx))];
+      if(val <= 0) return BUCKET_COLORS_SMALL[0];
+      if(val < 1000){
+        var idx = Math.min(9, Math.floor(val / 100));
+        return BUCKET_COLORS_SMALL[idx];
+      }
+      var idx = Math.min(9, Math.floor((val - 1000) / 1000));
+      return BUCKET_COLORS_LARGE[idx];
     }
-
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
 
@@ -463,7 +456,7 @@
       lines.forEach(function(line,li){
         // choose readable text color based on background luminance
         var bg = colorScale(d.data.value);
-        var col = (d3.color(bg).luminance && d3.color(bg).luminance() > 0.55) ? '#111' : 'white';
+        var col = 'white';
         g.append("text")
           .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
@@ -475,7 +468,7 @@
       // Only show acreage if there's room below the label
       if(h > totalTextH + lineH*2.5){
         var bg2 = colorScale(d.data.value);
-        var col2 = (d3.color(bg2).luminance && d3.color(bg2).luminance() > 0.55) ? '#111' : 'rgba(255,255,255,0.9)';
+        var col = 'white';
         g.append("text")
           .attr("x",w/2).attr("y",startY+totalTextH+lineH)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
