@@ -345,6 +345,9 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
 
 function drawSpeciesChart(data){
   var el = document.getElementById("species-chart");
+  el.innerHTML = "";
+  el.style.position = "relative";
+
   var width = el.clientWidth || 400, height = el.clientHeight || 200;
 
   var funded = data.filter(function(d){ return d.gbep_award_amount>0 && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
@@ -358,23 +361,22 @@ function drawSpeciesChart(data){
   if(!counts.length) return;
   var total = d3.sum(counts, function(d){ return d.count; });
 
-  d3.select("#species-chart").select("svg").remove();
+  // Layout — list on left (HTML), droplet on right (SVG)
+  var leftW = Math.max(170, width * 0.44);
+
+  // ── SVG droplet ──
   var svg = d3.select("#species-chart").append("svg")
     .attr("width", width).attr("height", height).style("font-family", FONT);
 
-  // Layout — callouts left, wider droplet right
-  var leftW = Math.max(150, width * 0.40);
   var dropX = leftW, dropY = 6;
   var dropW = width - leftW - 10;
   var dropH = height - 12;
 
-  // Droplet outline: point top, round bottom
   var r = Math.min(dropW * 0.52, dropH * 0.36);
   var cx = dropX + dropW / 2;
   var bottomCy = dropY + dropH - r - 4;
   var topY = dropY + 4;
 
-  // Outline path (full size)
   svg.append("path")
     .attr("d", "M " + cx + "," + topY +
                " L " + (cx + r) + "," + bottomCy +
@@ -382,7 +384,6 @@ function drawSpeciesChart(data){
                " Z")
     .attr("fill", "none").attr("stroke", "#cfe3f3").attr("stroke-width", 1.5);
 
-  // Spacing + dot radius first, THEN define eroded inside-test so dots stay in outline
   var targetDots = Math.max(45, Math.min(total, 260));
   var dropArea = Math.PI * r * r * 0.5 + r * (bottomCy - topY);
   var spacing = Math.sqrt(dropArea / targetDots) * 1.05;
@@ -392,7 +393,7 @@ function drawSpeciesChart(data){
   function insideDrop(x, y){
     var rInner = r - pad;
     if(rInner <= 0) return false;
-    var topYi = topY + pad * 2;  // extra top pad — triangle slope needs perpendicular margin
+    var topYi = topY + pad * 2;
     var dx = x - cx, dy = y - bottomCy;
     if(dy >= 0 && dx*dx + dy*dy <= rInner*rInner) return true;
     if(y >= topYi && y <= bottomCy){
@@ -414,13 +415,13 @@ function drawSpeciesChart(data){
 
   dots.sort(function(a,b){ return (a.y - b.y) || (a.x - b.x); });
 
-  var n = dots.length, assigned = [];
+  var nDots = dots.length, assigned = [];
   counts.forEach(function(c, i){
-    var k = Math.round(c.count / total * n);
+    var k = Math.round(c.count / total * nDots);
     for(var j = 0; j < k; j++) assigned.push(i);
   });
-  while(assigned.length < n) assigned.push(0);
-  while(assigned.length > n) assigned.pop();
+  while(assigned.length < nDots) assigned.push(0);
+  while(assigned.length > nDots) assigned.pop();
 
   dots.forEach(function(pt, i){
     var idx = assigned[i], c = counts[idx];
@@ -436,55 +437,41 @@ function drawSpeciesChart(data){
       .on("mouseleave", hideTooltip);
   });
 
-  // Word-wrap helper (left-anchored)
-  function wrapText(textEl, text, maxWidth, lineHeight){
-    var x = parseFloat(textEl.attr("x"));
-    textEl.text(null);
-    var tspan = textEl.append("tspan").attr("x", x).attr("dy", "0em");
-    var line = [];
-    text.split(/\s+/).forEach(function(w){
-      line.push(w);
-      tspan.text(line.join(" "));
-      if(tspan.node().getComputedTextLength() > maxWidth && line.length > 1){
-        line.pop();
-        tspan.text(line.join(" "));
-        line = [w];
-        tspan = textEl.append("tspan").attr("x", x).attr("dy", lineHeight + "px").text(w);
-      }
-    });
-  }
+  // ── HTML list overlay — all species, auto-sized ──
+  var list = document.createElement("div");
+  list.style.cssText =
+    "position:absolute;left:10px;top:8px;" +
+    "width:" + (leftW - 18) + "px;" +
+    "height:" + (height - 16) + "px;" +
+    "display:flex;flex-direction:column;justify-content:space-around;" +
+    "font-family:" + FONT + ";overflow:hidden;pointer-events:none;" +
+    "box-sizing:border-box;";
 
-  // Infographic callouts — top 3, larger text, no truncation
-  var topN = Math.min(3, counts.length);
-  var blockH = (height - 16) / topN;
-  var labelMaxW = leftW - 20;
-  for(var i = 0; i < topN; i++){
-    var c = counts[i];
+  var nItems = counts.length;
+  var rowH = (height - 16) / nItems;
+  var pctFS  = Math.max(12, Math.min(26, Math.floor(rowH * 0.48)));
+  var nameFS = Math.max(11, Math.min(16, Math.floor(pctFS * 0.72)));
+  var swatch = Math.max(8, Math.floor(pctFS * 0.55));
+
+  counts.forEach(function(c, i){
     var pct = Math.round(c.count / total * 100);
     var color = SPE_PALETTE[i % SPE_PALETTE.length];
-    var bigFS = Math.min(42, Math.floor(blockH * 0.40));
-    var smallFS = Math.max(15, Math.floor(bigFS * 0.38));
-    var by = 8 + i * blockH;
-
-    svg.append("text")
-      .attr("x", 12).attr("y", by + bigFS)
-      .attr("font-size", bigFS).attr("font-weight", 900)
-      .attr("fill", color).attr("font-family", FONT)
-      .text(pct + "%");
-
-    svg.append("text")
-      .attr("x", 12).attr("y", by + bigFS + smallFS + 4)
-      .attr("font-size", smallFS).attr("font-weight", 500)
-      .attr("fill", "#777").attr("font-family", FONT)
-      .text("of projects target");
-
-    var labelText = svg.append("text")
-      .attr("x", 12).attr("y", by + bigFS + smallFS*2 + 6)
-      .attr("font-size", smallFS).attr("font-weight", 700)
-      .attr("fill", "#222").attr("font-family", FONT);
-    wrapText(labelText, c.label + " (" + c.count + ")", labelMaxW, smallFS + 2);
-  }
+    var row = document.createElement("div");
+    row.style.cssText =
+      "display:flex;align-items:center;gap:7px;line-height:1.15;min-height:0;";
+    row.innerHTML =
+      '<div style="width:' + swatch + 'px;height:' + swatch + 'px;background:' + color +
+        ';border-radius:50%;flex-shrink:0;"></div>' +
+      '<div style="font-size:' + pctFS + 'px;font-weight:900;color:' + color +
+        ';flex-shrink:0;letter-spacing:-0.5px;">' + pct + '%</div>' +
+      '<div style="font-size:' + nameFS + 'px;font-weight:600;color:#333;' +
+        'word-wrap:break-word;overflow-wrap:break-word;min-width:0;flex:1;">' +
+        c.label + '</div>';
+    list.appendChild(row);
+  });
+  el.appendChild(list);
 }
+
 
 
 
