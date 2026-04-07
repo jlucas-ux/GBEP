@@ -222,6 +222,9 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
 
   function drawGoalChart(data){
   var el = document.getElementById("goal-chart");
+  el.innerHTML = "";
+  el.style.position = "relative";
+
   var width = el.clientWidth || 400, height = el.clientHeight || 200;
 
   var funded = data.filter(function(d){
@@ -229,7 +232,6 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
       d.numeric_approximate_project_siz>0 &&
       d.project_scale==="Physical project";
   });
-
   var grouped = d3.rollups(funded,
     function(v){return d3.sum(v, function(d){return d.numeric_approximate_project_siz||0;});},
     function(d){return d.broad_project_goals;}
@@ -237,18 +239,17 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
    .filter(function(d){return d.value>0;})
    .sort(function(a,b){return b.value-a.value;});
   if(!grouped.length) return;
-
   var totalAcres = d3.sum(grouped, function(d){return d.value;});
 
-  d3.select("#goal-chart").select("svg").remove();
-  var svg = d3.select("#goal-chart").append("svg")
-    .attr("width", width).attr("height", height).style("font-family", FONT);
-
-  // Shrink donut to leave room for external callouts on both sides
-  var sidePad = 95;
-  var radius = Math.max(40, Math.min((width - sidePad*2)/2, height/2 - 14));
+  // ── Layout: label width drives sidePad, sidePad drives radius ──
+  var labelW  = Math.max(80, Math.floor(width * 0.22));
+  var sidePad = labelW + 36;
+  var radius  = Math.max(42, Math.min((width - sidePad*2)/2, height/2 - 14));
   var innerRadius = radius * 0.55;
   var cx = width/2, cy = height/2;
+
+  var svg = d3.select("#goal-chart").append("svg")
+    .attr("width", width).attr("height", height).style("font-family", FONT);
 
   var pie = d3.pie().value(function(d){return d.value;}).sort(null);
   var arc = d3.arc().innerRadius(innerRadius).outerRadius(radius);
@@ -272,17 +273,15 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
     });
 
   // Center total
-  var centerTop = fmtAcres(totalAcres);
-  var centerBottom = "physical acres";
-  var topFs = Math.min(44, Math.floor(innerRadius*0.55));
-  var bottomFs = Math.max(12, Math.floor(topFs*0.36));
+  var topFs = Math.min(40, Math.floor(innerRadius*0.55));
+  var bottomFs = Math.max(11, Math.floor(topFs*0.36));
   g.append("text").attr("text-anchor","middle").attr("y", 0)
-    .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").text(centerTop);
+    .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").text(fmtAcres(totalAcres));
   g.append("text").attr("text-anchor","middle").attr("y", topFs*0.7)
-    .attr("font-size", bottomFs).attr("fill","#666").text(centerBottom);
+    .attr("font-size", bottomFs).attr("fill","#666").text("physical acres");
 
-  // Percentages inside slices (>=4% so tiny ones don't clutter)
-  var pctFs = Math.max(12, Math.floor(radius * 0.15));
+  // Inner percentage labels (>=4%)
+  var pctFs = Math.max(11, Math.floor(radius * 0.14));
   slices.forEach(function(d){
     var pct = d.data.value/totalAcres*100;
     if(pct < 4) return;
@@ -294,64 +293,91 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
       .text(Math.round(pct) + "%");
   });
 
-  // External callouts for larger slices (>=8%)
-  var calloutFs = Math.max(11, Math.floor(radius * 0.12));
-  var lineH = calloutFs + 2;
-  var labelMaxW = sidePad - 12;
-
-  function wrapText(textEl, text, maxWidth, lineHeight){
-    var x = parseFloat(textEl.attr("x"));
-    textEl.text(null);
-    var tspan = textEl.append("tspan").attr("x", x).attr("dy", "0em");
-    var line = [];
-    text.split(/\s+/).forEach(function(w){
-      line.push(w);
-      tspan.text(line.join(" "));
-      if(tspan.node().getComputedTextLength() > maxWidth && line.length > 1){
-        line.pop();
-        tspan.text(line.join(" "));
-        line = [w];
-        tspan = textEl.append("tspan").attr("x", x).attr("dy", lineHeight + "px").text(w);
-      }
-    });
-  }
-
+  // ── External callouts ──
+  var labeled = [];
   slices.forEach(function(d){
     var pct = d.data.value/totalAcres*100;
-    if(pct < 8) return;
-
+    if(pct < 5) return;
     var midAngle = (d.startAngle + d.endAngle) / 2;
     var sinA = Math.sin(midAngle);
-    var cosA = -Math.cos(midAngle); // SVG y flipped
-    var isRight = sinA >= 0;
+    var cosA = -Math.cos(midAngle);
+    labeled.push({
+      pct: pct,
+      name: d.data.name,
+      color: d.data.color,
+      side: sinA >= 0 ? 1 : -1,
+      startX: sinA * radius,
+      startY: cosA * radius
+    });
+  });
 
-    var x0 = sinA * radius;
-    var y0 = cosA * radius;
-    var xBend = sinA * (radius + 12);
-    var yBend = cosA * (radius + 12);
-    var xLabel = isRight ? (radius + 22) : -(radius + 22);
+  var leftList  = labeled.filter(function(c){return c.side < 0;}).sort(function(a,b){return a.startY - b.startY;});
+  var rightList = labeled.filter(function(c){return c.side > 0;}).sort(function(a,b){return a.startY - b.startY;});
 
-    g.append("polyline")
-      .attr("points", x0 + "," + y0 + " " + xBend + "," + yBend + " " + xLabel + "," + yBend)
-      .attr("fill","none").attr("stroke","#aaa").attr("stroke-width",1);
+  var minSpacing = 36;
+  var usable = height - 24;
+  var maxPerSide = Math.max(1, Math.floor(usable / minSpacing));
 
-    var anchor = isRight ? "start" : "end";
-    var tx = isRight ? (xLabel + 4) : (xLabel - 4);
+  // If too many callouts for a side, keep the biggest (by pct) and preserve Y ordering
+  function trimList(list){
+    if(list.length <= maxPerSide) return list;
+    var keepSet = list.slice().sort(function(a,b){return b.pct - a.pct;}).slice(0, maxPerSide);
+    return list.filter(function(c){return keepSet.indexOf(c) !== -1;});
+  }
+  leftList  = trimList(leftList);
+  rightList = trimList(rightList);
 
-    var textEl = g.append("text")
-      .attr("x", tx).attr("y", 0)
-      .attr("text-anchor", anchor)
-      .attr("font-size", calloutFs).attr("font-weight", 700)
-      .attr("fill", d.data.color)
-      .style("pointer-events","none");
-    wrapText(textEl, d.data.name, labelMaxW, lineH);
+  // Evenly distribute vertically, centered on cy
+  function distribute(list, xSign){
+    if(!list.length) return;
+    var n = list.length;
+    var step = Math.min(minSpacing + 14, usable / Math.max(n,1));
+    var totalH = step * (n - 1);
+    var startY = -totalH/2;
+    list.forEach(function(c, i){
+      c.labelY = startY + i * step;
+      c.labelX = xSign * (radius + 22);
+    });
+  }
+  distribute(leftList, -1);
+  distribute(rightList, 1);
 
-    // Vertically center the (possibly multi-line) label on the bend y
-    var nLines = textEl.selectAll("tspan").size();
-    var totalH = nLines * lineH;
-    textEl.attr("y", yBend - totalH/2 + calloutFs);
+  // Draw leader lines (SVG) + labels (HTML)
+  [leftList, rightList].forEach(function(list){
+    list.forEach(function(c){
+      var xSign = c.side;
+      var xOut = c.startX + xSign * 8;
+      var yOut = c.startY;
+      var xEnd = c.labelX - xSign * 4;
+      var yEnd = c.labelY;
+
+      g.append("polyline")
+        .attr("points", c.startX + "," + c.startY + " " + xOut + "," + yOut + " " + xEnd + "," + yEnd)
+        .attr("fill","none").attr("stroke","#aaa").attr("stroke-width", 1);
+
+      var label = document.createElement("div");
+      var isRight = xSign > 0;
+      label.style.cssText =
+        "position:absolute;" +
+        "top:" + (cy + c.labelY) + "px;" +
+        (isRight
+          ? "left:" + (cx + c.labelX) + "px;"
+          : "right:" + (width - (cx + c.labelX)) + "px;") +
+        "width:" + labelW + "px;" +
+        "transform:translateY(-50%);" +
+        "font-family:" + FONT + ";" +
+        "font-size:12px;font-weight:700;" +
+        "color:" + c.color + ";" +
+        "text-align:" + (isRight ? "left" : "right") + ";" +
+        "line-height:1.2;" +
+        "pointer-events:none;" +
+        "word-wrap:break-word;overflow-wrap:break-word;";
+      label.textContent = c.name;
+      el.appendChild(label);
+    });
   });
 }
+
 
 
 
