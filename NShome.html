@@ -60,7 +60,7 @@
     <div class="stat-card">
       <div class="stat-num loading" id="stat-projects">—</div>
       <div class="stat-label">Projects Funded</div>
-      <div class="stat-sub">GBEP award &gt; $0</div>
+      <div class="stat-sub">GBEP award</div>
     </div>
     <div class="stat-card">
       <div class="stat-num loading" id="stat-dollars">—</div>
@@ -212,7 +212,7 @@ function normalizeSpecies(raw){
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.gbep_award_amount>0&&d.fiscal_year_of_award;});
+    var funded=data.filter(function(d){return d.gbep_award_amount&&d.fiscal_year_of_award;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
       function(d){
@@ -270,7 +270,7 @@ function normalizeSpecies(raw){
   var width = el.clientWidth || 400, height = el.clientHeight || 200;
 
   var funded = data.filter(function(d){
-    return d.gbep_award_amount>0 && d.broad_project_goals &&
+    return d.gbep_award_amount && d.broad_project_goals &&
       d.numeric_approximate_project_siz>0 &&
       d.project_scale==="Physical project";
   });
