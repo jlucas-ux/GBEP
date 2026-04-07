@@ -349,53 +349,56 @@ function drawSpeciesChart(data){
   var svg = d3.select("#species-chart").append("svg")
     .attr("width", width).attr("height", height).style("font-family", FONT);
 
-  // Layout: infographic callouts on left, fish dot-matrix on right
-  var leftW = Math.max(130, width * 0.38);
-  var fishX = leftW + 6;
-  var fishY = 8;
-  var fishW = width - leftW - 14;
-  var fishH = height - 16;
+  // ── Layout: infographic callouts left, droplet right ──
+  var leftW = Math.max(160, width * 0.46);
+  var dropX = leftW, dropY = 6;
+  var dropW = width - leftW - 10;
+  var dropH = height - 12;
 
-  // Fish geometry: body ellipse + tail triangle
-  var bodyRx = fishW * 0.36;
-  var bodyRy = fishH * 0.42;
-  var bodyCx = fishX + fishW * 0.40;
-  var bodyCy = fishY + fishH / 2;
-  var tailStart = bodyCx + bodyRx * 0.55;
-  var tailEnd   = bodyCx + bodyRx + fishW * 0.22;
-  var tailHalfH = fishH * 0.30;
+  // Droplet: pointed top + semicircle bottom
+  var r = Math.min(dropW * 0.48, dropH * 0.34);
+  var cx = dropX + dropW / 2;
+  var bottomCy = dropY + dropH - r - 4;
+  var topY = dropY + 4;
 
-  function insideFish(x, y){
-    var dx = (x - bodyCx) / bodyRx;
-    var dy = (y - bodyCy) / bodyRy;
-    if(dx*dx + dy*dy <= 1) return true;
-    if(x >= tailStart && x <= tailEnd){
-      var t = (x - tailStart) / (tailEnd - tailStart);
-      if(Math.abs(y - bodyCy) <= t * tailHalfH) return true;
+  function insideDrop(x, y){
+    var dx = x - cx, dy = y - bottomCy;
+    if(dy >= 0 && dx*dx + dy*dy <= r*r) return true;              // bottom circle
+    if(y >= topY && y <= bottomCy){                                // top triangle
+      var t = (y - topY) / (bottomCy - topY);
+      if(Math.abs(x - cx) <= t * r) return true;
     }
     return false;
   }
 
-  // Build dot grid sized so we get ~one dot per project when possible
-  var targetDots = Math.min(total, 260);
-  var areaEstimate = Math.PI * bodyRx * bodyRy + tailHalfH * (tailEnd - tailStart);
-  var spacing = Math.max(7, Math.sqrt(areaEstimate / targetDots) * 1.05);
+  // Outline stroke so shape is always readable
+  svg.append("path")
+    .attr("d", "M " + cx + "," + topY +
+               " L " + (cx + r) + "," + bottomCy +
+               " A " + r + "," + r + " 0 0 1 " + (cx - r) + "," + bottomCy +
+               " Z")
+    .attr("fill", "none").attr("stroke", "#cfe3f3").attr("stroke-width", 1.5);
+
+  // Dot count scales with projects, clamped so shape stays readable
+  var targetDots = Math.max(45, Math.min(total, 260));
+  var dropArea = Math.PI * r * r * 0.5 + r * (bottomCy - topY);
+  var spacing = Math.sqrt(dropArea / targetDots) * 1.05;
   var dotR = spacing * 0.38;
-  var dots = [];
-  for(var y = fishY + spacing/2; y <= fishY + fishH; y += spacing){
-    var rowOffset = ((Math.round((y - fishY)/spacing)) % 2) * (spacing/2);
-    for(var x = fishX + spacing/2 + rowOffset; x <= fishX + fishW; x += spacing){
-      if(insideFish(x, y)) dots.push({x:x, y:y});
+
+  var dots = [], rowIdx = 0;
+  for(var y = topY + spacing/2; y <= dropY + dropH; y += spacing){
+    var off = (rowIdx % 2) * (spacing/2);
+    rowIdx++;
+    for(var x = dropX + spacing/2 + off; x <= dropX + dropW; x += spacing){
+      if(insideDrop(x, y)) dots.push({x:x, y:y});
     }
   }
   if(!dots.length) return;
 
-  // Sort dots left-to-right, top-to-bottom so species fill in contiguous bands
-  dots.sort(function(a,b){ return (a.x - b.x) || (a.y - b.y); });
+  // Fill top-down so species form clean bands from the tip
+  dots.sort(function(a,b){ return (a.y - b.y) || (a.x - b.x); });
 
-  // Assign species to dots proportionally
-  var n = dots.length;
-  var assigned = [];
+  var n = dots.length, assigned = [];
   counts.forEach(function(c, i){
     var k = Math.round(c.count / total * n);
     for(var j = 0; j < k; j++) assigned.push(i);
@@ -403,15 +406,12 @@ function drawSpeciesChart(data){
   while(assigned.length < n) assigned.push(0);
   while(assigned.length > n) assigned.pop();
 
-  // Draw dots
   dots.forEach(function(pt, i){
-    var idx = assigned[i];
-    var c = counts[idx];
+    var idx = assigned[i], c = counts[idx];
     svg.append("circle")
       .attr("cx", pt.x).attr("cy", pt.y).attr("r", dotR)
       .attr("fill", SPE_PALETTE[idx % SPE_PALETTE.length])
-      .attr("opacity", 0.92)
-      .style("cursor", "pointer")
+      .attr("opacity", 0.92).style("cursor", "pointer")
       .on("mousemove", function(event){
         var pct = Math.round(c.count / total * 100);
         showTooltip(event, "<strong>" + c.label + "</strong><br>" +
@@ -420,25 +420,36 @@ function drawSpeciesChart(data){
       .on("mouseleave", hideTooltip);
   });
 
-  // Eye
-  svg.append("circle")
-    .attr("cx", bodyCx - bodyRx * 0.55).attr("cy", bodyCy - bodyRy * 0.28)
-    .attr("r", Math.max(3, dotR * 1.6))
-    .attr("fill", "#fff").attr("stroke", "#0d47a1").attr("stroke-width", 1.2);
-  svg.append("circle")
-    .attr("cx", bodyCx - bodyRx * 0.55).attr("cy", bodyCy - bodyRy * 0.28)
-    .attr("r", Math.max(1, dotR * 0.6)).attr("fill", "#0d47a1");
+  // ── Word-wrap helper for labels (no truncation) ──
+  function wrapText(textEl, text, maxWidth, lineHeight){
+    var x = parseFloat(textEl.attr("x"));
+    textEl.text(null);
+    var tspan = textEl.append("tspan").attr("x", x).attr("dy", "0em");
+    var line = [];
+    text.split(/\s+/).forEach(function(w){
+      line.push(w);
+      tspan.text(line.join(" "));
+      if(tspan.node().getComputedTextLength() > maxWidth && line.length > 1){
+        line.pop();
+        tspan.text(line.join(" "));
+        line = [w];
+        tspan = textEl.append("tspan").attr("x", x).attr("dy", lineHeight + "px").text(w);
+      }
+    });
+  }
 
-  // Infographic callouts — top 3 species, stacked on the left
+  // ── Infographic callouts: top 3 species, stacked, no abbreviation ──
   var topN = Math.min(3, counts.length);
   var blockH = (height - 16) / topN;
+  var labelMaxW = leftW - 20;
+
   for(var i = 0; i < topN; i++){
     var c = counts[i];
     var pct = Math.round(c.count / total * 100);
     var color = SPE_PALETTE[i % SPE_PALETTE.length];
-    var bigFS = Math.min(46, Math.floor(blockH * 0.48));
-    var smallFS = Math.max(10, Math.floor(bigFS * 0.26));
-    var by = 10 + i * blockH;
+    var bigFS = Math.min(40, Math.floor(blockH * 0.40));
+    var smallFS = Math.max(11, Math.floor(bigFS * 0.30));
+    var by = 8 + i * blockH;
 
     svg.append("text")
       .attr("x", 12).attr("y", by + bigFS)
@@ -446,19 +457,20 @@ function drawSpeciesChart(data){
       .attr("fill", color).attr("font-family", FONT)
       .text(pct + "%");
 
-    var label = c.label.length > 28 ? c.label.slice(0,26) + "…" : c.label;
     svg.append("text")
       .attr("x", 12).attr("y", by + bigFS + smallFS + 2)
-      .attr("font-size", smallFS).attr("font-weight", 700)
-      .attr("fill", "#555").attr("font-family", FONT)
+      .attr("font-size", smallFS).attr("font-weight", 500)
+      .attr("fill", "#777").attr("font-family", FONT)
       .text("of projects target");
-    svg.append("text")
+
+    var labelText = svg.append("text")
       .attr("x", 12).attr("y", by + bigFS + smallFS*2 + 4)
       .attr("font-size", smallFS).attr("font-weight", 700)
-      .attr("fill", "#222").attr("font-family", FONT)
-      .text(label + " (" + c.count + ")");
+      .attr("fill", "#222").attr("font-family", FONT);
+    wrapText(labelText, c.label + " (" + c.count + ")", labelMaxW, smallFS + 2);
   }
 }
+
 
 
   async function init(){
