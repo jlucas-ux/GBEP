@@ -98,6 +98,9 @@
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
       <div class="chart-subtitle">Bubble size = number of distinct NRU projects with GBEP funding. Hover for details.</div>
+      <div style="flex-shrink:0;margin-bottom:6px;">
+        <button onclick="resetZoom('site-chart')" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:13px;">Reset zoom</button>
+      </div>
       <div class="chart-area" id="site-chart"></div>
     </div>
     <div class="chart-panel" id="panel-2">
@@ -107,11 +110,7 @@
     </div>
     <div class="chart-panel" id="panel-3">
       <div class="chart-title">GBEP Projects by Plan Priority</div>
-      <div class="chart-subtitle">
-        Number of funded projects by activity group and subcategory for each plan priority.
-        <strong id="pp-total"></strong>
-        Note: a single project may touch on many different plan priorities and subcategories, so counts across priorities will exceed the total number of projects.
-  </div>
+      <div class="chart-subtitle">Number of funded projects by activity group and subcategory for each plan priority.</div>
       <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;">
         <div class="grid-2x2">
           <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
@@ -126,8 +125,8 @@
             font-family:'Roboto',sans-serif;
             flex-shrink:0; font-size:16px;
           ">
-          <div style="font-size:16px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:16px;line-height:1.6;">
+          <div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;">
             <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
             <span><strong style="color:#1565c0">PS</strong> — Improve water quality through point source pollution abatement.</span>
             <span><strong style="color:#1565c0">PHA</strong> — Promote public health and awareness.</span>
@@ -167,12 +166,16 @@
           <div style="font-size:10px;opacity:0.6;">Research-affected, not habitat-specific</div>
         </div>
       </div>
+      <div style="flex-shrink:0;margin-bottom:6px;">
+        <button onclick="resetZoom('treemap-chart')" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:13px;">Reset zoom</button>
+      </div>
       <div class="chart-area" id="treemap-chart"></div>
     </div>
   </div>
 </div>
 
 <script>
+  var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
   var PALETTE=[C1,C2,C3,C4,"#90caf9","#b2ebf2","#80deea","#4dd0e1","#006994","#0288d1","#29b6f6","#81d4fa","#0097a7","#00acc1","#00bcd4","#4fc3f7","#039be5","#0277bd","#01579b","#26c6da"];
@@ -298,8 +301,16 @@
   }
 
   async function fetchData(){
-    var res=await fetch("data/index_data.json");
-    return await res.json();
+    var ppFields=[];
+    for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name",
+              "gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded",
+              "numeric_approximate_project_siz","project_scale"];
+    var all=base.concat(ppFields);
+    var url=LAYER_URL+"?where=1%3D1&outFields="+all.join(",")+"&f=json&resultRecordCount=2000";
+    var res=await fetch(url);
+    var json=await res.json();
+    return json.features.map(function(f){return f.attributes;});
   }
 
   // ── TREEMAP ──────────────────────────────────────────────
@@ -358,45 +369,56 @@
 
     if(leaves.length===0)return;
 
-   var maxVal=d3.max(leaves,function(d){return d.value;})||1;
+    var maxVal=d3.max(leaves,function(d){return d.value;})||1;
+    // Build discrete buckets: under 1000 use 200-acre buckets, 1000+ use 1000-acre buckets
+    var smallStep = 200, smallMax = 1000;
+    var largeStep = 1000;
+    var numSmallBuckets = Math.ceil(smallMax / smallStep); // e.g., 5 buckets for 0-1000
+    var numLargeBuckets = Math.max(1, Math.ceil((Math.max(0, maxVal - smallMax)) / largeStep));
+    var totalBuckets = numSmallBuckets + numLargeBuckets;
 
-    // Discrete buckets: <1000 = per 100ac steps, >=1000 = per 1000ac steps
-    // Colors go dark (high) → light (low), all readable with white text
-    // Dark greens/teals for high, medium blues for mid, lighter blues for low
-    var BUCKET_COLORS_SMALL = [
-      "#1a6b8a", // 0–99
-      "#1a7a7a", // 100–199
-      "#1a8a6a", // 200–299
-      "#1a9060", // 300–399
-      "#1a9658", // 400–499
-      "#1a9c50", // 500–599
-      "#1aaa48", // 600–699
-      "#0f8060", // 700–799
-      "#0d7060", // 800–899
-      "#0b6060", // 900–999
-    ];
-    var BUCKET_COLORS_LARGE = [
-      "#0d5560", // 1K–2K
-      "#0d4d5a", // 2K–3K
-      "#0d4455", // 3K–4K
-      "#0c3c50", // 4K–5K
-      "#0b344a", // 5K–6K
-      "#0a2c44", // 6K–7K
-      "#09243e", // 7K–8K
-      "#081c38", // 8K–9K
-      "#071432", // 9K–10K
-      "#060c2c", // 10K+
-    ];
+    // Create a brand-aligned green→blue interpolator (light -> dark green-blue)
+    // User-provided palette (light -> dark): will be sampled and reversed so
+    // interp(0)=light, interp(1)=dark. Hex list provided by user.
+    var userPalette = ["#025043","#036cd5","#037c6e","#048c7f","#05998c","#28a99e","#4fb9af"];
+    // Reverse to go from light -> dark for the interpolator
+    var paletteStops = userPalette.slice().reverse();
+    var interp = d3.interpolateRgbBasis(paletteStops);
+
+    // Map a value to a discrete bucket index
+    function bucketIndex(val){
+      if(val <= 0) return 0;
+      if(val < smallMax){
+        return Math.min(numSmallBuckets-1, Math.floor(val / smallStep));
+      }
+      var above = val - smallMax;
+      return numSmallBuckets + Math.min(numLargeBuckets-1, Math.floor(above / largeStep));
+    }
+
+    // Pre-sample discrete colors for each bucket, biasing toward darker tones
+    // so that small buckets (<=5k) are darker and have readable white text,
+    // while larger buckets remain distinct.
+    var idx5000 = bucketIndex(5000);
+    var bucketColors = d3.range(totalBuckets).map(function(i){
+      if(totalBuckets <= 1) return interp(0.8);
+      if(i <= idx5000){
+        // Map low buckets to t in [0.40, 0.70]
+        var denom = Math.max(1, idx5000);
+        var t = 0.40 + 0.30 * (i / denom);
+        return interp(t);
+      } else {
+        // Map high buckets to t in [0.70, 1.0]
+        var denom2 = Math.max(1, totalBuckets - 1 - idx5000);
+        var t2 = 0.70 + 0.30 * ((i - idx5000) / denom2);
+        return interp(t2);
+      }
+    });
 
     function colorScale(val){
-      if(val <= 0) return BUCKET_COLORS_SMALL[0];
-      if(val < 1000){
-        var idx = Math.min(9, Math.floor(val / 100));
-        return BUCKET_COLORS_SMALL[idx];
-      }
-      var idx = Math.min(9, Math.floor((val - 1000) / 1000));
-      return BUCKET_COLORS_LARGE[idx];
+      var idx = bucketIndex(val);
+      return bucketColors[Math.max(0, Math.min(bucketColors.length-1, idx))];
     }
+
     // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
 
@@ -456,7 +478,7 @@
       lines.forEach(function(line,li){
         // choose readable text color based on background luminance
         var bg = colorScale(d.data.value);
-        var col = 'white';
+        var col = (d3.color(bg).luminance && d3.color(bg).luminance() > 0.55) ? '#111' : 'white';
         g.append("text")
           .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
@@ -468,7 +490,7 @@
       // Only show acreage if there's room below the label
       if(h > totalTextH + lineH*2.5){
         var bg2 = colorScale(d.data.value);
-        var col = 'white';
+        var col2 = (d3.color(bg2).luminance && d3.color(bg2).luminance() > 0.55) ? '#111' : 'rgba(255,255,255,0.9)';
         g.append("text")
           .attr("x",w/2).attr("y",startY+totalTextH+lineH)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
@@ -478,9 +500,11 @@
       }
     });
 
-    // Add zoom behavior to the treemap svg
+    // Add zoom behavior to the treemap svg and register it for reset
     var zoom = d3.zoom().scaleExtent([0.6,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
     svg.call(zoom);
+    window._zoomBehaviors = window._zoomBehaviors || {};
+    window._zoomBehaviors['treemap-chart'] = { svg: svg, zoom: zoom };
   }
 
   // ── FISCAL YEAR ──────────────────────────────────────────
@@ -681,15 +705,7 @@
       }
     });
   }
-  function drawAllPlanPriorities(){
-    var funded=filteredData.filter(function(d){return d.gbep_award_amount>0;});
-    var totalEl=document.getElementById("pp-total");
-    if(totalEl)totalEl.textContent="Representing "+funded.length.toLocaleString()+" total funded projects. ";
-    drawPlanPriority(filteredData,1,"pp1-chart");
-    drawPlanPriority(filteredData,2,"pp2-chart");
-    drawPlanPriority(filteredData,3,"pp3-chart");
-    drawPlanPriority(filteredData,4,"pp4-chart");
-  }
+  function drawAllPlanPriorities(){drawPlanPriority(filteredData,1,"pp1-chart");drawPlanPriority(filteredData,2,"pp2-chart");drawPlanPriority(filteredData,3,"pp3-chart");drawPlanPriority(filteredData,4,"pp4-chart");}
 
   // ── BUBBLE CHART ─────────────────────────────────────────
   function drawBubbleChart(counts,containerId){
@@ -781,9 +797,11 @@
       }
     });
 
-    // Add zoom behavior to svg, targeting the zoom-root group
+    // Add zoom behavior to svg, targeting the zoom-root group, and register for reset
     var zoom = d3.zoom().scaleExtent([0.5,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
     svg.call(zoom);
+    window._zoomBehaviors = window._zoomBehaviors || {};
+    window._zoomBehaviors['site-chart'] = { svg: svg, zoom: zoom };
   }
 
   function drawSiteChart(){
@@ -842,24 +860,38 @@
 
       g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle").attr("font-size",18).attr("font-weight","700").attr("fill",col).text(d.count);
 
-      // Stacked label — wrap at 20 chars per line max
-      var cleanLabel=d.label.replace(/_/g," ");
-      var words=cleanLabel.split(" ");
-      var lines=[],cur="";
+      // Stacked label — wrap dynamically to fit the left margin and avoid overflow
+      var cleanLabel = d.label.replace(/_/g, " ");
+      // Available pixel width to the left of the chart for labels (leave a bit of padding)
+      var availablePx = Math.max(80, mL - 24);
+      var fs = 20, minFs = 12;
+      function maxCharsForFs(f){ return Math.max(1, Math.floor(availablePx / (f * 0.55))); }
+      var maxChars = maxCharsForFs(fs);
+      // Reduce font size if the available width is too small so we get a reasonable chars-per-line
+      while(fs > minFs && maxChars < 8){ fs--; maxChars = maxCharsForFs(fs); }
+
+      var words = cleanLabel.split(/\s+/).filter(Boolean);
+      var lines = [], cur = "";
       words.forEach(function(word){
-        var test=cur?cur+" "+word:word;
-        if(test.length>20&&cur){lines.push(cur);cur=word;}
-        else{cur=test;}
+        var test = cur ? cur + " " + word : word;
+        if(test.length > maxChars && cur){ lines.push(cur); cur = word; }
+        else { cur = test; }
       });
-      if(cur)lines.push(cur);
-      lines=lines.slice(0,2);
-      var fs=20;
-      var lineH=fs+3;
-      var startY=y-(lines.length-1)*lineH/2;
-      lines.forEach(function(line,li){
-        g.append("text").attr("x",-8).attr("y",startY+li*lineH)
-          .attr("text-anchor","end").attr("dominant-baseline","middle")
-          .attr("font-size",fs).attr("fill","#333").text(line);
+      if(cur) lines.push(cur);
+
+      // Limit to a few lines depending on row height
+      var maxLines = Math.min(3, Math.max(1, Math.floor((ROW_H*0.9) / (fs + 3))));
+      lines = lines.slice(0, maxLines).map(function(line){
+        var m = maxChars;
+        return line.length > m ? line.slice(0, m-1) + "…" : line;
+      });
+
+      var lineH = fs + 3;
+      var startY = y - (lines.length-1) * lineH / 2;
+      lines.forEach(function(line, li){
+        g.append("text").attr("x", -8).attr("y", startY + li*lineH)
+          .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+          .attr("font-size", fs).attr("fill", "#333").text(line);
       });
     });
   }
@@ -1084,6 +1116,17 @@
     populateYearDropdowns();
     drawUpset(filteredData,"upset-chart");
     chartDrawn[0]=true;
+  }
+
+  // Reset zoom for any registered chart. Pass the container id used when drawing (e.g., 'site-chart' or 'treemap-chart').
+  function resetZoom(containerId){
+    if(!window._zoomBehaviors||!window._zoomBehaviors[containerId])return;
+    var obj=window._zoomBehaviors[containerId];
+    try{
+      obj.svg.transition().duration(400).call(obj.zoom.transform, d3.zoomIdentity);
+    }catch(e){
+      console.warn('resetZoom failed for',containerId,e);
+    }
   }
 
   init();
