@@ -108,7 +108,7 @@
     <button class="nav-btn" onclick="showChart(3)">Plan Priorities</button>
     <button class="nav-btn" onclick="showChart(4)">Projects by Fiscal Year</button>
     <button class="nav-btn" onclick="showChart(5)">Org × Priority</button>
-    <button class="nav-btn" onclick="showChart(6)">Acres by Habitat</button>
+    <button class="nav-btn" onclick="showChart(6)">Habitat Share</button>
   </div>
 
   <div id="charts">
@@ -180,17 +180,17 @@
       <div class="chart-title">Percent of Projects by Habitat Type</div>
       <div class="chart-subtitle" id="treemap-subtitle">Share of projects that included a component affecting each habitat type. Projects touching multiple habitats are counted toward each.</div>
       <div style="display:flex;gap:clamp(6px,0.8vw,12px);margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
-        <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
-          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Projects with Habitat Data</div>
-          <div id="physical-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
-          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Total Habitat Tags</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
-          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Large Scale Project Acres</div>
-          <div id="research-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
-          <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Research-affected, not habitat-specific</div>
-        </div>
-      </div>
+  <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
+    <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Projects with Habitat Data</div>
+    <div id="physical-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
+    <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Counted toward this view</div>
+  </div>
+  <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
+    <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Total Habitat Tags</div>
+    <div id="research-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
+    <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Sum across all projects &amp; habitats</div>
+  </div>
+</div>
       <div style="flex-shrink:0;margin-bottom:6px;">
         <button onclick="resetZoom('treemap-chart')" style="padding:5px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:clamp(10px,0.8vw,13px);">Reset zoom</button>
       </div>
@@ -386,17 +386,32 @@
     if(subtitleEl)subtitleEl.textContent="Share of GBEP projects that affected each habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Projects touching multiple habitats are counted toward each.";
   }
 
-  // Count how many projects mention each habitat type
-  var countMap={};
+    // Canonicalize habitat type names so variants (underscores, casing,
+    // extra whitespace, trailing punctuation) all collapse into one entry.
+    function canonKey(s){
+      return String(s).toLowerCase()
+        .replace(/_/g," ")
+        .replace(/[^a-z0-9() ]+/g," ")
+        .replace(/\bsubmerged aquatic veg[a-z]*\b/,"submerged aquatic vegetation")
+        .replace(/\s+/g," ")
+        .trim();
+  }
+  function prettify(s){
+    return String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
+      .replace(/\b\w/g,function(c){return c.toUpperCase();});
+  }
+  var canonMap={};   // canonical key → display name
+  var countMap={};   // display name → project count
   projectsWithHabitat.forEach(function(row){
-    var types=row.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
-    // de-dupe within a single row so a project isn't double-counted for one habitat
+    var types=row.project_landscape_type.split(",").filter(function(s){return s&&s.trim();});
     var seen={};
     types.forEach(function(type){
-      var key=type.toLowerCase();
-      if(seen[key])return;
+      var key=canonKey(type);
+      if(!key||seen[key])return;
       seen[key]=true;
-      countMap[type]=(countMap[type]||0)+1;
+      if(!canonMap[key])canonMap[key]=prettify(type);
+      var display=canonMap[key];
+      countMap[display]=(countMap[display]||0)+1;
     });
   });
 
@@ -439,15 +454,14 @@
     .on("mousemove",function(event,d){
       var title=d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
       showTooltip(event,"<strong>"+title+"</strong><br>"+Math.round(d.data.pct)+"% of projects<br>"+d.data.value+" project"+(d.data.value!==1?"s":""));
-    }).on("mouseleave",hideTooltip);
+    })
+}).on("mouseleave",hideTooltip);
 
   cell.each(function(d){
     var w=cellW(d),h=cellH(d);
     if(w<36||h<28)return;
     var g=d3.select(this);
-    var label=d.data.name.replace(/_/g," ")
-      .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
-      .replace(/\b\w/g,function(c){return c.toUpperCase();});
+    var label=d.data.name.replace(/Submerged Aquatic Vegetation/i,"SAV");
 
     var fontSize=Math.min(vfs(18),Math.max(8,Math.min(w/8,h/4)));
     var words=label.split(" ");
@@ -486,7 +500,7 @@
   window._zoomBehaviors=window._zoomBehaviors||{};
   window._zoomBehaviors['treemap-chart']={svg:svg,zoom:zoom};
 }
-// ── FISCAL YEAR ──────────────────────────────────────────
+  // ── FISCAL YEAR ──────────────────────────────────────────
   function drawFiscalYear(){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||window.innerWidth;
@@ -509,12 +523,11 @@
     if(byYear.length===0)return;
 
     var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;
-    var subtitleEl=document.querySelector("#panel-4 .chart-subtitle");
+    var subtitleEl=document.getElementById("fy-subtitle");
     if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"–"+maxY+".";
 
-    el.style.overflowX="auto";el.style.overflowY="visible";
+    el.style.overflowX="auto";el.style.overflowY="hidden";
     var minBarW=28;
-    // FIX: margins scale with viewport
     var mL=Math.round(vfs(55)),mR=30,mT=20,mB=Math.round(vfs(85));
     var chartW=Math.max(width,byYear.length*minBarW+mL+mR);
     var w=chartW-mL-mR,h=height-mT-mB;
@@ -532,11 +545,11 @@
       .call(function(ax){ax.select(".domain").remove();})
       .call(function(ax){
         ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");
-        ax.selectAll("text").attr("font-size",vfs(13)).attr("fill","#666"); // FIX: was 18
+        ax.selectAll("text").attr("font-size",vfs(13)).attr("fill","#666");
       });
 
     g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(32,mL-12))
-      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("fill","#888").attr("font-weight","500").text("Projects"); // FIX: was 18
+      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("fill","#888").attr("font-weight","500").text("Projects");
 
     g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
       .attr("x",function(d){return xScale(d.year);})
@@ -550,13 +563,14 @@
     g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label")
       .attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
       .attr("y",function(d){return yScale(d.count)-4;})
-      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700") // FIX: was 18
+      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700")
       .attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});
 
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
       .call(function(ax){ax.select(".domain").attr("stroke","#ddd");})
-      .call(function(ax){ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");}); // FIX: was 18
+      .call(function(ax){ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
   }
+
 
 
   // ── HEATMAP ──────────────────────────────────────────────
