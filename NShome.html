@@ -465,7 +465,7 @@
     list.style.cssText=
       "position:absolute;left:10px;top:8px;"+
       "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
-      "display:flex;flex-direction:column;justify-content:space-around;"+
+      "display:flex;flex-direction:column;justify-content:flex-start;"+
       "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
 
     var nItems=counts.length;
@@ -478,14 +478,23 @@
       var pct=Math.round(c.count/total*100);
       var color=SPE_PALETTE[i%SPE_PALETTE.length];
       var row=document.createElement("div");
-      row.style.cssText="display:flex;align-items:center;gap:6px;line-height:1.15;min-height:0;";
-      // Name is single-line with ellipsis — wrapping causes mid-word clipping when
-      // row height is fixed by space-around. Tooltip on the dots gives full label.
+      // Fixed row height so the list stays evenly distributed.
+      // align-items:flex-start keeps the dot + % at the top when text wraps to 2 lines.
+      // overflow:hidden on the row clips any excess at the bottom — always at a whole
+      // word boundary, never mid-character.
+      var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
+      row.style.cssText=
+        "display:flex;align-items:flex-start;gap:6px;"+
+        "height:"+Math.floor(rowH)+"px;overflow:hidden;flex-shrink:0;"+
+        "box-sizing:border-box;padding-top:"+topPad+"px;";
       row.innerHTML=
-        '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+';border-radius:50%;flex-shrink:0;"></div>'+
-        '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+';flex-shrink:0;letter-spacing:-0.5px;">'+pct+'%</div>'+
+        '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+
+          ';border-radius:50%;flex-shrink:0;margin-top:'+Math.round(nameFS*0.05)+'px;"></div>'+
+        '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+
+          ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">'+pct+'%</div>'+
         '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
-          'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;" title="'+c.label+'">'+c.label+'</div>';
+          'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
+          c.label+'</div>';
 
       list.appendChild(row);
     });
