@@ -696,72 +696,116 @@
     var el=document.getElementById(containerId);
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
+
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var minR=30;
-    var maxR=Math.min(width,height)*0.11;
-    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([minR,Math.max(minR,maxR)]);
+    var minCount=d3.min(counts,function(d){return d.count;})||1;
+
+    // Power scale exponent 0.8 — more dramatic than sqrt(0.5).
+    // Big sites stay visually dominant over small ones as data changes.
+    var minR=Math.max(24, Math.min(width,height)*0.05);
+    var maxR=Math.min(width,height)*0.18;
+    var rScale=d3.scalePow().exponent(0.8)
+      .domain([minCount,maxCount])
+      .range([minR,Math.max(minR,maxR)]);
+
     var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
+
+    // Scatter initial positions in a grid across the full canvas so the
+    // simulation spreads outward rather than compressing from the centre.
+    var cols=Math.ceil(Math.sqrt(counts.length*(width/height)));
+    var rows=Math.ceil(counts.length/cols);
     var nodes=counts.map(function(d,i){
-      return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],
-        x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};
+      var col=i%cols, row=Math.floor(i/cols);
+      return{
+        label:d.label,count:d.count,
+        r:rScale(d.count),
+        color:SITE_PALETTE[i%SITE_PALETTE.length],
+        x:width*(0.1+(col+0.5)*(0.8/cols)),
+        y:height*(0.1+(row+0.5)*(0.8/Math.max(rows,1)))
+      };
     });
 
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
     var gZoom=svg.append("g").attr("class","zoom-root");
 
+    // Weak centering so bubbles push to the edges; strong collision prevents overlap.
+    // Charge proportional to radius so large bubbles repel more, helping spread.
     var sim=d3.forceSimulation(nodes)
-      .force("charge",d3.forceManyBody().strength(-6))
-      .force("center",d3.forceCenter(width/2,height/2))
-      .force("collision",d3.forceCollide().radius(function(d){return d.r+10;}).strength(1))
+      .force("charge",d3.forceManyBody().strength(function(d){return -d.r*2.5;}))
+      .force("x",d3.forceX(width/2).strength(0.03))
+      .force("y",d3.forceY(height/2).strength(0.03))
+      .force("collision",d3.forceCollide().radius(function(d){return d.r+5;}).strength(1))
       .stop();
-    for(var i=0;i<600;i++)sim.tick();
-    nodes.forEach(function(d){d.x=Math.max(d.r+6,Math.min(width-d.r-6,d.x));d.y=Math.max(d.r+6,Math.min(height-d.r-6,d.y));});
+    for(var i=0;i<800;i++)sim.tick();
+    nodes.forEach(function(d){
+      d.x=Math.max(d.r+4,Math.min(width-d.r-4,d.x));
+      d.y=Math.max(d.r+4,Math.min(height-d.r-4,d.y));
+    });
 
     var node=gZoom.selectAll("g.node").data(nodes).enter().append("g").attr("class","node")
       .attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));})
+      .on("mousemove",function(event,d){
+        showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));
+      })
       .on("mouseleave",hideTooltip);
 
-    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;})
+    node.append("circle").attr("r",function(d){return d.r;})
+      .attr("fill",function(d){return d.color;})
       .attr("opacity",0.92).attr("stroke","white").attr("stroke-width",2);
 
+    // Always render site name + count on every bubble — no conditional hiding.
     node.each(function(d){
       var g=d3.select(this);
       var words=d.label.split(/[^\w&'@]+/).filter(function(w){return w;});
-      var minFont=10,maxFont=vfs(18); // FIX: was hardcoded 20
-      var fs=Math.max(minFont,Math.min(maxFont,Math.floor(d.r/3)));
-      var lh=Math.max(13,Math.round(fs*1.15));
-      var mw=d.r*1.6;
+
+      var minFont=8,maxFont=vfs(16);
+      var nameFs=Math.max(minFont,Math.min(maxFont,Math.floor(d.r/3.2)));
+      var countFs=Math.max(minFont+2,Math.min(vfs(20),Math.floor(d.r/2.2)));
+      var lh=nameFs+3;
+      var maxW=d.r*1.7;
+
+      // Wrap name at word boundaries
       var lines=[],cur="";
       words.forEach(function(w){
         var test=cur?cur+" "+w:w;
-        if(test.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}
+        if(test.length*nameFs*0.52>maxW&&cur){lines.push(cur);cur=w;}
         else{cur=test;}
       });
       if(cur)lines.push(cur);
-      var maxLines=Math.max(1,Math.floor((d.r*1.8)/lh));
+
+      var maxLines=Math.max(1,Math.min(3,Math.floor((d.r*1.4)/lh)));
       lines=lines.slice(0,maxLines).map(function(line){
-        var maxChars=Math.floor(mw/(fs*0.55))||1;
+        var maxChars=Math.floor(maxW/(nameFs*0.52))||1;
         return line.length>maxChars?line.slice(0,maxChars-1)+"…":line;
       });
-      var th=lines.length*lh,startY=-th/2;
+
+      var nameBlockH=lines.length*lh;
+      var countH=countFs+2;
+      var gap=3;
+      var totalTextH=nameBlockH+gap+countH;
+      var startY=-totalTextH/2;
+
+      // Name lines
       lines.forEach(function(line,li){
         g.append("text").attr("x",0).attr("y",startY+li*lh+lh/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","600").text(line);
+          .attr("font-size",nameFs).attr("font-family",FONT)
+          .attr("fill","white").attr("font-weight","600").text(line);
       });
-      if(d.r>minFont&&(d.r-th/2)>(lh+8)){
-        g.append("text").attr("x",0).attr("y",d.r-Math.max(10,Math.round(lh/2)))
-          .attr("text-anchor","middle").attr("font-size",Math.max(9,fs-2)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.9)").attr("font-weight","700").text(d.count);
-      }
+
+      // Count — always shown below the name, bolder
+      g.append("text").attr("x",0).attr("y",startY+nameBlockH+gap+countH/2)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",countFs).attr("font-family",FONT)
+        .attr("fill","rgba(255,255,255,0.92)").attr("font-weight","900")
+        .text(d.count);
     });
 
-    var zoom=d3.zoom().scaleExtent([0.5,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
+    var zoom=d3.zoom().scaleExtent([0.4,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
     svg.call(zoom);
     window._zoomBehaviors=window._zoomBehaviors||{};
-    window._zoomBehaviors['site-chart']={svg:svg,zoom:zoom};
+    window._zoomBehaviors[containerId]={svg:svg,zoom:zoom};
   }
 
   function drawSiteChart(){
@@ -778,8 +822,8 @@
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var ROW_H=42; // FIX: was 46 — slightly tighter rows
-    var mL=Math.min(280,width*0.36),mR=55,mT=10,mB=45; // FIX: tighter margins
+    var ROW_H=42;
+    var mL=Math.min(280,width*0.36),mR=55,mT=10,mB=45;
     var totalH=sorted.length*ROW_H+mT+mB;
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
@@ -796,7 +840,7 @@
       .call(function(gr){
         gr.select(".domain").remove();
         gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0");
-        gr.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("dy","1em"); // FIX: was 18
+        gr.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("dy","1em");
       });
 
     sorted.forEach(function(d,i){
@@ -812,11 +856,11 @@
         .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
         .on("mouseleave",hideTooltip);
       g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle")
-        .attr("font-size",vfs(13)).attr("font-weight","700").attr("fill",col).text(d.count); // FIX: was 18
+        .attr("font-size",vfs(13)).attr("font-weight","700").attr("fill",col).text(d.count);
 
       var cleanLabel=d.label.replace(/_/g," ");
       var availablePx=Math.max(70,mL-20);
-      var fs=vfs(14),minFs=10; // FIX: was 20
+      var fs=vfs(14),minFs=10;
       function maxCharsForFs(f){return Math.max(1,Math.floor(availablePx/(f*0.55)));}
       var maxChars=maxCharsForFs(fs);
       while(fs>minFs&&maxChars<8){fs--;maxChars=maxCharsForFs(fs);}
