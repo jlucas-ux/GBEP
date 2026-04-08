@@ -114,8 +114,11 @@
   <div id="charts">
     <div class="chart-panel active" id="panel-0">
       <div class="chart-title">Project Habitat Type Combinations</div>
-      <div class="chart-subtitle">How to read: Each <strong>column</strong> represents a unique set of habitat types. The <strong>bar</strong> height above shows how many projects have that exact combination. <strong class="green">Filled dots</strong> show which habitats are included — a <strong>blue connector</strong> between dots means a project spans multiple types. The <strong class="green">green bars</strong> on the right show each habitat's total project count across all combinations.</div>
-      <div class="chart-area" id="upset-chart"></div>
+      <div class="chart-subtitle">How to read: Each <strong>column</strong> represents a unique set of habitat types. The <strong>bar</strong> height above shows how many projects have that exact combination. <strong class="green">Filled dots</strong> show which habitats are included — a <strong>blue connector</strong> between dots means a project spans multiple types. The <strong class="green">green bars</strong> on the right show each habitat's total project count across all combinations. <strong>Scroll to zoom, drag to pan.</strong></div>
+      <div style="flex-shrink:0;margin-bottom:6px;">
+        <button onclick="resetZoom('upset-chart')" style="padding:5px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:clamp(10px,0.8vw,13px);">Reset zoom</button>
+      </div>
+      <div class="chart-area" id="upset-chart" style="cursor:grab;"></div>
     </div>
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
@@ -890,31 +893,37 @@
     d3.select("#"+container).select("svg").remove();
     var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
 
+    // Clip path so zoomed content doesn't bleed outside the chart area
+    svg.append("defs").append("clipPath").attr("id","upset-clip")
+      .append("rect").attr("width",width).attr("height",height);
+
+    // Everything zoomable goes inside gZoom; static axis labels stay on svg
+    var gZoom=svg.append("g").attr("class","zoom-root").attr("clip-path","url(#upset-clip)");
+
+    // Static header labels — stay fixed outside the zoom group
     svg.append("text").attr("x",width-mR+rBW/2).attr("y",mT-4)
-      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("fill","#aaa") // FIX: was 18
+      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("fill","#aaa")
       .text(sc.length+" combinations");
-
     svg.append("text").attr("x",mL+(sc.length*cW)/2).attr("y",mT-4)
-      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED) // FIX: was 18
+      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED)
       .text("▲  Projects per Habitat Combination");
-
     svg.append("text").attr("x",mL-8).attr("y",dotTop-5)
-      .attr("text-anchor","end").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED) // FIX: was 18
+      .attr("text-anchor","end").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED)
       .text("Habitat Types  →");
-
     svg.append("text").attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-5)
-      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","900").attr("fill","#333") // FIX: was 18
+      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","900").attr("fill","#333")
       .text("Total Projects");
 
+    // ── TOP BARS (zoomable) ──
     var mxC=d3.max(sc,function(d){return d.count;});
     var yB=d3.scaleLinear().domain([0,mxC]).range([bH2,0]);
-    var bG=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    var bG=gZoom.append("g").attr("transform","translate("+mL+","+mT+")");
 
     bG.append("g").call(d3.axisLeft(yB).ticks(Math.min(mxC,6)).tickFormat(d3.format("d")))
       .call(function(g){g.select(".domain").remove();})
       .call(function(g){
         g.selectAll(".tick line").attr("x2",sc.length*cW).attr("stroke","#f0f0f0");
-        g.selectAll("text").style("font-size",vfs(11)+"px").attr("fill","#888"); // FIX: was 18
+        g.selectAll("text").style("font-size",vfs(11)+"px").attr("fill","#888");
       });
 
     sc.forEach(function(d,i){
@@ -927,10 +936,11 @@
         }).on("mouseleave",hideTooltip);
       if(cW>16)
         bG.append("text").attr("x",bx+bw/2).attr("y",yB(d.count)-3)
-          .attr("text-anchor","middle").attr("font-size",vfs(11)).attr("font-weight","600").attr("fill","#444").text(d.count); // FIX: was 18
+          .attr("text-anchor","middle").attr("font-size",vfs(11)).attr("font-weight","600").attr("fill","#444").text(d.count);
     });
 
-    var dG=svg.append("g").attr("transform","translate("+mL+","+dotTop+")");
+    // ── DOT MATRIX (zoomable) ──
+    var dG=gZoom.append("g").attr("transform","translate("+mL+","+dotTop+")");
 
     allT.forEach(function(type,ri){
       if(ri%2===0){dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);}
@@ -947,19 +957,16 @@
       if(label.toLowerCase().indexOf("sav")>=0&&label.indexOf(")")<0){label=label.replace(/\(sav/i,"(SAV)");}
       dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2)
         .attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",labelFs).attr("font-weight","700").attr("fill","#222") // FIX: was Math.min(19,rH*0.52)
+        .attr("font-size",labelFs).attr("font-weight","700").attr("fill","#222")
         .text(label);
     });
 
     sc.forEach(function(d,ci){
       var cx=ci*cW+cW/2;
-      sc.forEach(function(d2,ci2){});
       var types=d.key.split(" | ");
       var r=Math.min(cW,rH)*0.30;
-
-      dG.append("line").attr("x1",ci*cW+cW/2).attr("x2",ci*cW+cW/2)
+      dG.append("line").attr("x1",cx).attr("x2",cx)
         .attr("y1",0).attr("y2",allT.length*rH).attr("stroke","#e0e0e0").attr("stroke-width",1);
-
       allT.forEach(function(type,ri){
         var filled=types.indexOf(type)>=0;
         dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r)
@@ -969,9 +976,10 @@
       });
     });
 
+    // ── RIGHT BARS (zoomable) ──
     var mxT=d3.max(Array.from(tT.values()))||1;
     var xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]);
-    var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");
+    var sBG=gZoom.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");
 
     allT.forEach(function(type,ri){
       var total=tT.get(type)||0;
@@ -980,9 +988,21 @@
       sBG.append("rect").attr("x",0).attr("y",cy-bh/2).attr("width",xSB(total)).attr("height",bh)
         .attr("fill",BAR_RIGHT).attr("rx",2).attr("opacity",0.9);
       sBG.append("text").attr("x",xSB(total)+4).attr("y",cy)
-        .attr("dominant-baseline","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill","#222") // FIX: was 18
+        .attr("dominant-baseline","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill","#222")
         .text(total);
     });
+
+    // ── ZOOM BEHAVIOR ──
+    var zoom=d3.zoom()
+      .scaleExtent([0.5, 8])
+      .on("zoom", function(event){
+        gZoom.attr("transform", event.transform);
+        // Keep cursor feedback
+        svg.style("cursor", event.transform.k > 1 ? "grabbing" : "grab");
+      });
+    svg.call(zoom).style("cursor","grab");
+    window._zoomBehaviors=window._zoomBehaviors||{};
+    window._zoomBehaviors['upset-chart']={svg:svg,zoom:zoom};
   }
 
   async function init(){
