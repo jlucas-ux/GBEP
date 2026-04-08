@@ -455,7 +455,7 @@
       var title=d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
       showTooltip(event,"<strong>"+title+"</strong><br>"+Math.round(d.data.pct)+"% of projects<br>"+d.data.value+" project"+(d.data.value!==1?"s":""));
     })
-}).on("mouseleave",hideTooltip);
+.on("mouseleave",hideTooltip);
 
   cell.each(function(d){
     var w=cellW(d),h=cellH(d);
