@@ -404,9 +404,22 @@
     var numLargeBuckets=Math.max(1,Math.ceil((Math.max(0,maxVal-smallMax))/largeStep));
     var totalBuckets=numSmallBuckets+numLargeBuckets;
 
-    var userPalette=["#025043","#036cd5","#037c6e","#048c7f","#05998c","#28a99e","#4fb9af"];
-    var paletteStops=userPalette.slice().reverse();
-    var interp=d3.interpolateRgbBasis(paletteStops);
+    // Green → teal → blue → dark navy gradient.
+    // Smallest acres = pale mint green; largest acres = darkest navy blue.
+    // Matches the reference palette: light green on the left, deep navy on the right.
+    var treemapPalette=[
+      "#e8f5e9", // pale mint — smallest
+      "#a5d6a7", // light green
+      "#66bb6a", // medium green
+      "#2e7d32", // dark green
+      "#00695c", // green-teal
+      "#006994", // teal-blue
+      "#1565c0", // medium blue
+      "#0d47a1", // dark blue
+      "#0a2472", // deep navy
+      "#051535"  // darkest navy — largest
+    ];
+    var interp=d3.interpolateRgbBasis(treemapPalette);
 
     function bucketIndex(val){
       if(val<=0)return 0;
@@ -415,11 +428,9 @@
       return numSmallBuckets+Math.min(numLargeBuckets-1,Math.floor(above/largeStep));
     }
 
-    var idx5000=bucketIndex(5000);
+    // Map each bucket linearly across the palette: bucket 0 = lightest, last = darkest navy.
     var bucketColors=d3.range(totalBuckets).map(function(i){
-      if(totalBuckets<=1)return interp(0.8);
-      if(i<=idx5000){var denom=Math.max(1,idx5000);return interp(0.40+0.30*(i/denom));}
-      else{var denom2=Math.max(1,totalBuckets-1-idx5000);return interp(0.70+0.30*((i-idx5000)/denom2));}
+      return interp(totalBuckets<=1 ? 0.85 : i/(totalBuckets-1));
     });
 
     function colorScale(val){
@@ -476,7 +487,7 @@
 
       lines.forEach(function(line,li){
         var bg=colorScale(d.data.value);
-        var col=(d3.color(bg).luminance&&d3.color(bg).luminance()>0.55)?'#111':'white';
+        var col=(d3.color(bg).luminance&&d3.color(bg).luminance()>0.25)?'#1a1a1a':'white';
         g.append("text").attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",fontSize).attr("font-family",FONT)
@@ -485,7 +496,7 @@
 
       if(h>totalTextH+lineH*2.5){
         var bg2=colorScale(d.data.value);
-        var col2=(d3.color(bg2).luminance&&d3.color(bg2).luminance()>0.55)?'#111':'rgba(255,255,255,0.9)';
+        var col2=(d3.color(bg2).luminance&&d3.color(bg2).luminance()>0.25)?'#1a1a1a':'rgba(255,255,255,0.9)';
         g.append("text").attr("x",w/2).attr("y",startY+totalTextH+lineH)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",Math.max(vfs(11),fontSize-3)).attr("font-family",FONT)
@@ -729,7 +740,7 @@
     node.each(function(d){
       var g=d3.select(this);
       var words=d.label.split(/[^\w&'@]+/).filter(function(w){return w;});
-      var minFont=10,maxFont=vfs(18); // FIX: was hardcoded 20
+      var minFont=10,maxFont=vfs(18);
       var fs=Math.max(minFont,Math.min(maxFont,Math.floor(d.r/3)));
       var lh=Math.max(13,Math.round(fs*1.15));
       var mw=d.r*1.6;
@@ -778,8 +789,8 @@
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var ROW_H=42; // FIX: was 46 — slightly tighter rows
-    var mL=Math.min(280,width*0.36),mR=55,mT=10,mB=45; // FIX: tighter margins
+    var ROW_H=42;
+    var mL=Math.min(280,width*0.36),mR=55,mT=10,mB=45;
     var totalH=sorted.length*ROW_H+mT+mB;
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
@@ -796,7 +807,7 @@
       .call(function(gr){
         gr.select(".domain").remove();
         gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0");
-        gr.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("dy","1em"); // FIX: was 18
+        gr.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("dy","1em");
       });
 
     sorted.forEach(function(d,i){
@@ -812,11 +823,11 @@
         .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
         .on("mouseleave",hideTooltip);
       g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle")
-        .attr("font-size",vfs(13)).attr("font-weight","700").attr("fill",col).text(d.count); // FIX: was 18
+        .attr("font-size",vfs(13)).attr("font-weight","700").attr("fill",col).text(d.count);
 
       var cleanLabel=d.label.replace(/_/g," ");
       var availablePx=Math.max(70,mL-20);
-      var fs=vfs(14),minFs=10; // FIX: was 20
+      var fs=vfs(14),minFs=10;
       function maxCharsForFs(f){return Math.max(1,Math.floor(availablePx/(f*0.55)));}
       var maxChars=maxCharsForFs(fs);
       while(fs>minFs&&maxChars<8){fs--;maxChars=maxCharsForFs(fs);}
