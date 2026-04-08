@@ -200,152 +200,175 @@
     animateStat("stat-orgs",orgs.size.toLocaleString(),orgs.size);
   }
 
-  function drawSpeciesChart(data){
-    var el=document.getElementById("species-chart");
-    el.innerHTML="";
-    el.style.position="relative";
-    var width=el.clientWidth||400,height=el.clientHeight||200;
+  // ── DROP-IN REPLACEMENT for drawSpeciesChart in NShome_responsive.html ──────
+// Paste this function in place of the existing drawSpeciesChart function.
+// Requires: SPE_PALETTE, FONT, normalizeSpecies, showTooltip, hideTooltip (all already in scope).
 
-  // Shorter display labels for the fish overlay (tooltip shows full names)
-  var SHORT={
-    "Endangered/threatened species":"Endangered/Threatened",
-    "State listed species/Species of Greatest Conservation Need":"State Listed / SGCN",
-    "Nongame Wildlife":"Nongame Wildlife",
-    "Invasive species control/eradication":"Invasive Species",
-    "No focal species during planning":"No Focal Species",
-    "Other":"Other"
+function drawSpeciesChart(data) {
+  var el = document.getElementById("species-chart");
+  el.innerHTML = "";
+  el.style.position = "relative";
+  el.style.overflow = "hidden";
+  el.style.borderRadius = "10px";
+  var width = el.clientWidth || 400, height = el.clientHeight || 200;
+
+  var SHORT = {
+    "Endangered/threatened species": "Endangered/threatened",
+    "State listed species/Species of Greatest Conservation Need": "State listed / SGCN",
+    "Nongame Wildlife": "Nongame wildlife",
+    "Invasive species control/eradication": "Invasive species",
+    "No focal species during planning": "No focal species",
+    "Other": "Other"
   };
 
-  var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";});
-  var sMap={};
-  funded.forEach(function(row){
+  var funded = data.filter(function(d) {
+    return d.gbep_award_amount && d.targeted_focal_species && d.targeted_focal_species.trim() !== "";
+  });
+  var sMap = {};
+  funded.forEach(function(row) {
     row.targeted_focal_species.split(",")
-      .map(function(s){return normalizeSpecies(s.trim());})
-      .filter(function(s){return s;})
-      .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+      .map(function(s) { return normalizeSpecies(s.trim()); })
+      .filter(function(s) { return s; })
+      .forEach(function(s) { sMap[s] = (sMap[s] || 0) + 1; });
   });
 
-  var counts=Object.keys(sMap).map(function(k){
-    return{label:k,short:SHORT[k]||k,count:sMap[k]};
-  }).sort(function(a,b){return b.count-a.count;});
-  if(!counts.length)return;
-  var total=d3.sum(counts,function(d){return d.count;});
+  var counts = Object.keys(sMap).map(function(k) {
+    return { label: k, short: SHORT[k] || k, count: sMap[k], color: "" };
+  }).sort(function(a, b) { return b.count - a.count; });
+  if (!counts.length) return;
 
-  var svg=d3.select("#species-chart").append("svg")
-    .attr("width",width).attr("height",height)
-    .style("font-family",FONT);
+  counts.forEach(function(c, i) { c.color = SPE_PALETTE[i % SPE_PALETTE.length]; });
+  var total = counts.reduce(function(s, c) { return s + c.count; }, 0);
 
-  // ── Simple traditional fish: wide oval body + triangle tail (viewBox 1000×400, facing LEFT) ──
-  var vbW=1000,vbH=400;
-// Redfish silhouette — faces LEFT, viewBox 0 0 1000 500
-  var fishPathStr =
-    // Start at tail fork top
-    "M 980,80 " +
-    // Upper tail lobe curves to caudal peduncle
-    "C 900,100 860,130 820,200 " +
-    // Dorsal fin hump
-    "C 790,160 740,100 680,80 " +
-    "C 600,55 480,40 360,45 " +
-    // Head top, curves to snout
-    "C 220,48 120,80 60,160 " +
-    "C 30,185 20,200 20,230 " +
-    // Belly curves back
-    "C 20,270 50,310 120,340 " +
-    "C 220,370 380,380 540,370 " +
-    "C 680,358 780,330 820,280 " +
-    // Back to caudal peduncle bottom, tail fork bottom
-    "C 860,340 900,370 980,400 " +
-    // Close tail — concave bite into the fork center
-    "C 940,350 920,290 940,240 " +
-    "C 920,210 940,150 980,80 Z";
+  // Inline styles injected as a <style> tag so they don't conflict with the page
+  var styleEl = document.createElement("style");
+  styleEl.textContent = [
+    "#species-chart .sca-bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);animation:sca-rise linear infinite;}",
+    "@keyframes sca-rise{0%{transform:translateY(0) translateX(0);opacity:.6}100%{transform:translateY(-"+height+"px) translateX(15px);opacity:0}}",
+    "#species-chart .sca-grass{position:absolute;bottom:0;transform-origin:bottom center;animation:sca-sway ease-in-out infinite alternate;}",
+    "@keyframes sca-sway{0%{transform:rotate(-9deg)}100%{transform:rotate(9deg)}}",
+    "#species-chart .sca-fish{position:absolute;animation:sca-bob ease-in-out infinite;}",
+    "@keyframes sca-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}",
+    "#species-chart .sca-fish svg{display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.3));}",
+    "#species-chart .sca-fish.flip svg{transform:scaleX(-1);}"
+  ].join("");
+  el.appendChild(styleEl);
 
-  // Non-uniform stretch so fish fills the ENTIRE panel
-  var pad=4;
-  var scaleX=(width-pad*2)/vbW;
-  var scaleY=(height-pad*2)/vbH;
-  var transform="translate("+pad+","+pad+") scale("+scaleX+","+scaleY+")";
+  // ── Tank background ──
+  var bg = document.createElement("div");
+  bg.style.cssText = "position:absolute;inset:0;background:linear-gradient(180deg,#072e52 0%,#0d5080 40%,#1772a0 75%,#1e8cbb 100%);";
+  el.appendChild(bg);
 
-  var clipId="fish-clip-"+Math.round(Math.random()*9999);
-  svg.append("defs").append("clipPath").attr("id",clipId)
-    .append("path").attr("d",fishPathStr).attr("transform",transform);
+  // ── Sand ──
+  var sandH = Math.max(28, height * 0.14);
+  var sand = document.createElement("div");
+  sand.style.cssText = "position:absolute;bottom:0;left:0;right:0;height:" + sandH + "px;background:linear-gradient(180deg,#c4a35a,#a88540);";
+  el.appendChild(sand);
 
-  var fishTop=pad,fishBottom=height-pad;
-  var fishTotalH=fishBottom-fishTop;
-  var layerX=0,layerW=width;
-
-  // Precompute band geometry
-  var currentBottom=fishBottom;
-  var bandGeom=[];
-  counts.forEach(function(c,i){
-    var pct=c.count/total;
-    var layerH=pct*fishTotalH;
-    var layerTop=currentBottom-layerH;
-    bandGeom.push({c:c,i:i,pct:pct,top:layerTop,h:layerH,mid:layerTop+layerH/2});
-    currentBottom=layerTop;
+  // Sand ripples
+  [[10, 70, 14], [38, 100, 10], [65, 80, 14]].forEach(function(r) {
+    var rip = document.createElement("div");
+    rip.style.cssText = "position:absolute;left:" + r[0] + "%;top:9px;width:" + r[1] + "px;height:" + Math.round(r[2]) + "px;border-top:1.5px solid rgba(255,255,255,0.2);border-radius:50%;";
+    sand.appendChild(rip);
   });
 
-  // Draw bands
-  bandGeom.forEach(function(b,idx){
-    svg.append("rect")
-      .attr("x",layerX).attr("y",b.top)
-      .attr("width",layerW).attr("height",b.h+1)
-      .attr("fill",SPE_PALETTE[b.i%SPE_PALETTE.length])
-      .attr("clip-path","url(#"+clipId+")");
-    if(idx<bandGeom.length-1){
-      svg.append("line")
-        .attr("x1",layerX).attr("x2",layerX+layerW)
-        .attr("y1",b.top).attr("y2",b.top)
-        .attr("stroke","white").attr("stroke-width",1.5)
-        .attr("clip-path","url(#"+clipId+")");
-    }
+  // ── Seagrass ──
+  var grassColors = ["#1a6b3c", "#2d8a52", "#3aaa68"];
+  var grassPositions = [2, 6, 11, 17, 22, 28, 34, 40, 46, 52, 58, 64, 70, 76, 82, 87, 92, 97];
+  grassPositions.forEach(function(pct, i) {
+    var col = grassColors[i % grassColors.length];
+    var bH = 28 + (i % 3) * 8;
+    var dur = 1.8 + (i % 4) * 0.4;
+    var del = -(i % 3) * 0.7;
+    var blade = document.createElement("div");
+    blade.className = "sca-grass";
+    blade.style.cssText = "left:" + pct + "%;bottom:" + sandH + "px;animation-duration:" + dur + "s;animation-delay:" + del + "s;";
+    var svg = '<svg width="11" height="' + bH + '" viewBox="0 0 11 ' + bH + '" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M5.5 ' + bH + ' C4 ' + Math.round(bH * 0.72) + ' 1 ' + Math.round(bH * 0.38) + ' 3 0" fill="none" stroke="' + col + '" stroke-width="4" stroke-linecap="round"/>' +
+      '</svg>';
+    blade.innerHTML = svg;
+    el.appendChild(blade);
   });
 
-  // Outline
-  svg.append("path").attr("d",fishPathStr).attr("transform",transform)
-    .attr("fill","none")
-    .attr("stroke","rgba(255,255,255,0.55)")
-    .attr("stroke-width",2)
-    .attr("vector-effect","non-scaling-stroke");
+  // ── Bubbles ──
+  for (var b = 0; b < 12; b++) {
+    var bub = document.createElement("div");
+    bub.className = "sca-bubble";
+    var bs = 3 + Math.random() * 7;
+    var bdur = 6 + Math.random() * 9;
+    var bdel = -Math.random() * bdur;
+    bub.style.cssText = "width:" + bs + "px;height:" + bs + "px;left:" + (Math.random() * 96) + "%;bottom:" + (sandH + Math.random() * 40) + "px;animation-duration:" + bdur + "s;animation-delay:" + bdel + "s;";
+    el.appendChild(bub);
+  }
 
-  // Eye
-  var eyeCx=pad+120*scaleX;
-  var eyeCy=pad+170*scaleY;
-  var eyeR=Math.max(3,Math.min(scaleX,scaleY)*16);
-  svg.append("circle").attr("cx",eyeCx).attr("cy",eyeCy).attr("r",eyeR)
-    .attr("fill","white").attr("stroke","rgba(0,0,0,0.3)").attr("stroke-width",1);
-  svg.append("circle").attr("cx",eyeCx).attr("cy",eyeCy).attr("r",eyeR*0.55)
-    .attr("fill","#0d1b2a");
+  // ── Fish ──
+  function fishSVG(color, fw, fh) {
+    return '<svg width="' + fw + '" height="' + fh + '" viewBox="0 0 80 40" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M68 6 C60 4 48 2 30 8 C14 13 6 18 6 20 C6 22 14 27 30 32 C48 38 60 36 68 34 L80 20 Z" fill="' + color + '" opacity="0.93"/>' +
+      '<path d="M68 6 L80 20 L68 34" fill="' + color + '" opacity="0.55"/>' +
+      '<path d="M34 8 C42 3 52 3 56 7" fill="none" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round" opacity="0.45"/>' +
+      '<circle cx="19" cy="18" r="3.5" fill="white" opacity="0.92"/>' +
+      '<circle cx="18.5" cy="17.5" r="1.9" fill="#07192d"/>' +
+      '<ellipse cx="12" cy="20" rx="3" ry="4.5" fill="none" stroke="white" stroke-width="1" opacity="0.25"/>' +
+      '</svg>';
+  }
 
-  // ── Labels: EVERY category gets one, sized to band height ──
-  var labelCx=width/2;
-  bandGeom.forEach(function(b){
-    // Scales with band height, clamped 9px–vfs(22)
-    var fs=Math.max(9,Math.min(Math.floor(b.h*0.6),vfs(22)));
-    svg.append("text")
-      .attr("x",labelCx).attr("y",b.mid)
-      .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",fs).attr("font-weight","800")
-      .attr("fill","white").attr("font-family",FONT)
-      .attr("paint-order","stroke")
-      .attr("stroke","rgba(0,0,0,0.75)").attr("stroke-width",3)
-      .style("pointer-events","none")
-      .text(b.short);
+  var swimTop = 20, swimBottom = height - sandH - 12;
+  var allFish = [];
+  counts.forEach(function(c) {
+    for (var i = 0; i < c.count; i++) allFish.push(c);
+  });
+  // Shuffle
+  allFish.sort(function() { return Math.random() - 0.5; });
+
+  allFish.forEach(function(sp, idx) {
+    var fw = 38 + Math.random() * 18;
+    var fh = Math.round(fw * 0.5);
+    var faceLeft = Math.random() > 0.5;
+    var wrap = document.createElement("div");
+    wrap.className = "sca-fish" + (faceLeft ? " flip" : "");
+    wrap.innerHTML = fishSVG(sp.color, Math.round(fw), fh);
+
+    var bobDur = 4 + Math.random() * 6;
+    var bobDel = -Math.random() * bobDur;
+    var startY = swimTop + Math.random() * (swimBottom - fh - swimTop);
+    wrap.style.cssText = "top:" + startY + "px;animation-duration:" + bobDur + "s;animation-delay:" + bobDel + "s;cursor:pointer;";
+
+    // Horizontal swim animation
+    var swimDur = 10 + Math.random() * 14;
+    var swimDel = -Math.random() * swimDur;
+    var fromX = faceLeft ? (width + 20) : -fw - 10;
+    var toX   = faceLeft ? (-fw - 10)   : (width + 20);
+    wrap.style.left = fromX + "px";
+    wrap.animate(
+      [{ left: fromX + "px" }, { left: toX + "px" }],
+      { duration: swimDur * 1000, delay: swimDel * 1000, iterations: Infinity, easing: "linear" }
+    );
+
+    // Tooltip
+    (function(species) {
+      wrap.addEventListener("mousemove", function(evt) {
+        var pct = Math.round(species.count / total * 100);
+        showTooltip(evt, "<strong>" + species.label + "</strong><br>" + species.count + " project" + (species.count !== 1 ? "s" : "") + " — " + pct + "%");
+      });
+      wrap.addEventListener("mouseleave", hideTooltip);
+    })(sp);
+
+    el.appendChild(wrap);
   });
 
-  // Hover: % + full name
-  bandGeom.forEach(function(b){
-    svg.append("rect")
-      .attr("x",layerX).attr("y",b.top)
-      .attr("width",layerW).attr("height",b.h)
-      .attr("fill","transparent")
-      .attr("clip-path","url(#"+clipId+")")
-      .style("cursor","pointer")
-      .on("mousemove",function(event){
-        showTooltip(event,"<strong>"+Math.round(b.pct*100)+"%</strong><br>"+b.c.label+"<br>"+b.c.count+" project"+(b.c.count!==1?"s":""));
-      })
-      .on("mouseleave",hideTooltip);
-    b.mid;
+  // ── Legend ──
+  var leg = document.createElement("div");
+  leg.style.cssText = "position:absolute;bottom:" + (sandH + 8) + "px;right:8px;background:rgba(0,0,0,0.45);border-radius:7px;padding:6px 9px;display:flex;flex-direction:column;gap:3px;max-width:55%;";
+  counts.forEach(function(c) {
+    var pct = Math.round(c.count / total * 100);
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:6px;font-family:" + FONT + ";font-size:10px;color:rgba(255,255,255,0.9);white-space:nowrap;overflow:hidden;";
+    row.innerHTML = '<div style="width:9px;height:9px;border-radius:50%;background:' + c.color + ';flex-shrink:0;"></div>' +
+      '<span style="overflow:hidden;text-overflow:ellipsis;">' + c.short + ' (' + c.count + ')</span>';
+    leg.appendChild(row);
   });
+  el.appendChild(leg);
 }
 
   function drawFiscalYear(data){
