@@ -324,6 +324,10 @@
         .text(Math.round(pct)+"%");
     });
 
+    // Below 380px the callout labels collide — skip them entirely.
+    // The donut still shows inner % labels and tooltips on hover work fine.
+    if(width < 380) return;
+
     var labeled=[];
     slices.forEach(function(d){
       var pct=d.data.value/totalAcres*100;
@@ -475,10 +479,14 @@
       var color=SPE_PALETTE[i%SPE_PALETTE.length];
       var row=document.createElement("div");
       row.style.cssText="display:flex;align-items:center;gap:6px;line-height:1.15;min-height:0;";
+      // Name is single-line with ellipsis — wrapping causes mid-word clipping when
+      // row height is fixed by space-around. Tooltip on the dots gives full label.
       row.innerHTML=
         '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+';border-radius:50%;flex-shrink:0;"></div>'+
         '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+';flex-shrink:0;letter-spacing:-0.5px;">'+pct+'%</div>'+
-        '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;word-wrap:break-word;overflow-wrap:break-word;min-width:0;flex:1;">'+c.label+'</div>';
+        '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
+          'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;" title="'+c.label+'">'+c.label+'</div>';
+
       list.appendChild(row);
     });
     el.appendChild(list);
