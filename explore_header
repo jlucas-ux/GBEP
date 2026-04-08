@@ -13,8 +13,7 @@
       overflow: hidden;
     }
     #header {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -33,28 +32,20 @@
       color: #888;
       line-height: 1.5;
     }
-    .chart-subtitle .tip {
-      display: inline-block;
-      background: #e8f4fb;
-      color: #1677bc;
-      font-weight: 600;
-      font-size: clamp(9px, 0.75vw, 12px);
-      padding: 2px 8px;
-      border-radius: 10px;
-      margin-right: 4px;
-      white-space: nowrap;
-    }
   </style>
 </head>
 <body>
   <div id="header">
-    <div class="chart-title">Explore the Map</div>
-    <div class="chart-subtitle">
-      <span class="tip">🖱 Click &amp; drag</span> to pan across the bay.
-      <span class="tip">🔍 Scroll</span> to zoom in and out.
-      Use the layer controls to filter by watershed, project type, or funding status.
-    </div>
+    <div class="chart-title" id="title-el"></div>
+    <div class="chart-subtitle" id="blurb-el"></div>
   </div>
+  <script>
+    // Reads ?title= and ?blurb= from the URL, same pattern as hero_banner.html
+    var params = new URLSearchParams(window.location.search);
+    var title = params.get('title') || 'Explore';
+    var blurb = params.get('blurb') || 'Click and drag to pan, scroll to zoom, and use the layer controls to filter by watershed, project type, or funding status.';
+    document.getElementById('title-el').textContent = title;
+    document.getElementById('blurb-el').textContent = blurb;
+  </script>
 </body>
 </html>
- 
