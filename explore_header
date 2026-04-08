@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent;
+      font-family: 'Roboto', sans-serif;
+      overflow: hidden;
+    }
+    #header {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(6px, 0.8vw, 14px) clamp(8px, 1vw, 16px);
+    }
+    .chart-title {
+      font-size: clamp(13px, 1.15vw, 19px);
+      font-weight: 700;
+      color: #1677bc;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+    .chart-subtitle {
+      font-size: clamp(10px, 0.85vw, 14px);
+      color: #888;
+      line-height: 1.5;
+    }
+    .chart-subtitle .tip {
+      display: inline-block;
+      background: #e8f4fb;
+      color: #1677bc;
+      font-weight: 600;
+      font-size: clamp(9px, 0.75vw, 12px);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div class="chart-title">Explore the Map</div>
+    <div class="chart-subtitle">
+      <span class="tip">🖱 Click &amp; drag</span> to pan across the bay.
+      <span class="tip">🔍 Scroll</span> to zoom in and out.
+      Use the layer controls to filter by watershed, project type, or funding status.
+    </div>
+  </div>
+</body>
+</html>
+ 
