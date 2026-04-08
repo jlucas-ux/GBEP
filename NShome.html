@@ -406,61 +406,102 @@
     if(!counts.length)return;
     var total=d3.sum(counts,function(d){return d.count;});
 
-    var leftW=Math.max(140,width*0.42); // FIX: was fixed 0.44 — loosened slightly
-
+    var leftW=Math.max(140,width*0.42);
     var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
-    var dropX=leftW,dropY=6;
+
+    // ── Raindrop geometry ──
+    var dropX=leftW,dropY=8;
     var dropW=width-leftW-10;
-    var dropH=height-12;
-    var r=Math.min(dropW*0.52,dropH*0.36);
+    var dropH=height-16;
+    var r=Math.min(dropW*0.50,dropH*0.35);
     var cx=dropX+dropW/2;
     var bottomCy=dropY+dropH-r-4;
     var topY=dropY+4;
+    var dropBottom=bottomCy+r;
+    var dropTotalH=dropBottom-topY;
 
-    svg.append("path")
-      .attr("d","M "+cx+","+topY+" L "+(cx+r)+","+bottomCy+" A "+r+","+r+" 0 0 1 "+(cx-r)+","+bottomCy+" Z")
-      .attr("fill","none").attr("stroke","#cfe3f3").attr("stroke-width",1.5);
+    // Raindrop SVG path — pointed top, semicircle bottom
+    var dropPath="M "+cx+","+topY+
+      " L "+(cx+r)+","+bottomCy+
+      " A "+r+","+r+" 0 0 1 "+(cx-r)+","+bottomCy+" Z";
 
-    var targetDots=Math.max(45,Math.min(total,260));
-    var dropArea=Math.PI*r*r*0.5+r*(bottomCy-topY);
-    var spacing=Math.sqrt(dropArea/targetDots)*1.05;
-    var dotR=spacing*0.38;
-    var pad=dotR+2;
+    // Clip path so layers are cut to the raindrop silhouette
+    var clipId="drop-layer-clip-"+Math.round(Math.random()*9999);
+    svg.append("defs").append("clipPath").attr("id",clipId)
+      .append("path").attr("d",dropPath);
 
-    function insideDrop(x,y){
-      var rInner=r-pad;
-      if(rInner<=0)return false;
-      var topYi=topY+pad*2;
-      var dx=x-cx,dy=y-bottomCy;
-      if(dy>=0&&dx*dx+dy*dy<=rInner*rInner)return true;
-      if(y>=topYi&&y<=bottomCy){var t=(y-topYi)/(bottomCy-topYi);if(Math.abs(x-cx)<=t*rInner)return true;}
-      return false;
-    }
+    // ── Stack filled layers bottom → top (largest % at bottom, like beef cuts) ──
+    var currentBottom=dropBottom;
+    counts.forEach(function(c,i){
+      var pct=c.count/total;
+      var layerH=pct*dropTotalH;
+      var layerTop=currentBottom-layerH;
 
-    var dots=[],rowIdx=0;
-    for(var y=topY+spacing/2;y<=dropY+dropH;y+=spacing){
-      var off=(rowIdx%2)*(spacing/2);rowIdx++;
-      for(var x=dropX+spacing/2+off;x<=dropX+dropW;x+=spacing){if(insideDrop(x,y))dots.push({x:x,y:y});}
-    }
-    if(!dots.length)return;
+      // Rect wider than raindrop — clip handles the edges
+      svg.append("rect")
+        .attr("x",cx-r-4).attr("y",layerTop)
+        .attr("width",(r+4)*2).attr("height",layerH+1) // +1 closes seam
+        .attr("fill",SPE_PALETTE[i%SPE_PALETTE.length])
+        .attr("clip-path","url(#"+clipId+")");
 
-    dots.sort(function(a,b){return(a.y-b.y)||(a.x-b.x);});
-    var nDots=dots.length,assigned=[];
-    counts.forEach(function(c){var k=Math.round(c.count/total*nDots);for(var j=0;j<k;j++)assigned.push(counts.indexOf(c));});
-    while(assigned.length<nDots)assigned.push(0);
-    while(assigned.length>nDots)assigned.pop();
+      // White dividing line between layers
+      if(i<counts.length-1){
+        svg.append("line")
+          .attr("x1",cx-r-4).attr("x2",cx+r+4)
+          .attr("y1",layerTop).attr("y2",layerTop)
+          .attr("stroke","white").attr("stroke-width",2)
+          .attr("clip-path","url(#"+clipId+")");
+      }
 
-    dots.forEach(function(pt,i){
-      var idx=assigned[i],c=counts[idx];
-      svg.append("circle").attr("cx",pt.x).attr("cy",pt.y).attr("r",dotR)
-        .attr("fill",SPE_PALETTE[idx%SPE_PALETTE.length]).attr("opacity",0.92).style("cursor","pointer")
-        .on("mousemove",function(event){
-          var pct=Math.round(c.count/total*100);
-          showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+pct+"%");
-        }).on("mouseleave",hideTooltip);
+      currentBottom=layerTop;
     });
 
-    // FIX: list item font sizes scale with both row height and viewport
+    // Raindrop outline on top of fills
+    svg.append("path").attr("d",dropPath)
+      .attr("fill","none").attr("stroke","rgba(255,255,255,0.5)").attr("stroke-width",2);
+
+    // ── Percentage labels inside each layer ──
+    currentBottom=dropBottom;
+    counts.forEach(function(c,i){
+      var pct=c.count/total;
+      var layerH=pct*dropTotalH;
+      var layerTop=currentBottom-layerH;
+      var midY=layerTop+layerH/2;
+
+      // Only label if the layer is tall enough to fit text
+      if(layerH>=14){
+        var labelFs=Math.max(8,Math.min(vfs(14),Math.floor(layerH*0.38)));
+        svg.append("text")
+          .attr("x",cx).attr("y",midY)
+          .attr("text-anchor","middle").attr("dominant-baseline","middle")
+          .attr("font-size",labelFs).attr("font-weight","700")
+          .attr("fill","rgba(255,255,255,0.93)").attr("font-family",FONT)
+          .text(Math.round(pct*100)+"%");
+      }
+
+      currentBottom=layerTop;
+    });
+
+    // Hover targets — invisible rects over each layer for tooltip
+    currentBottom=dropBottom;
+    counts.forEach(function(c,i){
+      var pct=c.count/total;
+      var layerH=pct*dropTotalH;
+      var layerTop=currentBottom-layerH;
+      svg.append("rect")
+        .attr("x",cx-r-4).attr("y",layerTop)
+        .attr("width",(r+4)*2).attr("height",layerH)
+        .attr("fill","transparent")
+        .attr("clip-path","url(#"+clipId+")")
+        .style("cursor","pointer")
+        .on("mousemove",function(event){
+          showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+Math.round(pct*100)+"%");
+        })
+        .on("mouseleave",hideTooltip);
+      currentBottom=layerTop;
+    });
+
+    // ── Legend list (left side — unchanged) ──
     var list=document.createElement("div");
     list.style.cssText=
       "position:absolute;left:10px;top:8px;"+
@@ -470,18 +511,14 @@
 
     var nItems=counts.length;
     var rowH=(height-16)/nItems;
-    var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48))); // FIX: was 12–26
-    var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));  // FIX: was 11–16
+    var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48)));
+    var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));
     var swatch=Math.max(7,Math.floor(pctFS*0.55));
 
     counts.forEach(function(c,i){
       var pct=Math.round(c.count/total*100);
       var color=SPE_PALETTE[i%SPE_PALETTE.length];
       var row=document.createElement("div");
-      // Fixed row height so the list stays evenly distributed.
-      // align-items:flex-start keeps the dot + % at the top when text wraps to 2 lines.
-      // overflow:hidden on the row clips any excess at the bottom — always at a whole
-      // word boundary, never mid-character.
       var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
       row.style.cssText=
         "display:flex;align-items:flex-start;gap:6px;"+
@@ -495,10 +532,10 @@
         '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
           'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
           c.label+'</div>';
-
       list.appendChild(row);
     });
     el.appendChild(list);
+  }
   }
 
   function redrawCharts(){
