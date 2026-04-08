@@ -204,6 +204,10 @@
 // Paste this function in place of the existing drawSpeciesChart function.
 // Requires: SPE_PALETTE, FONT, normalizeSpecies, showTooltip, hideTooltip (all already in scope).
 
+// ── DROP-IN REPLACEMENT for drawSpeciesChart in NShome_responsive.html ──────
+// Paste this function in place of the existing drawSpeciesChart function.
+// Requires: SPE_PALETTE, FONT, normalizeSpecies, showTooltip, hideTooltip (all already in scope).
+
 function drawSpeciesChart(data) {
   var el = document.getElementById("species-chart");
   el.innerHTML = "";
@@ -370,7 +374,6 @@ function drawSpeciesChart(data) {
   });
   el.appendChild(leg);
 }
-
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
