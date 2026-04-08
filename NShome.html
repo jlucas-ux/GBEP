@@ -223,46 +223,38 @@
     .attr("width",width).attr("height",height)
     .style("font-family",FONT);
 
-  // ── Fish silhouette path (viewBox 1000×600, pointing LEFT) ──
-  // Rounded nose, prominent dorsal fin, pelvic fin, forked tail.
-  var vbW=1000,vbH=600;
+  // ── Flounder silhouette in viewBox coords (flat oval body + fan tail, facing LEFT) ──
+  var vbW=1000,vbH=400;
   var fishPathStr=
-    "M 60,300 "+
-    "C 60,220 150,150 240,170 "+
-    "L 350,30 "+
-    "C 370,20 420,30 440,110 "+
-    "C 560,180 700,200 790,210 "+
-    "L 980,80 "+
-    "C 920,220 890,290 890,300 "+
-    "C 890,310 920,380 980,520 "+
-    "L 790,380 "+
-    "C 700,385 580,400 520,420 "+
-    "C 500,470 450,500 400,490 "+
-    "C 350,475 280,460 220,445 "+
-    "C 130,430 60,380 60,300 Z";
+    "M 50,200 "+
+    "C 50,165 75,135 140,125 "+
+    "C 290,85 500,55 680,85 "+
+    "C 760,100 810,120 830,145 "+
+    "C 870,135 920,120 960,130 "+
+    "C 995,170 995,230 960,270 "+
+    "C 920,280 870,265 830,255 "+
+    "C 810,280 760,300 680,315 "+
+    "C 500,345 300,360 180,340 "+
+    "C 140,325 105,300 80,270 "+
+    "C 60,245 50,225 50,200 Z";
 
-  // Fit fish to panel (uniform scale — preserves fish proportions)
-  var pad=6;
-  var targetW=width-pad*2;
-  var targetH=height-pad*2;
-  var scale=Math.min(targetW/vbW,targetH/vbH);
-  var fishW=vbW*scale;
-  var fishH=vbH*scale;
-  var offsetX=(width-fishW)/2;
-  var offsetY=(height-fishH)/2;
-  var transform="translate("+offsetX+","+offsetY+") scale("+scale+")";
+  // Non-uniform stretch so the flounder fills the ENTIRE panel
+  var pad=4;
+  var scaleX=(width-pad*2)/vbW;
+  var scaleY=(height-pad*2)/vbH;
+  var transform="translate("+pad+","+pad+") scale("+scaleX+","+scaleY+")";
 
-  // Clip path — transforms the path into screen coords
+  // Clip path
   var clipId="fish-clip-"+Math.round(Math.random()*9999);
   svg.append("defs").append("clipPath").attr("id",clipId)
     .append("path").attr("d",fishPathStr).attr("transform",transform);
 
-  // Stacking bounds (fish bounding box in screen coords)
-  var fishTop=offsetY;
-  var fishBottom=offsetY+fishH;
+  // Layer bounds span the full panel, clipped by silhouette
+  var fishTop=pad;
+  var fishBottom=height-pad;
   var fishTotalH=fishBottom-fishTop;
-  var layerX=offsetX-10;
-  var layerW=fishW+20;
+  var layerX=0;
+  var layerW=width;
 
   // ── Stack layers bottom → top (largest % at bottom) ──
   var currentBottom=fishBottom;
@@ -287,70 +279,48 @@
     currentBottom=layerTop;
   });
 
-  // Fish outline
+  // Silhouette outline
   svg.append("path").attr("d",fishPathStr).attr("transform",transform)
     .attr("fill","none")
-    .attr("stroke","rgba(255,255,255,0.55)")
+    .attr("stroke","rgba(255,255,255,0.6)")
     .attr("stroke-width",2)
     .attr("vector-effect","non-scaling-stroke");
 
-  // Eye (positioned in viewBox coords, then transformed)
-  var eyeCx=offsetX+160*scale;
-  var eyeCy=offsetY+255*scale;
-  var eyeR=Math.max(3,22*scale);
+  // Eye (near head, viewBox ~110,170)
+  var eyeCx=pad+110*scaleX;
+  var eyeCy=pad+170*scaleY;
+  var eyeR=Math.max(3,Math.min(scaleX,scaleY)*14);
   svg.append("circle").attr("cx",eyeCx).attr("cy",eyeCy).attr("r",eyeR)
-    .attr("fill","white").attr("stroke","rgba(0,0,0,0.3)").attr("stroke-width",1);
+    .attr("fill","white").attr("stroke","rgba(0,0,0,0.35)").attr("stroke-width",1);
   svg.append("circle").attr("cx",eyeCx).attr("cy",eyeCy).attr("r",eyeR*0.5)
     .attr("fill","#0d1b2a");
 
-  // ── Overlay stats on each layer (% + name), centered horizontally ──
-  var labelCx=offsetX+fishW/2;
-  currentBottom=fishBottom;
-  counts.forEach(function(c,i){
-    var pct=c.count/total;
-    var layerH=pct*fishTotalH;
-    var layerTop=currentBottom-layerH;
-    var midY=layerTop+layerH/2;
+// ── Overlay species names — large, high-contrast (white fill + dark stroke) ──
+var labelCx=width/2;
+currentBottom=fishBottom;
+counts.forEach(function(c,i){
+  var pct=c.count/total;
+  var layerH=pct*fishTotalH;
+  var layerTop=currentBottom-layerH;
+  var midY=layerTop+layerH/2;
 
-    if(layerH>=18){
-      var pctFs=Math.max(12,Math.min(vfs(28),Math.floor(layerH*0.42)));
-      var nameFs=Math.max(9,Math.min(vfs(14),Math.floor(pctFs*0.48)));
+  if(layerH>=14){
+    var fs=Math.max(11,Math.min(Math.floor(layerH*0.45),vfs(22)));
+    svg.append("text")
+      .attr("x",labelCx).attr("y",midY)
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size",fs).attr("font-weight","800")
+      .attr("fill","white").attr("font-family",FONT)
+      .attr("paint-order","stroke")
+      .attr("stroke","rgba(0,0,0,0.7)").attr("stroke-width",3)
+      .style("pointer-events","none")
+      .text(c.label);
+  }
+  currentBottom=layerTop;
+});
 
-      svg.append("text")
-        .attr("x",labelCx).attr("y",midY-nameFs*0.4)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",pctFs).attr("font-weight","900")
-        .attr("fill","white").attr("font-family",FONT)
-        .attr("paint-order","stroke")
-        .attr("stroke","rgba(0,0,0,0.55)").attr("stroke-width",3)
-        .style("pointer-events","none")
-        .text(Math.round(pct*100)+"%");
 
-      svg.append("text")
-        .attr("x",labelCx).attr("y",midY+pctFs*0.55)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",nameFs).attr("font-weight","600")
-        .attr("fill","white").attr("font-family",FONT)
-        .attr("paint-order","stroke")
-        .attr("stroke","rgba(0,0,0,0.55)").attr("stroke-width",2)
-        .style("pointer-events","none")
-        .text(c.label);
-    } else if(layerH>=9){
-      var pctFs2=Math.max(9,Math.floor(layerH*0.65));
-      svg.append("text")
-        .attr("x",labelCx).attr("y",midY)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",pctFs2).attr("font-weight","900")
-        .attr("fill","white").attr("font-family",FONT)
-        .attr("paint-order","stroke")
-        .attr("stroke","rgba(0,0,0,0.55)").attr("stroke-width",2)
-        .style("pointer-events","none")
-        .text(Math.round(pct*100)+"%");
-    }
-    currentBottom=layerTop;
-  });
-
-  // Hover targets
+  // Hover targets (tooltip still has species name)
   currentBottom=fishBottom;
   counts.forEach(function(c,i){
     var pct=c.count/total;
@@ -363,13 +333,12 @@
       .attr("clip-path","url(#"+clipId+")")
       .style("cursor","pointer")
       .on("mousemove",function(event){
-        showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+Math.round(pct*100)+"%");
-      })
+  showTooltip(event,"<strong>"+Math.round(pct*100)+"%</strong><br>"+c.count+" project"+(c.count!==1?"s":""));
+})
       .on("mouseleave",hideTooltip);
     currentBottom=layerTop;
   });
 }
-
 
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
