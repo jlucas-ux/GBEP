@@ -213,6 +213,11 @@
 // All dependencies (SPE_PALETTE, FONT, normalizeSpecies, showTooltip, hideTooltip,
 // vfs) are already in scope in that file.
 
+// ── DROP-IN REPLACEMENT: drawSpeciesChart (layered raindrop) ─────────────────
+// Paste this in NShome_responsive.html in place of the existing drawSpeciesChart.
+// All dependencies (SPE_PALETTE, FONT, normalizeSpecies, showTooltip, hideTooltip,
+// vfs) are already in scope in that file.
+
 function drawSpeciesChart(data) {
   var el = document.getElementById("species-chart");
   el.innerHTML = "";
