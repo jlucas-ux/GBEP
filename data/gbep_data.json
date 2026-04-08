@@ -520,14 +520,5 @@
     "broad_project_goals": "Land_Acquisition",
     "targeted_focal_species": null,
     "project_scale": "Physical project"
-  },
-  {
-    "gbep_award_amount": 100,
-    "fiscal_year_of_award": null,
-    "numeric_approximate_project_siz": null,
-    "lead_organization_name": "test",
-    "broad_project_goals": "Restore/enhance_habitat",
-    "targeted_focal_species": null,
-    "project_scale": "Physical project"
   }
 ]
