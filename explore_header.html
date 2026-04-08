@@ -2,50 +2,48 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
-      background: transparent;
-      font-family: 'Roboto', sans-serif;
-      overflow: hidden;
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;}
+    #banner{
+      width:100%;height:100%;
+      background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
+      display:flex;align-items:center;padding:0 40px;
+      gap:32px;
     }
-    #header {
-      width: 100%; height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: clamp(6px, 0.8vw, 14px) clamp(8px, 1vw, 16px);
+    .divider{
+      width:3px;height:65%;
+      background:rgba(255,255,255,0.3);
+      flex-shrink:0;border-radius:2px;
     }
-    .chart-title {
-      font-size: clamp(13px, 1.15vw, 19px);
-      font-weight: 700;
-      color: #1677bc;
-      margin-bottom: 4px;
-      letter-spacing: -0.3px;
-      line-height: 1.2;
+    .title-block{flex-shrink:0;}
+    .page-title{
+      font-size:28px;font-weight:900;color:white;
+      letter-spacing:-0.5px;line-height:1.1;
     }
-    .chart-subtitle {
-      font-size: clamp(10px, 0.85vw, 14px);
-      color: #888;
-      line-height: 1.5;
+    .page-title span{color:#b2ebf2;}
+    .blurb-block{flex:1;}
+    .page-blurb{
+      font-size:14px;font-weight:300;color:rgba(255,255,255,0.82);
+      line-height:1.65;max-width:700px;
     }
   </style>
 </head>
 <body>
-  <div id="header">
-    <div class="chart-title" id="title-el"></div>
-    <div class="chart-subtitle" id="blurb-el"></div>
+<div id="banner">
+  <div class="title-block">
+    <div class="page-title" id="page-title">Explore</div>
   </div>
-  <script>
-    // Reads ?title= and ?blurb= from the URL, same pattern as hero_banner.html
-    var params = new URLSearchParams(window.location.search);
-    var title = params.get('title') || 'Explore';
-    var blurb = params.get('blurb') || 'Click and drag to pan, scroll to zoom, and use the layer controls to filter by watershed, project type, or funding status.';
-    document.getElementById('title-el').textContent = title;
-    document.getElementById('blurb-el').textContent = blurb;
-  </script>
+  <div class="divider"></div>
+  <div class="blurb-block">
+    <div class="page-blurb" id="page-blurb">Click and drag to pan across the bay, scroll to zoom in and out, and use the layer controls to filter by watershed, project type, or funding status.</div>
+  </div>
+</div>
+<script>
+  var params=new URLSearchParams(window.location.search);
+  if(params.get("title")) document.getElementById("page-title").innerHTML=params.get("title");
+  if(params.get("blurb")) document.getElementById("page-blurb").textContent=params.get("blurb");
+</script>
 </body>
 </html>
