@@ -177,13 +177,13 @@
       <div class="chart-area" id="heatmap-chart"></div>
     </div>
     <div class="chart-panel" id="panel-6">
-      <div class="chart-title">Approximate Project Acres by Habitat Type</div>
-      <div class="chart-subtitle" id="treemap-subtitle">Physical project acres per habitat type. Sites with multiple habitats contribute acres to each type.</div>
+      <div class="chart-title">Percent of Projects by Habitat Type</div>
+      <div class="chart-subtitle" id="treemap-subtitle">Share of projects that included a component affecting each habitat type. Projects touching multiple habitats are counted toward each.</div>
       <div style="display:flex;gap:clamp(6px,0.8vw,12px);margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
         <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
-          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Physical Project Acres</div>
+          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Projects with Habitat Data</div>
           <div id="physical-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
-          <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Habitat-specific, shown in chart below</div>
+          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Total Habitat Tags</div>
         </div>
         <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
           <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Large Scale Project Acres</div>
@@ -353,223 +353,139 @@
 
   // ── TREEMAP ──────────────────────────────────────────────
   function drawTreemap(){
-    var el=document.getElementById("treemap-chart");
-    var width=el.clientWidth||window.innerWidth;
-    var height=el.clientHeight||(window.innerHeight-100);
+  var el=document.getElementById("treemap-chart");
+  var width=el.clientWidth||window.innerWidth;
+  var height=el.clientHeight||(window.innerHeight-100);
 
-    var physicalFunded=filteredData.filter(function(d){
-      return d.project_landscape_type &&
-        d.numeric_approximate_project_siz>0 &&
-        d.project_scale==="Physical project";
+  // All projects that have a landscape type recorded
+  var projectsWithHabitat=filteredData.filter(function(d){
+    return d.project_landscape_type && String(d.project_landscape_type).trim()!=="";
+  });
+  var totalProjects=projectsWithHabitat.length;
+
+  // Update summary cards to reflect project counts instead of acres
+  var physEl=document.getElementById("physical-acres-val");
+  var resEl=document.getElementById("research-acres-val");
+  if(physEl)physEl.textContent=totalProjects+" projects";
+  if(resEl){
+    var totalMentions=0;
+    projectsWithHabitat.forEach(function(r){
+      totalMentions+=r.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(Boolean).length;
     });
-    var largeFunded=filteredData.filter(function(d){
-      return d.numeric_approximate_project_siz>0 &&
-        d.project_scale==="Large scale representative proj";
-    });
-
-    var physAcres=d3.sum(physicalFunded,function(d){return d.numeric_approximate_project_siz||0;});
-    var largeAcres=d3.sum(largeFunded,function(d){return d.numeric_approximate_project_siz||0;});
-    var physEl=document.getElementById("physical-acres-val");
-    var resEl=document.getElementById("research-acres-val");
-    if(physEl)physEl.textContent=fmtAcres(physAcres);
-    if(resEl)resEl.textContent=fmtAcres(largeAcres);
-
-    var funded=physicalFunded;
-
-    var years=filteredData.filter(function(d){return d.fiscal_year_awarded;}).map(function(d){
-      var fy=d.fiscal_year_awarded;
-      if(String(fy).length===4)return parseInt(fy);
-      var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
-      return parseInt(String(fy).slice(0,4));
-    }).filter(Boolean);
-    if(years.length){
-      var subtitleEl=document.getElementById("treemap-subtitle");
-      if(subtitleEl)subtitleEl.textContent="Total approximate acres across GBEP-funded projects per habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Sites with multiple habitats contribute acres to each type.";
-    }
-
-    var acreMap={};
-    funded.forEach(function(row){
-      var acres=row.numeric_approximate_project_siz||0;
-      var types=row.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
-      types.forEach(function(type){acreMap[type]=(acreMap[type]||0)+acres;});
-    });
-
-    var leaves=Object.keys(acreMap).map(function(k){return{name:k,value:acreMap[k]};}).filter(function(d){return d.value>0;});
-    if(leaves.length===0)return;
-
-    var minVal=d3.min(leaves,function(d){return d.value;})||1;
-    var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-
-    // Gradient: medium green → teal → blue → dark navy.
-    // All stops are dark enough for white text (luminance < 0.18).
-    // Largest acres = darkest navy; smallest = medium green.
-    var treemapPalette=[
-      "#43a047", // medium green — smallest (white text still readable)
-      "#2e7d32", // dark green
-      "#1b5e20", // deeper green
-      "#00695c", // green-teal
-      "#006994", // teal-blue
-      "#1565c0", // medium blue
-      "#0d47a1", // dark blue
-      "#0a2472", // deep navy
-      "#051535"  // darkest navy — largest
-    ];
-    var interp=d3.interpolateRgbBasis(treemapPalette);
-
-    // Use a sqrt scale so mid-range values get better colour differentiation,
-    // not just the extreme ends. Map sqrt(value) linearly across the palette.
-    var sqrtMin=Math.sqrt(minVal);
-    var sqrtMax=Math.sqrt(maxVal);
-    function colorScale(val){
-      var t=(sqrtMax===sqrtMin)?1:(Math.sqrt(val)-sqrtMin)/(sqrtMax-sqrtMin);
-      return interp(Math.max(0,Math.min(1,t)));
-    }
-
-    var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
-    var treemap=d3.treemap().size([width,height]).padding(2).round(true);
-    treemap(root);
-
-    d3.select("#treemap-chart").select("svg").remove();
-    var svg=d3.select("#treemap-chart").append("svg").attr("width",width).attr("height",height);
-    var gZoom=svg.append("g").attr("class","zoom-root");
-
-    var cell=gZoom.selectAll("g").data(root.leaves()).enter().append("g")
-      .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
-
-    var cellW=function(d){return Math.max(18,d.x1-d.x0);};
-    var cellH=function(d){return Math.max(18,d.y1-d.y0);};
-
-    cell.append("rect").attr("width",cellW).attr("height",cellH)
-      .attr("fill",function(d){return colorScale(d.data.value);})
-      .attr("rx",4).attr("opacity",0.88)
-      .on("mousemove",function(event,d){
-        var title=d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
-        showTooltip(event,"<strong>"+title+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total");
-      }).on("mouseleave",hideTooltip);
-
-    cell.each(function(d){
-      var w=cellW(d),h=cellH(d);
-      // Only skip cells that are truly too tiny to show any text
-      if(w<36||h<28)return;
-      var g=d3.select(this);
-      var label=d.data.name.replace(/_/g," ")
-        .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
-        .replace(/\b\w/g,function(c){return c.toUpperCase();});
-
-      // Font scales with cell size — goes smaller for small cells so words
-      // can still stack rather than being skipped entirely
-      var fontSize=Math.min(vfs(18),Math.max(8,Math.min(w/8,h/4)));
-      var words=label.split(" ");
-      var lines=[],cur="";
-      words.forEach(function(word){
-        var test=cur?cur+" "+word:word;
-        // Each word goes on its own line if it won't fit horizontally
-        if(test.length*fontSize*0.52>w-8&&cur){lines.push(cur);cur=word;}
-        else{cur=test;}
-      });
-      if(cur)lines.push(cur);
-
-      var lineH=fontSize+3;
-      // How many lines fit vertically (leave room for acreage label if space allows)
-      var maxLines=Math.max(1,Math.floor((h-8)/lineH));
-      lines=lines.slice(0,maxLines);
-      var totalTextH=lines.length*lineH;
-      var startY=(h-totalTextH)/2;
-
-      // All colours in our palette are dark enough for white text
-      lines.forEach(function(line,li){
-        g.append("text").attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
-          .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",fontSize).attr("font-family",FONT)
-          .attr("fill","white").attr("font-weight","600").text(line);
-      });
-
-      // Acreage label below name if there's enough room
-      if(h>totalTextH+lineH*2&&fontSize>=10){
-        g.append("text").attr("x",w/2).attr("y",startY+totalTextH+lineH)
-          .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",Math.max(8,fontSize-3)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.85)").text(fmtAcres(d.data.value));
-      }
-    });
-
-    var zoom=d3.zoom().scaleExtent([0.6,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
-    svg.call(zoom);
-    window._zoomBehaviors=window._zoomBehaviors||{};
-    window._zoomBehaviors['treemap-chart']={svg:svg,zoom:zoom};
+    resEl.textContent=totalMentions+" habitat tags";
   }
 
-  // ── FISCAL YEAR ──────────────────────────────────────────
-  function drawFiscalYear(){
-    var el=document.getElementById("fy-chart");
-    var width=el.clientWidth||window.innerWidth;
-    var height=el.clientHeight||(window.innerHeight-100);
-    var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});
-
-    var byYear=d3.rollups(funded,
-      function(v){return v.length;},
-      function(d){
-        var fy=d.fiscal_year_awarded;
-        if(!fy)return null;
-        if(String(fy).length===4)return parseInt(fy);
-        var parsed=new Date(fy);
-        if(!isNaN(parsed))return parsed.getFullYear();
-        return parseInt(String(fy).slice(0,4));
-      }
-    ).filter(function(r){return r[0]!==null;})
-     .map(function(r){return{year:r[0],count:r[1]};})
-     .sort(function(a,b){return a.year-b.year;});
-    if(byYear.length===0)return;
-
-    var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;
-    var subtitleEl=document.querySelector("#panel-4 .chart-subtitle");
-    if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"–"+maxY+".";
-
-    el.style.overflowX="auto";el.style.overflowY="visible";
-    var minBarW=28;
-    // FIX: margins scale with viewport
-    var mL=Math.round(vfs(55)),mR=30,mT=20,mB=Math.round(vfs(85));
-    var chartW=Math.max(width,byYear.length*minBarW+mL+mR);
-    var w=chartW-mL-mR,h=height-mT-mB;
-
-    var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
-    var yMax=d3.max(byYear,function(d){return d.count;})||1;
-    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
-    var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
-
-    d3.select("#fy-chart").select("svg").remove();
-    var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
-    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-
-    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();})
-      .call(function(ax){
-        ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");
-        ax.selectAll("text").attr("font-size",vfs(13)).attr("fill","#666"); // FIX: was 18
-      });
-
-    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(32,mL-12))
-      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("fill","#888").attr("font-weight","500").text("Projects"); // FIX: was 18
-
-    g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
-      .attr("x",function(d){return xScale(d.year);})
-      .attr("y",function(d){return yScale(d.count);})
-      .attr("width",xScale.bandwidth())
-      .attr("height",function(d){return h-yScale(d.count);})
-      .attr("fill",function(d){return colorScale(d.count);}).attr("rx",3).attr("opacity",0.9)
-      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
-      .on("mouseleave",hideTooltip);
-
-    g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label")
-      .attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
-      .attr("y",function(d){return yScale(d.count)-4;})
-      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700") // FIX: was 18
-      .attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});
-
-    g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");})
-      .call(function(ax){ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");}); // FIX: was 18
+  var years=filteredData.filter(function(d){return d.fiscal_year_awarded;}).map(function(d){
+    var fy=d.fiscal_year_awarded;
+    if(String(fy).length===4)return parseInt(fy);
+    var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
+    return parseInt(String(fy).slice(0,4));
+  }).filter(Boolean);
+  if(years.length){
+    var subtitleEl=document.getElementById("treemap-subtitle");
+    if(subtitleEl)subtitleEl.textContent="Share of GBEP projects that affected each habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Projects touching multiple habitats are counted toward each.";
   }
+
+  // Count how many projects mention each habitat type
+  var countMap={};
+  projectsWithHabitat.forEach(function(row){
+    var types=row.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
+    // de-dupe within a single row so a project isn't double-counted for one habitat
+    var seen={};
+    types.forEach(function(type){
+      var key=type.toLowerCase();
+      if(seen[key])return;
+      seen[key]=true;
+      countMap[type]=(countMap[type]||0)+1;
+    });
+  });
+
+  var leaves=Object.keys(countMap).map(function(k){
+    return{name:k,value:countMap[k],pct:(countMap[k]/totalProjects)*100};
+  }).filter(function(d){return d.value>0;});
+  if(leaves.length===0||totalProjects===0)return;
+
+  var minVal=d3.min(leaves,function(d){return d.value;})||1;
+  var maxVal=d3.max(leaves,function(d){return d.value;})||1;
+
+  var treemapPalette=[
+    "#43a047","#2e7d32","#1b5e20","#00695c","#006994",
+    "#1565c0","#0d47a1","#0a2472","#051535"
+  ];
+  var interp=d3.interpolateRgbBasis(treemapPalette);
+  var sqrtMin=Math.sqrt(minVal), sqrtMax=Math.sqrt(maxVal);
+  function colorScale(val){
+    var t=(sqrtMax===sqrtMin)?1:(Math.sqrt(val)-sqrtMin)/(sqrtMax-sqrtMin);
+    return interp(Math.max(0,Math.min(1,t)));
+  }
+
+  var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
+  var treemap=d3.treemap().size([width,height]).padding(2).round(true);
+  treemap(root);
+
+  d3.select("#treemap-chart").select("svg").remove();
+  var svg=d3.select("#treemap-chart").append("svg").attr("width",width).attr("height",height);
+  var gZoom=svg.append("g").attr("class","zoom-root");
+
+  var cell=gZoom.selectAll("g").data(root.leaves()).enter().append("g")
+    .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
+
+  var cellW=function(d){return Math.max(18,d.x1-d.x0);};
+  var cellH=function(d){return Math.max(18,d.y1-d.y0);};
+
+  cell.append("rect").attr("width",cellW).attr("height",cellH)
+    .attr("fill",function(d){return colorScale(d.data.value);})
+    .attr("rx",4).attr("opacity",0.88)
+    .on("mousemove",function(event,d){
+      var title=d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
+      showTooltip(event,"<strong>"+title+"</strong><br>"+Math.round(d.data.pct)+"% of projects<br>"+d.data.value+" project"+(d.data.value!==1?"s":""));
+    }).on("mouseleave",hideTooltip);
+
+  cell.each(function(d){
+    var w=cellW(d),h=cellH(d);
+    if(w<36||h<28)return;
+    var g=d3.select(this);
+    var label=d.data.name.replace(/_/g," ")
+      .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
+      .replace(/\b\w/g,function(c){return c.toUpperCase();});
+
+    var fontSize=Math.min(vfs(18),Math.max(8,Math.min(w/8,h/4)));
+    var words=label.split(" ");
+    var lines=[],cur="";
+    words.forEach(function(word){
+      var test=cur?cur+" "+word:word;
+      if(test.length*fontSize*0.52>w-8&&cur){lines.push(cur);cur=word;}
+      else{cur=test;}
+    });
+    if(cur)lines.push(cur);
+
+    var lineH=fontSize+3;
+    var maxLines=Math.max(1,Math.floor((h-8)/lineH));
+    lines=lines.slice(0,maxLines);
+    var totalTextH=lines.length*lineH;
+    var startY=(h-totalTextH)/2;
+
+    lines.forEach(function(line,li){
+      g.append("text").attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",fontSize).attr("font-family",FONT)
+        .attr("fill","white").attr("font-weight","600").text(line);
+    });
+
+    // Percentage label below name if there's room
+    if(h>totalTextH+lineH*2&&fontSize>=10){
+      g.append("text").attr("x",w/2).attr("y",startY+totalTextH+lineH)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",Math.max(9,fontSize-2)).attr("font-family",FONT)
+        .attr("fill","rgba(255,255,255,0.92)").attr("font-weight","700").text(Math.round(d.data.pct)+"%");
+    }
+  });
+
+  var zoom=d3.zoom().scaleExtent([0.6,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
+  svg.call(zoom);
+  window._zoomBehaviors=window._zoomBehaviors||{};
+  window._zoomBehaviors['treemap-chart']={svg:svg,zoom:zoom};
+}
 
   // ── HEATMAP ──────────────────────────────────────────────
   function drawHeatmap(){
@@ -613,9 +529,28 @@
     });
     orgs.forEach(function(org,oi){
       var cleanOrg=org.replace(/_/g," ");
-      var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
-      g.append("text").attr("x",-6).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(vfs(13),cellH*0.55)).attr("fill","#333").text(label); // FIX: was 18
+      // Stack long org names across multiple lines instead of truncating
+      var fs=Math.min(vfs(12),Math.max(9,cellH*0.30));
+      var maxCharsPerLine=Math.max(8,Math.floor((mL-14)/(fs*0.55)));
+      var words=cleanOrg.split(/\s+/).filter(Boolean);
+      var lines=[],cur="";
+      words.forEach(function(w){
+        var test=cur?cur+" "+w:w;
+        if(test.length>maxCharsPerLine&&cur){lines.push(cur);cur=w;}
+        else cur=test;
+      });
+      if(cur)lines.push(cur);
+      var lineH=fs*1.18;
+      var maxLines=Math.max(1,Math.floor((cellH-2)/lineH));
+      lines=lines.slice(0,maxLines);
+      var totalH=lines.length*lineH;
+      var startY=oi*cellH+cellH/2-totalH/2+lineH*0.75;
+      var labelEl=g.append("text").attr("x",-6).attr("text-anchor","end")
+        .attr("font-size",fs).attr("fill","#333");
+      lines.forEach(function(line,li){
+         labelEl.append("tspan").attr("x",-6).attr("y",startY+li*lineH).text(line);
+      });
+
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
@@ -697,9 +632,11 @@
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    var minR=30;
-    var maxR=Math.min(width,height)*0.11;
-    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([minR,Math.max(minR,maxR)]);
+var minR=22;
+var maxR=Math.min(width,height)*0.18;
+// Linear radius scale (instead of sqrt) exaggerates larger bubbles —
+// area grows quadratically with project count.
+var rScale=d3.scaleLinear().domain([1,maxCount]).range([minR,Math.max(minR,maxR)]);
     var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
     var nodes=counts.map(function(d,i){
       return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],
@@ -751,11 +688,6 @@
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","600").text(line);
       });
-      if(d.r>minFont&&(d.r-th/2)>(lh+8)){
-        g.append("text").attr("x",0).attr("y",d.r-Math.max(10,Math.round(lh/2)))
-          .attr("text-anchor","middle").attr("font-size",Math.max(9,fs-2)).attr("font-family",FONT)
-          .attr("fill","rgba(255,255,255,0.9)").attr("font-weight","700").text(d.count);
-      }
     });
 
     var zoom=d3.zoom().scaleExtent([0.5,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
@@ -901,16 +833,16 @@
     var gZoom=svg.append("g").attr("class","zoom-root").attr("clip-path","url(#upset-clip)");
 
     // Static header labels — stay fixed outside the zoom group
-    svg.append("text").attr("x",width-mR+rBW/2).attr("y",mT-4)
+    gZoom.append("text").attr("x",width-mR+rBW/2).attr("y",mT-4)
       .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("fill","#aaa")
       .text(sc.length+" combinations");
-    svg.append("text").attr("x",mL+(sc.length*cW)/2).attr("y",mT-4)
+    gZoom.append("text").attr("x",mL+(sc.length*cW)/2).attr("y",mT-4)
       .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED)
       .text("▲  Projects per Habitat Combination");
-    svg.append("text").attr("x",mL-8).attr("y",dotTop-5)
+    gZoom.append("text").attr("x",mL-8).attr("y",dotTop-5)
       .attr("text-anchor","end").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED)
       .text("Habitat Types  →");
-    svg.append("text").attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-5)
+    gZoom.append("text").attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-5)
       .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","900").attr("fill","#333")
       .text("Total Projects");
 
