@@ -200,6 +200,175 @@
     animateStat("stat-orgs",orgs.size.toLocaleString(),orgs.size);
   }
 
+  function drawSpeciesChart(data){
+  var el=document.getElementById("species-chart");
+  el.innerHTML="";
+  el.style.position="relative";
+  var width=el.clientWidth||400,height=el.clientHeight||200;
+
+  var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";});
+  var sMap={};
+  funded.forEach(function(row){
+    row.targeted_focal_species.split(",")
+      .map(function(s){return normalizeSpecies(s.trim());})
+      .filter(function(s){return s;})
+      .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+  });
+
+  var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;});
+  if(!counts.length)return;
+  var total=d3.sum(counts,function(d){return d.count;});
+
+  var leftW=Math.max(140,width*0.42);
+  var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+
+  // ── Fish geometry ──
+  var fishAreaX=leftW,fishAreaY=8;
+  var fishAreaW=width-leftW-10;
+  var fishAreaH=height-16;
+  var fw=Math.min(fishAreaW*0.95,fishAreaH*2.3);
+  var fh=Math.min(fishAreaH*0.92,fw/2.2);
+  var fcx=fishAreaX+fishAreaW/2;
+  var fcy=fishAreaY+fishAreaH/2;
+
+  var noseX=fcx+fw/2;
+  var tailBaseX=fcx-fw*0.32;
+  var tailTipX=fcx-fw/2;
+  var bodyTopY=fcy-fh*0.50;
+  var bodyBottomY=fcy+fh*0.50;
+  var tailTopY=fcy-fh*0.55;
+  var tailBottomY=fcy+fh*0.55;
+
+  var fishPath=
+    "M "+noseX+","+fcy+
+    " C "+(fcx+fw*0.28)+","+bodyTopY+" "+(fcx-fw*0.05)+","+bodyTopY+" "+tailBaseX+","+(fcy-fh*0.30)+
+    " L "+tailTipX+","+tailTopY+
+    " L "+tailTipX+","+tailBottomY+
+    " L "+tailBaseX+","+(fcy+fh*0.30)+
+    " C "+(fcx-fw*0.05)+","+bodyBottomY+" "+(fcx+fw*0.28)+","+bodyBottomY+" "+noseX+","+fcy+
+    " Z";
+
+  var clipId="fish-layer-clip-"+Math.round(Math.random()*9999);
+  svg.append("defs").append("clipPath").attr("id",clipId)
+    .append("path").attr("d",fishPath);
+
+  var fishTop=tailTopY;
+  var fishBottom=tailBottomY;
+  var fishTotalH=fishBottom-fishTop;
+  var layerX=tailTipX-4;
+  var layerW=(noseX-tailTipX)+8;
+
+  // Stack layers bottom → top (largest % at bottom)
+  var currentBottom=fishBottom;
+  counts.forEach(function(c,i){
+    var pct=c.count/total;
+    var layerH=pct*fishTotalH;
+    var layerTop=currentBottom-layerH;
+
+    svg.append("rect")
+      .attr("x",layerX).attr("y",layerTop)
+      .attr("width",layerW).attr("height",layerH+1)
+      .attr("fill",SPE_PALETTE[i%SPE_PALETTE.length])
+      .attr("clip-path","url(#"+clipId+")");
+
+    if(i<counts.length-1){
+      svg.append("line")
+        .attr("x1",layerX).attr("x2",layerX+layerW)
+        .attr("y1",layerTop).attr("y2",layerTop)
+        .attr("stroke","white").attr("stroke-width",2)
+        .attr("clip-path","url(#"+clipId+")");
+    }
+    currentBottom=layerTop;
+  });
+
+  // Fish outline
+  svg.append("path").attr("d",fishPath)
+    .attr("fill","none").attr("stroke","rgba(255,255,255,0.55)").attr("stroke-width",2);
+
+  // Eye
+  var eyeR=Math.max(3,fh*0.07);
+  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR)
+    .attr("fill","white").attr("stroke","rgba(0,0,0,0.25)").attr("stroke-width",1);
+  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR*0.5)
+    .attr("fill","#0d1b2a");
+
+  // % labels inside layers
+  currentBottom=fishBottom;
+  counts.forEach(function(c,i){
+    var pct=c.count/total;
+    var layerH=pct*fishTotalH;
+    var layerTop=currentBottom-layerH;
+    var midY=layerTop+layerH/2;
+    if(layerH>=14){
+      var labelFs=Math.max(8,Math.min(vfs(14),Math.floor(layerH*0.38)));
+      svg.append("text")
+        .attr("x",fcx).attr("y",midY)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",labelFs).attr("font-weight","700")
+        .attr("fill","rgba(255,255,255,0.93)").attr("font-family",FONT)
+        .text(Math.round(pct*100)+"%");
+    }
+    currentBottom=layerTop;
+  });
+
+  // Hover targets
+  currentBottom=fishBottom;
+  counts.forEach(function(c,i){
+    var pct=c.count/total;
+    var layerH=pct*fishTotalH;
+    var layerTop=currentBottom-layerH;
+    svg.append("rect")
+      .attr("x",layerX).attr("y",layerTop)
+      .attr("width",layerW).attr("height",layerH)
+      .attr("fill","transparent")
+      .attr("clip-path","url(#"+clipId+")")
+      .style("cursor","pointer")
+      .on("mousemove",function(event){
+        showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+Math.round(pct*100)+"%");
+      })
+      .on("mouseleave",hideTooltip);
+    currentBottom=layerTop;
+  });
+
+  // ── Legend — top-to-bottom matches fish top-to-bottom ──
+  var legendOrder=counts.slice().reverse();
+
+  var list=document.createElement("div");
+  list.style.cssText=
+    "position:absolute;left:10px;top:8px;"+
+    "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
+    "display:flex;flex-direction:column;justify-content:flex-start;"+
+    "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
+
+  var nItems=legendOrder.length;
+  var rowH=(height-16)/nItems;
+  var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48)));
+  var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));
+  var swatch=Math.max(7,Math.floor(pctFS*0.55));
+
+  legendOrder.forEach(function(c){
+    var origIdx=counts.indexOf(c);
+    var pct=Math.round(c.count/total*100);
+    var color=SPE_PALETTE[origIdx%SPE_PALETTE.length];
+    var row=document.createElement("div");
+    var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
+    row.style.cssText=
+      "display:flex;align-items:flex-start;gap:6px;"+
+      "height:"+Math.floor(rowH)+"px;overflow:hidden;flex-shrink:0;"+
+      "box-sizing:border-box;padding-top:"+topPad+"px;";
+    row.innerHTML=
+      '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+
+        ';border-radius:50%;flex-shrink:0;margin-top:'+Math.round(nameFS*0.05)+'px;"></div>'+
+      '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+
+        ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">'+pct+'%</div>'+
+      '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
+        'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
+        c.label+'</div>';
+    list.appendChild(row);
+  });
+  el.appendChild(list);
+}
+
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
@@ -266,321 +435,139 @@
   }
 
   function drawGoalChart(data){
-    var el=document.getElementById("goal-chart");
-    el.innerHTML="";
-    el.style.position="relative";
-    var width=el.clientWidth||400,height=el.clientHeight||200;
-
-    var funded=data.filter(function(d){
-  return d.broad_project_goals&&d.numeric_approximate_project_siz>0&&d.project_scale==="Physical project";
-});
-
-// True unique total — each project counted once (shown in donut center)
-var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
-
-// Split multi-goal entries; attribute full project acres to each listed goal
-var goalAcres={};
-funded.forEach(function(d){
-  String(d.broad_project_goals).split(/[,;]/)
-    .map(function(s){return s.trim();})
-    .filter(function(s){return s;})
-    .forEach(function(g){
-      goalAcres[g]=(goalAcres[g]||0)+(d.numeric_approximate_project_siz||0);
-    });
-});
-
-var grouped=Object.keys(goalAcres).map(function(k,i){
-  return{name:k.replace(/_/g," "),value:goalAcres[k],color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};
-}).filter(function(d){return d.value>0;})
-  .sort(function(a,b){return b.value-a.value;});
-if(!grouped.length)return;
-
-// Sum of per-goal attributions — used as denominator for slice percentages
-var attrSum=d3.sum(grouped,function(d){return d.value;});
-
-
-    var labelW=Math.max(70,Math.floor(width*0.20)); // FIX: was 0.22 — tighter on small screens
-    var sidePad=labelW+30;
-    var radius=Math.max(36,Math.min((width-sidePad*2)/2,height/2-12));
-    var innerRadius=radius*0.55;
-    var cx=width/2,cy=height/2;
-
-    var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
-    var pie=d3.pie().value(function(d){return d.value;}).sort(null);
-    var arc=d3.arc().innerRadius(innerRadius).outerRadius(radius);
-    var arcHover=d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
-    var g=svg.append("g").attr("transform","translate("+cx+","+cy+")");
-    var slices=pie(grouped);
-
-    g.selectAll("path").data(slices).enter().append("path")
-      .attr("d",arc).attr("fill",function(d){return d.data.color;})
-      .attr("stroke","white").attr("stroke-width",2)
-      .on("mousemove",function(event,d){
-        d3.select(this).attr("d",arcHover);
-        var pct=Math.round(d.data.value/totalAcres*100);
-        showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+pct+"% of total");
-      })
-      .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
-
-    // FIX: center label font sizes scale with innerRadius and viewport
-    var topFs=Math.min(vfs(36),Math.floor(innerRadius*0.55));
-    var bottomFs=Math.max(vfs(10),Math.floor(topFs*0.36));
-    g.append("text").attr("text-anchor","middle").attr("y",0)
-      .attr("font-size",topFs).attr("font-weight","900").attr("fill","#333").text(fmtAcres(totalAcres));
-    g.append("text").attr("text-anchor","middle").attr("y",topFs*0.7)
-      .attr("font-size",bottomFs).attr("fill","#666").text("physical acres");
-
-    var pctFs=Math.max(vfs(10),Math.floor(radius*0.14));
-    slices.forEach(function(d){
-      // inside the slice mousemove handler:
-    var pct=Math.round(d.data.value/attrSum*100);
-
-    // inner % labels loop:
-    var pct=d.data.value/attrSum*100;
-
-    // callout filter (a few lines below "if(width < 380) return;"):
-    var pct=d.data.value/attrSum*100;
-
-      g.append("text").attr("text-anchor","middle").attr("x",c[0]).attr("y",c[1]+pctFs*0.35)
-        .attr("font-size",pctFs).attr("font-weight",900).attr("fill","white").style("pointer-events","none")
-        .text(Math.round(pct)+"%");
-    });
-
-    // Below 380px the callout labels collide — skip them entirely.
-    // The donut still shows inner % labels and tooltips on hover work fine.
-    if(width < 380) return;
-
-    var labeled=[];
-    slices.forEach(function(d){
-      var pct=d.data.value/totalAcres*100;
-      if(pct<5)return;
-      var midAngle=(d.startAngle+d.endAngle)/2;
-      var sinA=Math.sin(midAngle),cosA=-Math.cos(midAngle);
-      labeled.push({pct:pct,name:d.data.name,color:d.data.color,side:sinA>=0?1:-1,startX:sinA*radius,startY:cosA*radius});
-    });
-
-    var leftList=labeled.filter(function(c){return c.side<0;}).sort(function(a,b){return a.startY-b.startY;});
-    var rightList=labeled.filter(function(c){return c.side>0;}).sort(function(a,b){return a.startY-b.startY;});
-    var minSpacing=Math.max(28,Math.round(vfs(34))); // FIX: spacing scales with viewport
-    var usable=height-24;
-    var maxPerSide=Math.max(1,Math.floor(usable/minSpacing));
-
-    function trimList(list){
-      if(list.length<=maxPerSide)return list;
-      var keepSet=list.slice().sort(function(a,b){return b.pct-a.pct;}).slice(0,maxPerSide);
-      return list.filter(function(c){return keepSet.indexOf(c)!==-1;});
-    }
-    leftList=trimList(leftList);rightList=trimList(rightList);
-
-    function distribute(list,xSign){
-      if(!list.length)return;
-      var n=list.length;
-      var step=Math.min(minSpacing+14,usable/Math.max(n,1));
-      var totalH=step*(n-1);
-      var startY=-totalH/2;
-      list.forEach(function(c,i){c.labelY=startY+i*step;c.labelX=xSign*(radius+20);});
-    }
-    distribute(leftList,-1);distribute(rightList,1);
-
-    // FIX: callout label font size scales with viewport
-    var calloutFs=Math.max(9,vfs(12));
-    [leftList,rightList].forEach(function(list){
-      list.forEach(function(c){
-        var xSign=c.side;
-        g.append("polyline")
-          .attr("points",c.startX+","+c.startY+" "+(c.startX+xSign*8)+","+c.startY+" "+(c.labelX-xSign*4)+","+c.labelY)
-          .attr("fill","none").attr("stroke","#aaa").attr("stroke-width",1);
-        var label=document.createElement("div");
-        var isRight=xSign>0;
-        label.style.cssText=
-          "position:absolute;"+
-          "top:"+(cy+c.labelY)+"px;"+
-          (isRight?"left:"+(cx+c.labelX)+"px;":"right:"+(width-(cx+c.labelX))+"px;")+
-          "width:"+labelW+"px;"+
-          "transform:translateY(-50%);"+
-          "font-family:"+FONT+";"+
-          "font-size:"+calloutFs+"px;font-weight:700;"+
-          "color:"+c.color+";"+
-          "text-align:"+(isRight?"left":"right")+";"+
-          "line-height:1.2;pointer-events:none;word-wrap:break-word;overflow-wrap:break-word;";
-        label.textContent=c.name;
-        el.appendChild(label);
-      });
-    });
-  }
-
-function drawSpeciesChart(data){
-  var el=document.getElementById("species-chart");
+  var el=document.getElementById("goal-chart");
   el.innerHTML="";
   el.style.position="relative";
   var width=el.clientWidth||400,height=el.clientHeight||200;
 
-  var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";});
-  var sMap={};
-  funded.forEach(function(row){
-    row.targeted_focal_species.split(",")
-      .map(function(s){return normalizeSpecies(s.trim());})
+  var funded=data.filter(function(d){
+    return d.broad_project_goals&&d.numeric_approximate_project_siz>0&&d.project_scale==="Physical project";
+  });
+
+  // True unique total — each project counted once (center label)
+  var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
+
+  // Split multi-goal entries; attribute full acres to each listed goal
+  var goalAcres={};
+  funded.forEach(function(d){
+    String(d.broad_project_goals).split(/[,;]/)
+      .map(function(s){return s.trim();})
       .filter(function(s){return s;})
-      .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+      .forEach(function(g){
+        goalAcres[g]=(goalAcres[g]||0)+(d.numeric_approximate_project_siz||0);
+      });
   });
 
-  var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;});
-  if(!counts.length)return;
-  var total=d3.sum(counts,function(d){return d.count;});
+  var grouped=Object.keys(goalAcres).map(function(k,i){
+    return{name:k.replace(/_/g," "),value:goalAcres[k],color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};
+  }).filter(function(d){return d.value>0;})
+    .sort(function(a,b){return b.value-a.value;});
+  if(!grouped.length)return;
 
-  var leftW=Math.max(140,width*0.42);
-  var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+  // Sum of per-goal attributions — denominator for slice percentages
+  var attrSum=d3.sum(grouped,function(d){return d.value;});
 
-  // ── Fish geometry ──
-  var fishAreaX=leftW,fishAreaY=8;
-  var fishAreaW=width-leftW-10;
-  var fishAreaH=height-16;
-  var fw=Math.min(fishAreaW*0.95,fishAreaH*2.3);
-  var fh=Math.min(fishAreaH*0.92,fw/2.2);
-  var fcx=fishAreaX+fishAreaW/2;
-  var fcy=fishAreaY+fishAreaH/2;
+  var labelW=Math.max(70,Math.floor(width*0.20));
+  var sidePad=labelW+30;
+  var radius=Math.max(36,Math.min((width-sidePad*2)/2,height/2-12));
+  var innerRadius=radius*0.55;
+  var cx=width/2,cy=height/2;
 
-  var noseX=fcx+fw/2;
-  var tailBaseX=fcx-fw*0.32;
-  var tailTipX=fcx-fw/2;
-  var bodyTopY=fcy-fh*0.50;
-  var bodyBottomY=fcy+fh*0.50;
-  var tailTopY=fcy-fh*0.55;
-  var tailBottomY=fcy+fh*0.55;
+  var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+  var pie=d3.pie().value(function(d){return d.value;}).sort(null);
+  var arc=d3.arc().innerRadius(innerRadius).outerRadius(radius);
+  var arcHover=d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
+  var g=svg.append("g").attr("transform","translate("+cx+","+cy+")");
+  var slices=pie(grouped);
 
-  // Fish silhouette — body curves + triangular tail, pointing right
-  var fishPath=
-    "M "+noseX+","+fcy+
-    " C "+(fcx+fw*0.28)+","+bodyTopY+" "+(fcx-fw*0.05)+","+bodyTopY+" "+tailBaseX+","+(fcy-fh*0.30)+
-    " L "+tailTipX+","+tailTopY+
-    " L "+tailTipX+","+tailBottomY+
-    " L "+tailBaseX+","+(fcy+fh*0.30)+
-    " C "+(fcx-fw*0.05)+","+bodyBottomY+" "+(fcx+fw*0.28)+","+bodyBottomY+" "+noseX+","+fcy+
-    " Z";
+  g.selectAll("path").data(slices).enter().append("path")
+    .attr("d",arc).attr("fill",function(d){return d.data.color;})
+    .attr("stroke","white").attr("stroke-width",2)
+    .on("mousemove",function(event,d){
+      d3.select(this).attr("d",arcHover);
+      var pct=Math.round(d.data.value/attrSum*100);
+      showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+pct+"% share");
+    })
+    .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
 
-  // Clip layers to fish silhouette
-  var clipId="fish-layer-clip-"+Math.round(Math.random()*9999);
-  svg.append("defs").append("clipPath").attr("id",clipId)
-    .append("path").attr("d",fishPath);
+  // Center label — true unique acres
+  var topFs=Math.min(vfs(36),Math.floor(innerRadius*0.55));
+  var bottomFs=Math.max(vfs(10),Math.floor(topFs*0.36));
+  g.append("text").attr("text-anchor","middle").attr("y",0)
+    .attr("font-size",topFs).attr("font-weight","900").attr("fill","#333").text(fmtAcres(totalAcres));
+  g.append("text").attr("text-anchor","middle").attr("y",topFs*0.7)
+    .attr("font-size",bottomFs).attr("fill","#666").text("physical acres");
 
-  // Vertical bounds for stacking (use tail extents — they're the fish's true top/bottom)
-  var fishTop=tailTopY;
-  var fishBottom=tailBottomY;
-  var fishTotalH=fishBottom-fishTop;
-  var layerX=tailTipX-4;
-  var layerW=(noseX-tailTipX)+8;
-
-  // ── Stack layers bottom → top (largest % at bottom) ──
-  var currentBottom=fishBottom;
-  counts.forEach(function(c,i){
-    var pct=c.count/total;
-    var layerH=pct*fishTotalH;
-    var layerTop=currentBottom-layerH;
-
-    svg.append("rect")
-      .attr("x",layerX).attr("y",layerTop)
-      .attr("width",layerW).attr("height",layerH+1)
-      .attr("fill",SPE_PALETTE[i%SPE_PALETTE.length])
-      .attr("clip-path","url(#"+clipId+")");
-
-    if(i<counts.length-1){
-      svg.append("line")
-        .attr("x1",layerX).attr("x2",layerX+layerW)
-        .attr("y1",layerTop).attr("y2",layerTop)
-        .attr("stroke","white").attr("stroke-width",2)
-        .attr("clip-path","url(#"+clipId+")");
-    }
-    currentBottom=layerTop;
+  // Inner % labels
+  var pctFs=Math.max(vfs(10),Math.floor(radius*0.14));
+  slices.forEach(function(d){
+    var pct=d.data.value/attrSum*100;
+    if(pct<4)return;
+    var c=arc.centroid(d);
+    g.append("text").attr("text-anchor","middle").attr("x",c[0]).attr("y",c[1]+pctFs*0.35)
+      .attr("font-size",pctFs).attr("font-weight",900).attr("fill","white").style("pointer-events","none")
+      .text(Math.round(pct)+"%");
   });
 
-  // Fish outline
-  svg.append("path").attr("d",fishPath)
-    .attr("fill","none").attr("stroke","rgba(255,255,255,0.55)").attr("stroke-width",2);
+  if(width<380)return;
 
-  // Eye (white ring + dark pupil) — signals "fish"
-  var eyeR=Math.max(3,fh*0.07);
-  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR)
-    .attr("fill","white").attr("stroke","rgba(0,0,0,0.25)").attr("stroke-width",1);
-  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR*0.5)
-    .attr("fill","#0d1b2a");
-
-  // % labels inside each layer
-  currentBottom=fishBottom;
-  counts.forEach(function(c,i){
-    var pct=c.count/total;
-    var layerH=pct*fishTotalH;
-    var layerTop=currentBottom-layerH;
-    var midY=layerTop+layerH/2;
-    if(layerH>=14){
-      var labelFs=Math.max(8,Math.min(vfs(14),Math.floor(layerH*0.38)));
-      svg.append("text")
-        .attr("x",fcx).attr("y",midY)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",labelFs).attr("font-weight","700")
-        .attr("fill","rgba(255,255,255,0.93)").attr("font-family",FONT)
-        .text(Math.round(pct*100)+"%");
-    }
-    currentBottom=layerTop;
+  // Callout labels
+  var labeled=[];
+  slices.forEach(function(d){
+    var pct=d.data.value/attrSum*100;
+    if(pct<5)return;
+    var midAngle=(d.startAngle+d.endAngle)/2;
+    var sinA=Math.sin(midAngle),cosA=-Math.cos(midAngle);
+    labeled.push({pct:pct,name:d.data.name,color:d.data.color,side:sinA>=0?1:-1,startX:sinA*radius,startY:cosA*radius});
   });
 
-  // Hover targets
-  currentBottom=fishBottom;
-  counts.forEach(function(c,i){
-    var pct=c.count/total;
-    var layerH=pct*fishTotalH;
-    var layerTop=currentBottom-layerH;
-    svg.append("rect")
-      .attr("x",layerX).attr("y",layerTop)
-      .attr("width",layerW).attr("height",layerH)
-      .attr("fill","transparent")
-      .attr("clip-path","url(#"+clipId+")")
-      .style("cursor","pointer")
-      .on("mousemove",function(event){
-        showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+Math.round(pct*100)+"%");
-      })
-      .on("mouseleave",hideTooltip);
-    currentBottom=layerTop;
+  var leftList=labeled.filter(function(c){return c.side<0;}).sort(function(a,b){return a.startY-b.startY;});
+  var rightList=labeled.filter(function(c){return c.side>0;}).sort(function(a,b){return a.startY-b.startY;});
+  var minSpacing=Math.max(28,Math.round(vfs(34)));
+  var usable=height-24;
+  var maxPerSide=Math.max(1,Math.floor(usable/minSpacing));
+
+  function trimList(list){
+    if(list.length<=maxPerSide)return list;
+    var keepSet=list.slice().sort(function(a,b){return b.pct-a.pct;}).slice(0,maxPerSide);
+    return list.filter(function(c){return keepSet.indexOf(c)!==-1;});
+  }
+  leftList=trimList(leftList);rightList=trimList(rightList);
+
+  function distribute(list,xSign){
+    if(!list.length)return;
+    var n=list.length;
+    var step=Math.min(minSpacing+14,usable/Math.max(n,1));
+    var totalH=step*(n-1);
+    var startY=-totalH/2;
+    list.forEach(function(c,i){c.labelY=startY+i*step;c.labelX=xSign*(radius+20);});
+  }
+  distribute(leftList,-1);distribute(rightList,1);
+
+  var calloutFs=Math.max(9,vfs(12));
+  [leftList,rightList].forEach(function(list){
+    list.forEach(function(c){
+      var xSign=c.side;
+      g.append("polyline")
+        .attr("points",c.startX+","+c.startY+" "+(c.startX+xSign*8)+","+c.startY+" "+(c.labelX-xSign*4)+","+c.labelY)
+        .attr("fill","none").attr("stroke","#aaa").attr("stroke-width",1);
+      var label=document.createElement("div");
+      var isRight=xSign>0;
+      label.style.cssText=
+        "position:absolute;"+
+        "top:"+(cy+c.labelY)+"px;"+
+        (isRight?"left:"+(cx+c.labelX)+"px;":"right:"+(width-(cx+c.labelX))+"px;")+
+        "width:"+labelW+"px;"+
+        "transform:translateY(-50%);"+
+        "font-family:"+FONT+";"+
+        "font-size:"+calloutFs+"px;font-weight:700;"+
+        "color:"+c.color+";"+
+        "text-align:"+(isRight?"left":"right")+";"+
+        "line-height:1.2;pointer-events:none;word-wrap:break-word;overflow-wrap:break-word;";
+      label.textContent=c.name;
+      el.appendChild(label);
+    });
   });
-
-  // ── Legend — SAME ORDER AS FISH (top of fish → bottom of fish) ──
-  // Fish is stacked largest-at-bottom, so legend top = smallest = last in counts.
-  var legendOrder=counts.slice().reverse();
-
-  var list=document.createElement("div");
-  list.style.cssText=
-    "position:absolute;left:10px;top:8px;"+
-    "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
-    "display:flex;flex-direction:column;justify-content:flex-start;"+
-    "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
-
-  var nItems=legendOrder.length;
-  var rowH=(height-16)/nItems;
-  var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48)));
-  var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));
-  var swatch=Math.max(7,Math.floor(pctFS*0.55));
-
-  legendOrder.forEach(function(c){
-    // Color index must match the fish — use original index in counts
-    var origIdx=counts.indexOf(c);
-    var pct=Math.round(c.count/total*100);
-    var color=SPE_PALETTE[origIdx%SPE_PALETTE.length];
-    var row=document.createElement("div");
-    var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
-    row.style.cssText=
-      "display:flex;align-items:flex-start;gap:6px;"+
-      "height:"+Math.floor(rowH)+"px;overflow:hidden;flex-shrink:0;"+
-      "box-sizing:border-box;padding-top:"+topPad+"px;";
-    row.innerHTML=
-      '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+
-        ';border-radius:50%;flex-shrink:0;margin-top:'+Math.round(nameFS*0.05)+'px;"></div>'+
-      '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+
-        ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">'+pct+'%</div>'+
-      '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
-        'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
-        c.label+'</div>';
-    list.appendChild(row);
-  });
-  el.appendChild(list);
 }
 
 
