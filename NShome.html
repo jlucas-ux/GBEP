@@ -99,7 +99,7 @@
       <div class="chart-card">
         <div class="chart-card-header">
           <h3>Acres by Project Goal</h3>
-          <p>Physical project acres by broad goal. Each square = 1% of total.</p>
+          <p>Physical project acres by broad goal. Projects with multiple goals are counted in each. Each square = 1% of total.</p>
         </div>
         <div class="chart-body" id="goal-chart"></div>
       </div>
@@ -272,16 +272,32 @@
     var width=el.clientWidth||400,height=el.clientHeight||200;
 
     var funded=data.filter(function(d){
-      return d.broad_project_goals&&d.numeric_approximate_project_siz>0&&d.project_scale==="Physical project";
+  return d.broad_project_goals&&d.numeric_approximate_project_siz>0&&d.project_scale==="Physical project";
+});
+
+// True unique total — each project counted once (shown in donut center)
+var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
+
+// Split multi-goal entries; attribute full project acres to each listed goal
+var goalAcres={};
+funded.forEach(function(d){
+  String(d.broad_project_goals).split(/[,;]/)
+    .map(function(s){return s.trim();})
+    .filter(function(s){return s;})
+    .forEach(function(g){
+      goalAcres[g]=(goalAcres[g]||0)+(d.numeric_approximate_project_siz||0);
     });
-    var grouped=d3.rollups(funded,
-      function(v){return d3.sum(v,function(d){return d.numeric_approximate_project_siz||0;});},
-      function(d){return d.broad_project_goals;}
-    ).map(function(r,i){return{name:r[0].replace(/_/g," "),value:r[1],color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};})
-     .filter(function(d){return d.value>0;})
-     .sort(function(a,b){return b.value-a.value;});
-    if(!grouped.length)return;
-    var totalAcres=d3.sum(grouped,function(d){return d.value;});
+});
+
+var grouped=Object.keys(goalAcres).map(function(k,i){
+  return{name:k.replace(/_/g," "),value:goalAcres[k],color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};
+}).filter(function(d){return d.value>0;})
+  .sort(function(a,b){return b.value-a.value;});
+if(!grouped.length)return;
+
+// Sum of per-goal attributions — used as denominator for slice percentages
+var attrSum=d3.sum(grouped,function(d){return d.value;});
+
 
     var labelW=Math.max(70,Math.floor(width*0.20)); // FIX: was 0.22 — tighter on small screens
     var sidePad=labelW+30;
@@ -316,9 +332,15 @@
 
     var pctFs=Math.max(vfs(10),Math.floor(radius*0.14));
     slices.forEach(function(d){
-      var pct=d.data.value/totalAcres*100;
-      if(pct<4)return;
-      var c=arc.centroid(d);
+      // inside the slice mousemove handler:
+    var pct=Math.round(d.data.value/attrSum*100);
+
+    // inner % labels loop:
+    var pct=d.data.value/attrSum*100;
+
+    // callout filter (a few lines below "if(width < 380) return;"):
+    var pct=d.data.value/attrSum*100;
+
       g.append("text").attr("text-anchor","middle").attr("x",c[0]).attr("y",c[1]+pctFs*0.35)
         .attr("font-size",pctFs).attr("font-weight",900).attr("fill","white").style("pointer-events","none")
         .text(Math.round(pct)+"%");
@@ -387,155 +409,180 @@
     });
   }
 
-  function drawSpeciesChart(data){
-    var el=document.getElementById("species-chart");
-    el.innerHTML="";
-    el.style.position="relative";
-    var width=el.clientWidth||400,height=el.clientHeight||200;
+function drawSpeciesChart(data){
+  var el=document.getElementById("species-chart");
+  el.innerHTML="";
+  el.style.position="relative";
+  var width=el.clientWidth||400,height=el.clientHeight||200;
 
-    var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";});
-    var sMap={};
-    funded.forEach(function(row){
-      row.targeted_focal_species.split(",")
-        .map(function(s){return normalizeSpecies(s.trim());})
-        .filter(function(s){return s;})
-        .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
-    });
+  var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";});
+  var sMap={};
+  funded.forEach(function(row){
+    row.targeted_focal_species.split(",")
+      .map(function(s){return normalizeSpecies(s.trim());})
+      .filter(function(s){return s;})
+      .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+  });
 
-    var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;});
-    if(!counts.length)return;
-    var total=d3.sum(counts,function(d){return d.count;});
+  var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;});
+  if(!counts.length)return;
+  var total=d3.sum(counts,function(d){return d.count;});
 
-    var leftW=Math.max(140,width*0.42);
-    var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+  var leftW=Math.max(140,width*0.42);
+  var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
 
-    // ── Raindrop geometry ──
-    var dropX=leftW,dropY=8;
-    var dropW=width-leftW-10;
-    var dropH=height-16;
-    var r=Math.min(dropW*0.50,dropH*0.35);
-    var cx=dropX+dropW/2;
-    var bottomCy=dropY+dropH-r-4;
-    var topY=dropY+4;
-    var dropBottom=bottomCy+r;
-    var dropTotalH=dropBottom-topY;
+  // ── Fish geometry ──
+  var fishAreaX=leftW,fishAreaY=8;
+  var fishAreaW=width-leftW-10;
+  var fishAreaH=height-16;
+  var fw=Math.min(fishAreaW*0.95,fishAreaH*2.3);
+  var fh=Math.min(fishAreaH*0.92,fw/2.2);
+  var fcx=fishAreaX+fishAreaW/2;
+  var fcy=fishAreaY+fishAreaH/2;
 
-    // Raindrop SVG path — pointed top, semicircle bottom
-    var dropPath="M "+cx+","+topY+
-      " L "+(cx+r)+","+bottomCy+
-      " A "+r+","+r+" 0 0 1 "+(cx-r)+","+bottomCy+" Z";
+  var noseX=fcx+fw/2;
+  var tailBaseX=fcx-fw*0.32;
+  var tailTipX=fcx-fw/2;
+  var bodyTopY=fcy-fh*0.50;
+  var bodyBottomY=fcy+fh*0.50;
+  var tailTopY=fcy-fh*0.55;
+  var tailBottomY=fcy+fh*0.55;
 
-    // Clip path so layers are cut to the raindrop silhouette
-    var clipId="drop-layer-clip-"+Math.round(Math.random()*9999);
-    svg.append("defs").append("clipPath").attr("id",clipId)
-      .append("path").attr("d",dropPath);
+  // Fish silhouette — body curves + triangular tail, pointing right
+  var fishPath=
+    "M "+noseX+","+fcy+
+    " C "+(fcx+fw*0.28)+","+bodyTopY+" "+(fcx-fw*0.05)+","+bodyTopY+" "+tailBaseX+","+(fcy-fh*0.30)+
+    " L "+tailTipX+","+tailTopY+
+    " L "+tailTipX+","+tailBottomY+
+    " L "+tailBaseX+","+(fcy+fh*0.30)+
+    " C "+(fcx-fw*0.05)+","+bodyBottomY+" "+(fcx+fw*0.28)+","+bodyBottomY+" "+noseX+","+fcy+
+    " Z";
 
-    // ── Stack filled layers bottom → top (largest % at bottom, like beef cuts) ──
-    var currentBottom=dropBottom;
-    counts.forEach(function(c,i){
-      var pct=c.count/total;
-      var layerH=pct*dropTotalH;
-      var layerTop=currentBottom-layerH;
+  // Clip layers to fish silhouette
+  var clipId="fish-layer-clip-"+Math.round(Math.random()*9999);
+  svg.append("defs").append("clipPath").attr("id",clipId)
+    .append("path").attr("d",fishPath);
 
-      // Rect wider than raindrop — clip handles the edges
-      svg.append("rect")
-        .attr("x",cx-r-4).attr("y",layerTop)
-        .attr("width",(r+4)*2).attr("height",layerH+1) // +1 closes seam
-        .attr("fill",SPE_PALETTE[i%SPE_PALETTE.length])
+  // Vertical bounds for stacking (use tail extents — they're the fish's true top/bottom)
+  var fishTop=tailTopY;
+  var fishBottom=tailBottomY;
+  var fishTotalH=fishBottom-fishTop;
+  var layerX=tailTipX-4;
+  var layerW=(noseX-tailTipX)+8;
+
+  // ── Stack layers bottom → top (largest % at bottom) ──
+  var currentBottom=fishBottom;
+  counts.forEach(function(c,i){
+    var pct=c.count/total;
+    var layerH=pct*fishTotalH;
+    var layerTop=currentBottom-layerH;
+
+    svg.append("rect")
+      .attr("x",layerX).attr("y",layerTop)
+      .attr("width",layerW).attr("height",layerH+1)
+      .attr("fill",SPE_PALETTE[i%SPE_PALETTE.length])
+      .attr("clip-path","url(#"+clipId+")");
+
+    if(i<counts.length-1){
+      svg.append("line")
+        .attr("x1",layerX).attr("x2",layerX+layerW)
+        .attr("y1",layerTop).attr("y2",layerTop)
+        .attr("stroke","white").attr("stroke-width",2)
         .attr("clip-path","url(#"+clipId+")");
+    }
+    currentBottom=layerTop;
+  });
 
-      // White dividing line between layers
-      if(i<counts.length-1){
-        svg.append("line")
-          .attr("x1",cx-r-4).attr("x2",cx+r+4)
-          .attr("y1",layerTop).attr("y2",layerTop)
-          .attr("stroke","white").attr("stroke-width",2)
-          .attr("clip-path","url(#"+clipId+")");
-      }
+  // Fish outline
+  svg.append("path").attr("d",fishPath)
+    .attr("fill","none").attr("stroke","rgba(255,255,255,0.55)").attr("stroke-width",2);
 
-      currentBottom=layerTop;
-    });
+  // Eye (white ring + dark pupil) — signals "fish"
+  var eyeR=Math.max(3,fh*0.07);
+  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR)
+    .attr("fill","white").attr("stroke","rgba(0,0,0,0.25)").attr("stroke-width",1);
+  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR*0.5)
+    .attr("fill","#0d1b2a");
 
-    // Raindrop outline on top of fills
-    svg.append("path").attr("d",dropPath)
-      .attr("fill","none").attr("stroke","rgba(255,255,255,0.5)").attr("stroke-width",2);
+  // % labels inside each layer
+  currentBottom=fishBottom;
+  counts.forEach(function(c,i){
+    var pct=c.count/total;
+    var layerH=pct*fishTotalH;
+    var layerTop=currentBottom-layerH;
+    var midY=layerTop+layerH/2;
+    if(layerH>=14){
+      var labelFs=Math.max(8,Math.min(vfs(14),Math.floor(layerH*0.38)));
+      svg.append("text")
+        .attr("x",fcx).attr("y",midY)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",labelFs).attr("font-weight","700")
+        .attr("fill","rgba(255,255,255,0.93)").attr("font-family",FONT)
+        .text(Math.round(pct*100)+"%");
+    }
+    currentBottom=layerTop;
+  });
 
-    // ── Percentage labels inside each layer ──
-    currentBottom=dropBottom;
-    counts.forEach(function(c,i){
-      var pct=c.count/total;
-      var layerH=pct*dropTotalH;
-      var layerTop=currentBottom-layerH;
-      var midY=layerTop+layerH/2;
+  // Hover targets
+  currentBottom=fishBottom;
+  counts.forEach(function(c,i){
+    var pct=c.count/total;
+    var layerH=pct*fishTotalH;
+    var layerTop=currentBottom-layerH;
+    svg.append("rect")
+      .attr("x",layerX).attr("y",layerTop)
+      .attr("width",layerW).attr("height",layerH)
+      .attr("fill","transparent")
+      .attr("clip-path","url(#"+clipId+")")
+      .style("cursor","pointer")
+      .on("mousemove",function(event){
+        showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+Math.round(pct*100)+"%");
+      })
+      .on("mouseleave",hideTooltip);
+    currentBottom=layerTop;
+  });
 
-      // Only label if the layer is tall enough to fit text
-      if(layerH>=14){
-        var labelFs=Math.max(8,Math.min(vfs(14),Math.floor(layerH*0.38)));
-        svg.append("text")
-          .attr("x",cx).attr("y",midY)
-          .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",labelFs).attr("font-weight","700")
-          .attr("fill","rgba(255,255,255,0.93)").attr("font-family",FONT)
-          .text(Math.round(pct*100)+"%");
-      }
+  // ── Legend — SAME ORDER AS FISH (top of fish → bottom of fish) ──
+  // Fish is stacked largest-at-bottom, so legend top = smallest = last in counts.
+  var legendOrder=counts.slice().reverse();
 
-      currentBottom=layerTop;
-    });
+  var list=document.createElement("div");
+  list.style.cssText=
+    "position:absolute;left:10px;top:8px;"+
+    "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
+    "display:flex;flex-direction:column;justify-content:flex-start;"+
+    "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
 
-    // Hover targets — invisible rects over each layer for tooltip
-    currentBottom=dropBottom;
-    counts.forEach(function(c,i){
-      var pct=c.count/total;
-      var layerH=pct*dropTotalH;
-      var layerTop=currentBottom-layerH;
-      svg.append("rect")
-        .attr("x",cx-r-4).attr("y",layerTop)
-        .attr("width",(r+4)*2).attr("height",layerH)
-        .attr("fill","transparent")
-        .attr("clip-path","url(#"+clipId+")")
-        .style("cursor","pointer")
-        .on("mousemove",function(event){
-          showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+Math.round(pct*100)+"%");
-        })
-        .on("mouseleave",hideTooltip);
-      currentBottom=layerTop;
-    });
+  var nItems=legendOrder.length;
+  var rowH=(height-16)/nItems;
+  var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48)));
+  var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));
+  var swatch=Math.max(7,Math.floor(pctFS*0.55));
 
-    // ── Legend list (left side — unchanged) ──
-    var list=document.createElement("div");
-    list.style.cssText=
-      "position:absolute;left:10px;top:8px;"+
-      "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
-      "display:flex;flex-direction:column;justify-content:flex-start;"+
-      "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
+  legendOrder.forEach(function(c){
+    // Color index must match the fish — use original index in counts
+    var origIdx=counts.indexOf(c);
+    var pct=Math.round(c.count/total*100);
+    var color=SPE_PALETTE[origIdx%SPE_PALETTE.length];
+    var row=document.createElement("div");
+    var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
+    row.style.cssText=
+      "display:flex;align-items:flex-start;gap:6px;"+
+      "height:"+Math.floor(rowH)+"px;overflow:hidden;flex-shrink:0;"+
+      "box-sizing:border-box;padding-top:"+topPad+"px;";
+    row.innerHTML=
+      '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+
+        ';border-radius:50%;flex-shrink:0;margin-top:'+Math.round(nameFS*0.05)+'px;"></div>'+
+      '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+
+        ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">'+pct+'%</div>'+
+      '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
+        'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
+        c.label+'</div>';
+    list.appendChild(row);
+  });
+  el.appendChild(list);
+}
 
-    var nItems=counts.length;
-    var rowH=(height-16)/nItems;
-    var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48)));
-    var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));
-    var swatch=Math.max(7,Math.floor(pctFS*0.55));
-
-    counts.forEach(function(c,i){
-      var pct=Math.round(c.count/total*100);
-      var color=SPE_PALETTE[i%SPE_PALETTE.length];
-      var row=document.createElement("div");
-      var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
-      row.style.cssText=
-        "display:flex;align-items:flex-start;gap:6px;"+
-        "height:"+Math.floor(rowH)+"px;overflow:hidden;flex-shrink:0;"+
-        "box-sizing:border-box;padding-top:"+topPad+"px;";
-      row.innerHTML=
-        '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+
-          ';border-radius:50%;flex-shrink:0;margin-top:'+Math.round(nameFS*0.05)+'px;"></div>'+
-        '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+
-          ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">'+pct+'%</div>'+
-        '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
-          'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
-          c.label+'</div>';
-      list.appendChild(row);
-    });
-    el.appendChild(list);
-  }
 
   function redrawCharts(){
     if(!_data)return;
