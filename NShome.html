@@ -2,49 +2,56 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;overflow:hidden;background:#f4f7fb;font-family:'Roboto',sans-serif;}
-
     #app{width:100%;height:100%;display:flex;flex-direction:column;}
 
     /* ── HERO STATS ── */
     #hero-stats{
-      display:grid;grid-template-columns:repeat(4,1fr);
+      display:grid;
+      /* FIX: allow 2-col wrap on small screens instead of rigid 4-col */
+      grid-template-columns:repeat(4,1fr);
       background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
       flex-shrink:0;
     }
     .stat-card{
-      padding:14px 20px;border-right:1px solid rgba(255,255,255,0.15);
+      padding:clamp(8px,0.9vw,14px) clamp(10px,1.2vw,20px);
+      border-right:1px solid rgba(255,255,255,0.15);
       display:flex;flex-direction:column;
     }
     .stat-card:last-child{border-right:none;}
-    .stat-num{font-size:35px;font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
-    .stat-num.loading{color:rgba(255,255,255,0.3);font-size:25px;font-weight:300;}
-    .stat-label{font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
-    .stat-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;}
+    /* FIX: hero numbers scale with viewport — was fixed 35px */
+    .stat-num{font-size:clamp(20px,2.2vw,35px);font-weight:900;color:white;line-height:1;letter-spacing:-1px;}
+    .stat-num.loading{color:rgba(255,255,255,0.3);font-weight:300;}
+    /* FIX: labels scale — were fixed 13px / 12px */
+    .stat-label{font-size:clamp(9px,0.75vw,13px);font-weight:700;color:rgba(255,255,255,0.7);margin-top:4px;text-transform:uppercase;letter-spacing:0.6px;}
+    .stat-sub{font-size:clamp(8px,0.65vw,12px);color:rgba(255,255,255,0.45);margin-top:2px;}
 
     /* ── MAIN BODY ── */
-    #main{flex:1;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:10px;padding:10px;min-height:0;}
+    #main{flex:1;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:clamp(6px,0.7vw,10px);padding:clamp(6px,0.7vw,10px);min-height:0;}
 
     /* ── CHART CARDS ── */
     .chart-card{
       background:white;border-radius:10px;
       box-shadow:0 2px 12px rgba(0,0,0,0.07);
-      display:flex;flex-direction:column;overflow:hidden;
-      min-height:0;
+      display:flex;flex-direction:column;overflow:hidden;min-height:0;
     }
-    .chart-card-header{padding:10px 14px 6px;border-bottom:2px solid #f0f4ff;flex-shrink:0;}
-    .chart-card-header h3{font-size:19px;font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
-    .chart-card-header p{font-size:16px;color:#aaa;margin-top:2px;}
+    .chart-card-header{padding:clamp(6px,0.7vw,10px) clamp(10px,1vw,14px) clamp(4px,0.5vw,6px);border-bottom:2px solid #f0f4ff;flex-shrink:0;}
+    /* FIX: card titles scale — were fixed 19px / 16px */
+    .chart-card-header h3{font-size:clamp(13px,1.1vw,19px);font-weight:700;color:#1677bc;letter-spacing:-0.2px;}
+    .chart-card-header p{font-size:clamp(10px,0.85vw,14px);color:#aaa;margin-top:2px;}
     .chart-body{flex:1;padding:6px;min-height:0;overflow:hidden;}
 
     /* ── TOOLTIP ── */
     .tooltip{
       position:fixed;background:rgba(15,23,42,0.93);color:white;
-      padding:7px 11px;border-radius:7px;font-size:17px;
+      padding:7px 11px;border-radius:7px;
+      /* FIX: was fixed 17px */
+      font-size:clamp(11px,0.9vw,14px);
       pointer-events:none;opacity:0;transition:opacity 0.15s;
       max-width:220px;line-height:1.5;z-index:9999;
       box-shadow:0 4px 16px rgba(0,0,0,0.25);font-family:'Roboto',sans-serif;
@@ -81,8 +88,6 @@
 
   <!-- MAIN GRID -->
   <div id="main">
-
-    <!-- TOP ROW: Fiscal Year full width -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h3>GBEP Funding by Fiscal Year</h3>
@@ -90,9 +95,7 @@
       </div>
       <div class="chart-body" id="fy-chart"></div>
     </div>
-
-    <!-- BOTTOM: split into 2 side by side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;overflow:hidden;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:clamp(6px,0.7vw,10px);min-height:0;overflow:hidden;">
       <div class="chart-card">
         <div class="chart-card-header">
           <h3>Acres by Project Goal</h3>
@@ -108,7 +111,6 @@
         <div class="chart-body" id="species-chart"></div>
       </div>
     </div>
-
   </div>
 
 </div>
@@ -117,12 +119,16 @@
   var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var FONT="Roboto,sans-serif";
 
-  var SCALE_FY = d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1"));
+  // FIX: viewport-relative font scaler — same pattern as facts & figures embed
+  // 1600px = baseline. Clamps between 60% and 100% of any base value.
+  function vfs(base){
+    var ratio=Math.min(1,Math.max(0.6,window.innerWidth/1600));
+    return Math.round(base*ratio);
+  }
 
-  // Waffle chart palette — distinct colors per goal
+  var SCALE_FY=d3.scaleSequential().interpolator(d3.interpolate("#b3d4f0","#0d47a1"));
   var WAFFLE_PALETTE=["#0d47a1","#1677bc","#006994","#54a9ad","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#26c6da","#1976d2","#2e7d32"];
-
-var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b"];
+  var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b"];
 
   var tooltip=document.getElementById("tooltip");
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.clientX+14)+"px";tooltip.style.top=(evt.clientY-32)+"px";}
@@ -147,47 +153,29 @@ var SPE_PALETTE=["#0d47a1","#368165","#1677bc","#64D2A2","#006994","#0288d1","#0
     requestAnimationFrame(step);
   }
 
-  var SPECIES_LABELS = {
-  "endangered threatened species": "Endangered/threatened species",
-  "state listed species species of greatest conservation need": "State listed species/Species of Greatest Conservation Need",
-  "state listed species": "State listed species/Species of Greatest Conservation Need",
-  "nongame wildlife": "Nongame Wildlife",
-  "invasive species control eradication": "Invasive species control/eradication",
-  "invasive species control": "Invasive species control/eradication",
-  "no focal species during planning": "No focal species during planning",
-  "other": "Other"
-};
-function normalizeSpecies(raw){
-  if(!raw) return raw;
-  var key = raw.toLowerCase().replace(/[_\/\-]/g, " ").replace(/\s+/g, " ").trim();
-
-  // Exact match first
-  if(SPECIES_LABELS[key]) return SPECIES_LABELS[key];
-
-  // Keyword fallback — handles truncations and variants
-  if(key.indexOf("state listed") !== -1 ||
-     key.indexOf("species of greatest") !== -1 ||
-     key.indexOf("greatest conservation") !== -1)
-    return "State listed species/Species of Greatest Conservation Need";
-
-  if(key.indexOf("endangered") !== -1 || key.indexOf("threatened") !== -1)
-    return "Endangered/threatened species";
-
-  if(key.indexOf("nongame") !== -1)
-    return "Nongame Wildlife";
-
-  if(key.indexOf("invasive") !== -1)
-    return "Invasive species control/eradication";
-
-  if(key.indexOf("no focal") !== -1)
-    return "No focal species during planning";
-
-  if(key === "other") return "Other";
-
-  return raw;
-}
-
-
+  var SPECIES_LABELS={
+    "endangered threatened species":"Endangered/threatened species",
+    "state listed species species of greatest conservation need":"State listed species/Species of Greatest Conservation Need",
+    "state listed species":"State listed species/Species of Greatest Conservation Need",
+    "nongame wildlife":"Nongame Wildlife",
+    "invasive species control eradication":"Invasive species control/eradication",
+    "invasive species control":"Invasive species control/eradication",
+    "no focal species during planning":"No focal species during planning",
+    "other":"Other"
+  };
+  function normalizeSpecies(raw){
+    if(!raw)return raw;
+    var key=raw.toLowerCase().replace(/[_\/\-]/g," ").replace(/\s+/g," ").trim();
+    if(SPECIES_LABELS[key])return SPECIES_LABELS[key];
+    if(key.indexOf("state listed")!==-1||key.indexOf("species of greatest")!==-1||key.indexOf("greatest conservation")!==-1)
+      return "State listed species/Species of Greatest Conservation Need";
+    if(key.indexOf("endangered")!==-1||key.indexOf("threatened")!==-1)return "Endangered/threatened species";
+    if(key.indexOf("nongame")!==-1)return "Nongame Wildlife";
+    if(key.indexOf("invasive")!==-1)return "Invasive species control/eradication";
+    if(key.indexOf("no focal")!==-1)return "No focal species during planning";
+    if(key==="other")return "Other";
+    return raw;
+  }
 
   async function fetchMain(){
     var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz",
@@ -197,6 +185,9 @@ function normalizeSpecies(raw){
     var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
   }
+
+  // Cached data so redraws on resize don't re-fetch
+  var _data=null;
 
   function drawHeroStats(data){
     var funded=data;
@@ -230,7 +221,8 @@ function normalizeSpecies(raw){
     var maxDollars=d3.max(byYear,function(d){return d.dollars;})||1;
     SCALE_FY.domain([0,maxDollars]);
 
-    var mL=52,mR=40,mT=10,mB=65;
+    // FIX: margins scale with viewport — were fixed at mL=52, mB=65
+    var mL=Math.round(vfs(48)),mR=Math.round(vfs(36)),mT=10,mB=Math.round(vfs(60));
     var w=width-mL-mR,h=height-mT-mB;
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
     var yScale=d3.scaleLinear().domain([0,maxDollars*1.12]).range([h,0]);
@@ -240,10 +232,18 @@ function normalizeSpecies(raw){
     var svg=d3.select("#fy-chart").append("svg").attr("width",width).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
+    // FIX: axis font sizes use vfs() — were fixed at 14 / 13
     g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(fmtDollars))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");ax.selectAll("text").attr("font-size",14).attr("fill","#999");});
+      .call(function(ax){
+        ax.select(".domain").remove();
+        ax.selectAll(".tick line").attr("x2",w).attr("stroke","#f0f0f0");
+        ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#999");
+      });
     g.append("g").attr("transform","translate("+w+",0)").call(d3.axisRight(y2Scale).ticks(4).tickFormat(d3.format("d")))
-      .call(function(ax){ax.select(".domain").remove();ax.selectAll("text").attr("font-size",14).attr("fill","#54a9ad");});
+      .call(function(ax){
+        ax.select(".domain").remove();
+        ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#54a9ad");
+      });
 
     g.selectAll(".bar").data(byYear).enter().append("rect")
       .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.dollars);})
@@ -259,312 +259,251 @@ function normalizeSpecies(raw){
       .attr("r",3).attr("fill","#54a9ad").attr("stroke","white").attr("stroke-width",1);
 
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",13).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end");});
+      .call(function(ax){
+        ax.select(".domain").attr("stroke","#ddd");
+        ax.selectAll("text").attr("font-size",vfs(11)).attr("fill","#888").attr("transform","rotate(-45)").attr("text-anchor","end"); // FIX: was 13
+      });
   }
 
   function drawGoalChart(data){
-  var el = document.getElementById("goal-chart");
-  el.innerHTML = "";
-  el.style.position = "relative";
+    var el=document.getElementById("goal-chart");
+    el.innerHTML="";
+    el.style.position="relative";
+    var width=el.clientWidth||400,height=el.clientHeight||200;
 
-  var width = el.clientWidth || 400, height = el.clientHeight || 200;
-
-  var funded = data.filter(function(d){
-  return d.broad_project_goals &&
-    d.numeric_approximate_project_siz>0 &&
-    d.project_scale==="Physical project";
-});
-  var grouped = d3.rollups(funded,
-    function(v){return d3.sum(v, function(d){return d.numeric_approximate_project_siz||0;});},
-    function(d){return d.broad_project_goals;}
-  ).map(function(r,i){return{name:r[0].replace(/_/g," "), value:r[1], color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};})
-   .filter(function(d){return d.value>0;})
-   .sort(function(a,b){return b.value-a.value;});
-  if(!grouped.length) return;
-  var totalAcres = d3.sum(grouped, function(d){return d.value;});
-
-  // ── Layout: label width drives sidePad, sidePad drives radius ──
-  var labelW  = Math.max(80, Math.floor(width * 0.22));
-  var sidePad = labelW + 36;
-  var radius  = Math.max(42, Math.min((width - sidePad*2)/2, height/2 - 14));
-  var innerRadius = radius * 0.55;
-  var cx = width/2, cy = height/2;
-
-  var svg = d3.select("#goal-chart").append("svg")
-    .attr("width", width).attr("height", height).style("font-family", FONT);
-
-  var pie = d3.pie().value(function(d){return d.value;}).sort(null);
-  var arc = d3.arc().innerRadius(innerRadius).outerRadius(radius);
-  var arcHover = d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
-
-  var g = svg.append("g").attr("transform","translate("+cx+","+cy+")");
-  var slices = pie(grouped);
-
-  g.selectAll("path").data(slices).enter().append("path")
-    .attr("d", arc)
-    .attr("fill", function(d){return d.data.color;})
-    .attr("stroke","white").attr("stroke-width",2)
-    .on("mousemove", function(event,d){
-      d3.select(this).attr("d", arcHover);
-      var pct = Math.round(d.data.value/totalAcres*100);
-      showTooltip(event, "<strong>" + d.data.name + "</strong><br>" + fmtAcres(d.data.value) + "<br>" + pct + "% of total");
-    })
-    .on("mouseleave", function(){
-      d3.select(this).attr("d", arc);
-      hideTooltip();
+    var funded=data.filter(function(d){
+      return d.broad_project_goals&&d.numeric_approximate_project_siz>0&&d.project_scale==="Physical project";
     });
+    var grouped=d3.rollups(funded,
+      function(v){return d3.sum(v,function(d){return d.numeric_approximate_project_siz||0;});},
+      function(d){return d.broad_project_goals;}
+    ).map(function(r,i){return{name:r[0].replace(/_/g," "),value:r[1],color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};})
+     .filter(function(d){return d.value>0;})
+     .sort(function(a,b){return b.value-a.value;});
+    if(!grouped.length)return;
+    var totalAcres=d3.sum(grouped,function(d){return d.value;});
 
-  // Center total
-  var topFs = Math.min(40, Math.floor(innerRadius*0.55));
-  var bottomFs = Math.max(11, Math.floor(topFs*0.36));
-  g.append("text").attr("text-anchor","middle").attr("y", 0)
-    .attr("font-size", topFs).attr("font-weight","900").attr("fill","#333").text(fmtAcres(totalAcres));
-  g.append("text").attr("text-anchor","middle").attr("y", topFs*0.7)
-    .attr("font-size", bottomFs).attr("fill","#666").text("physical acres");
+    var labelW=Math.max(70,Math.floor(width*0.20)); // FIX: was 0.22 — tighter on small screens
+    var sidePad=labelW+30;
+    var radius=Math.max(36,Math.min((width-sidePad*2)/2,height/2-12));
+    var innerRadius=radius*0.55;
+    var cx=width/2,cy=height/2;
 
-  // Inner percentage labels (>=4%)
-  var pctFs = Math.max(11, Math.floor(radius * 0.14));
-  slices.forEach(function(d){
-    var pct = d.data.value/totalAcres*100;
-    if(pct < 4) return;
-    var c = arc.centroid(d);
-    g.append("text").attr("text-anchor","middle")
-      .attr("x", c[0]).attr("y", c[1] + pctFs*0.35)
-      .attr("font-size", pctFs).attr("font-weight", 900)
-      .attr("fill", "white").style("pointer-events","none")
-      .text(Math.round(pct) + "%");
-  });
+    var svg=d3.select("#goal-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var pie=d3.pie().value(function(d){return d.value;}).sort(null);
+    var arc=d3.arc().innerRadius(innerRadius).outerRadius(radius);
+    var arcHover=d3.arc().innerRadius(innerRadius).outerRadius(radius+6);
+    var g=svg.append("g").attr("transform","translate("+cx+","+cy+")");
+    var slices=pie(grouped);
 
-  // ── External callouts ──
-  var labeled = [];
-  slices.forEach(function(d){
-    var pct = d.data.value/totalAcres*100;
-    if(pct < 5) return;
-    var midAngle = (d.startAngle + d.endAngle) / 2;
-    var sinA = Math.sin(midAngle);
-    var cosA = -Math.cos(midAngle);
-    labeled.push({
-      pct: pct,
-      name: d.data.name,
-      color: d.data.color,
-      side: sinA >= 0 ? 1 : -1,
-      startX: sinA * radius,
-      startY: cosA * radius
-    });
-  });
-
-  var leftList  = labeled.filter(function(c){return c.side < 0;}).sort(function(a,b){return a.startY - b.startY;});
-  var rightList = labeled.filter(function(c){return c.side > 0;}).sort(function(a,b){return a.startY - b.startY;});
-
-  var minSpacing = 36;
-  var usable = height - 24;
-  var maxPerSide = Math.max(1, Math.floor(usable / minSpacing));
-
-  // If too many callouts for a side, keep the biggest (by pct) and preserve Y ordering
-  function trimList(list){
-    if(list.length <= maxPerSide) return list;
-    var keepSet = list.slice().sort(function(a,b){return b.pct - a.pct;}).slice(0, maxPerSide);
-    return list.filter(function(c){return keepSet.indexOf(c) !== -1;});
-  }
-  leftList  = trimList(leftList);
-  rightList = trimList(rightList);
-
-  // Evenly distribute vertically, centered on cy
-  function distribute(list, xSign){
-    if(!list.length) return;
-    var n = list.length;
-    var step = Math.min(minSpacing + 14, usable / Math.max(n,1));
-    var totalH = step * (n - 1);
-    var startY = -totalH/2;
-    list.forEach(function(c, i){
-      c.labelY = startY + i * step;
-      c.labelX = xSign * (radius + 22);
-    });
-  }
-  distribute(leftList, -1);
-  distribute(rightList, 1);
-
-  // Draw leader lines (SVG) + labels (HTML)
-  [leftList, rightList].forEach(function(list){
-    list.forEach(function(c){
-      var xSign = c.side;
-      var xOut = c.startX + xSign * 8;
-      var yOut = c.startY;
-      var xEnd = c.labelX - xSign * 4;
-      var yEnd = c.labelY;
-
-      g.append("polyline")
-        .attr("points", c.startX + "," + c.startY + " " + xOut + "," + yOut + " " + xEnd + "," + yEnd)
-        .attr("fill","none").attr("stroke","#aaa").attr("stroke-width", 1);
-
-      var label = document.createElement("div");
-      var isRight = xSign > 0;
-      label.style.cssText =
-        "position:absolute;" +
-        "top:" + (cy + c.labelY) + "px;" +
-        (isRight
-          ? "left:" + (cx + c.labelX) + "px;"
-          : "right:" + (width - (cx + c.labelX)) + "px;") +
-        "width:" + labelW + "px;" +
-        "transform:translateY(-50%);" +
-        "font-family:" + FONT + ";" +
-        "font-size:12px;font-weight:700;" +
-        "color:" + c.color + ";" +
-        "text-align:" + (isRight ? "left" : "right") + ";" +
-        "line-height:1.2;" +
-        "pointer-events:none;" +
-        "word-wrap:break-word;overflow-wrap:break-word;";
-      label.textContent = c.name;
-      el.appendChild(label);
-    });
-  });
-}
-
-
-
-
-function drawSpeciesChart(data){
-  var el = document.getElementById("species-chart");
-  el.innerHTML = "";
-  el.style.position = "relative";
-
-  var width = el.clientWidth || 400, height = el.clientHeight || 200;
-
-  var funded = data.filter(function(d){ return d.gbep_award_amount && d.targeted_focal_species && d.targeted_focal_species.trim() !== ""; });
-  var sMap = {};
-  funded.forEach(function(row){
-    row.targeted_focal_species.split(",")
-      .map(function(s){ return normalizeSpecies(s.trim()); })
-      .filter(function(s){ return s; })
-      .forEach(function(s){ sMap[s] = (sMap[s]||0) + 1; });
-});
-
-  var counts = Object.keys(sMap).map(function(k){ return { label: k, count: sMap[k] }; })
-    .sort(function(a,b){ return b.count - a.count; });
-  if(!counts.length) return;
-  var total = d3.sum(counts, function(d){ return d.count; });
-
-  // Layout — list on left (HTML), droplet on right (SVG)
-  var leftW = Math.max(170, width * 0.44);
-
-  // ── SVG droplet ──
-  var svg = d3.select("#species-chart").append("svg")
-    .attr("width", width).attr("height", height).style("font-family", FONT);
-
-  var dropX = leftW, dropY = 6;
-  var dropW = width - leftW - 10;
-  var dropH = height - 12;
-
-  var r = Math.min(dropW * 0.52, dropH * 0.36);
-  var cx = dropX + dropW / 2;
-  var bottomCy = dropY + dropH - r - 4;
-  var topY = dropY + 4;
-
-  svg.append("path")
-    .attr("d", "M " + cx + "," + topY +
-               " L " + (cx + r) + "," + bottomCy +
-               " A " + r + "," + r + " 0 0 1 " + (cx - r) + "," + bottomCy +
-               " Z")
-    .attr("fill", "none").attr("stroke", "#cfe3f3").attr("stroke-width", 1.5);
-
-  var targetDots = Math.max(45, Math.min(total, 260));
-  var dropArea = Math.PI * r * r * 0.5 + r * (bottomCy - topY);
-  var spacing = Math.sqrt(dropArea / targetDots) * 1.05;
-  var dotR = spacing * 0.38;
-  var pad = dotR + 2;
-
-  function insideDrop(x, y){
-    var rInner = r - pad;
-    if(rInner <= 0) return false;
-    var topYi = topY + pad * 2;
-    var dx = x - cx, dy = y - bottomCy;
-    if(dy >= 0 && dx*dx + dy*dy <= rInner*rInner) return true;
-    if(y >= topYi && y <= bottomCy){
-      var t = (y - topYi) / (bottomCy - topYi);
-      if(Math.abs(x - cx) <= t * rInner) return true;
-    }
-    return false;
-  }
-
-  var dots = [], rowIdx = 0;
-  for(var y = topY + spacing/2; y <= dropY + dropH; y += spacing){
-    var off = (rowIdx % 2) * (spacing/2);
-    rowIdx++;
-    for(var x = dropX + spacing/2 + off; x <= dropX + dropW; x += spacing){
-      if(insideDrop(x, y)) dots.push({x:x, y:y});
-    }
-  }
-  if(!dots.length) return;
-
-  dots.sort(function(a,b){ return (a.y - b.y) || (a.x - b.x); });
-
-  var nDots = dots.length, assigned = [];
-  counts.forEach(function(c, i){
-    var k = Math.round(c.count / total * nDots);
-    for(var j = 0; j < k; j++) assigned.push(i);
-  });
-  while(assigned.length < nDots) assigned.push(0);
-  while(assigned.length > nDots) assigned.pop();
-
-  dots.forEach(function(pt, i){
-    var idx = assigned[i], c = counts[idx];
-    svg.append("circle")
-      .attr("cx", pt.x).attr("cy", pt.y).attr("r", dotR)
-      .attr("fill", SPE_PALETTE[idx % SPE_PALETTE.length])
-      .attr("opacity", 0.92).style("cursor", "pointer")
-      .on("mousemove", function(event){
-        var pct = Math.round(c.count / total * 100);
-        showTooltip(event, "<strong>" + c.label + "</strong><br>" +
-          c.count + " project" + (c.count!==1?"s":"") + "<br>" + pct + "%");
+    g.selectAll("path").data(slices).enter().append("path")
+      .attr("d",arc).attr("fill",function(d){return d.data.color;})
+      .attr("stroke","white").attr("stroke-width",2)
+      .on("mousemove",function(event,d){
+        d3.select(this).attr("d",arcHover);
+        var pct=Math.round(d.data.value/totalAcres*100);
+        showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+pct+"% of total");
       })
-      .on("mouseleave", hideTooltip);
+      .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
+
+    // FIX: center label font sizes scale with innerRadius and viewport
+    var topFs=Math.min(vfs(36),Math.floor(innerRadius*0.55));
+    var bottomFs=Math.max(vfs(10),Math.floor(topFs*0.36));
+    g.append("text").attr("text-anchor","middle").attr("y",0)
+      .attr("font-size",topFs).attr("font-weight","900").attr("fill","#333").text(fmtAcres(totalAcres));
+    g.append("text").attr("text-anchor","middle").attr("y",topFs*0.7)
+      .attr("font-size",bottomFs).attr("fill","#666").text("physical acres");
+
+    var pctFs=Math.max(vfs(10),Math.floor(radius*0.14));
+    slices.forEach(function(d){
+      var pct=d.data.value/totalAcres*100;
+      if(pct<4)return;
+      var c=arc.centroid(d);
+      g.append("text").attr("text-anchor","middle").attr("x",c[0]).attr("y",c[1]+pctFs*0.35)
+        .attr("font-size",pctFs).attr("font-weight",900).attr("fill","white").style("pointer-events","none")
+        .text(Math.round(pct)+"%");
+    });
+
+    var labeled=[];
+    slices.forEach(function(d){
+      var pct=d.data.value/totalAcres*100;
+      if(pct<5)return;
+      var midAngle=(d.startAngle+d.endAngle)/2;
+      var sinA=Math.sin(midAngle),cosA=-Math.cos(midAngle);
+      labeled.push({pct:pct,name:d.data.name,color:d.data.color,side:sinA>=0?1:-1,startX:sinA*radius,startY:cosA*radius});
+    });
+
+    var leftList=labeled.filter(function(c){return c.side<0;}).sort(function(a,b){return a.startY-b.startY;});
+    var rightList=labeled.filter(function(c){return c.side>0;}).sort(function(a,b){return a.startY-b.startY;});
+    var minSpacing=Math.max(28,Math.round(vfs(34))); // FIX: spacing scales with viewport
+    var usable=height-24;
+    var maxPerSide=Math.max(1,Math.floor(usable/minSpacing));
+
+    function trimList(list){
+      if(list.length<=maxPerSide)return list;
+      var keepSet=list.slice().sort(function(a,b){return b.pct-a.pct;}).slice(0,maxPerSide);
+      return list.filter(function(c){return keepSet.indexOf(c)!==-1;});
+    }
+    leftList=trimList(leftList);rightList=trimList(rightList);
+
+    function distribute(list,xSign){
+      if(!list.length)return;
+      var n=list.length;
+      var step=Math.min(minSpacing+14,usable/Math.max(n,1));
+      var totalH=step*(n-1);
+      var startY=-totalH/2;
+      list.forEach(function(c,i){c.labelY=startY+i*step;c.labelX=xSign*(radius+20);});
+    }
+    distribute(leftList,-1);distribute(rightList,1);
+
+    // FIX: callout label font size scales with viewport
+    var calloutFs=Math.max(9,vfs(12));
+    [leftList,rightList].forEach(function(list){
+      list.forEach(function(c){
+        var xSign=c.side;
+        g.append("polyline")
+          .attr("points",c.startX+","+c.startY+" "+(c.startX+xSign*8)+","+c.startY+" "+(c.labelX-xSign*4)+","+c.labelY)
+          .attr("fill","none").attr("stroke","#aaa").attr("stroke-width",1);
+        var label=document.createElement("div");
+        var isRight=xSign>0;
+        label.style.cssText=
+          "position:absolute;"+
+          "top:"+(cy+c.labelY)+"px;"+
+          (isRight?"left:"+(cx+c.labelX)+"px;":"right:"+(width-(cx+c.labelX))+"px;")+
+          "width:"+labelW+"px;"+
+          "transform:translateY(-50%);"+
+          "font-family:"+FONT+";"+
+          "font-size:"+calloutFs+"px;font-weight:700;"+
+          "color:"+c.color+";"+
+          "text-align:"+(isRight?"left":"right")+";"+
+          "line-height:1.2;pointer-events:none;word-wrap:break-word;overflow-wrap:break-word;";
+        label.textContent=c.name;
+        el.appendChild(label);
+      });
+    });
+  }
+
+  function drawSpeciesChart(data){
+    var el=document.getElementById("species-chart");
+    el.innerHTML="";
+    el.style.position="relative";
+    var width=el.clientWidth||400,height=el.clientHeight||200;
+
+    var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";});
+    var sMap={};
+    funded.forEach(function(row){
+      row.targeted_focal_species.split(",")
+        .map(function(s){return normalizeSpecies(s.trim());})
+        .filter(function(s){return s;})
+        .forEach(function(s){sMap[s]=(sMap[s]||0)+1;});
+    });
+
+    var counts=Object.keys(sMap).map(function(k){return{label:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;});
+    if(!counts.length)return;
+    var total=d3.sum(counts,function(d){return d.count;});
+
+    var leftW=Math.max(140,width*0.42); // FIX: was fixed 0.44 — loosened slightly
+
+    var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+    var dropX=leftW,dropY=6;
+    var dropW=width-leftW-10;
+    var dropH=height-12;
+    var r=Math.min(dropW*0.52,dropH*0.36);
+    var cx=dropX+dropW/2;
+    var bottomCy=dropY+dropH-r-4;
+    var topY=dropY+4;
+
+    svg.append("path")
+      .attr("d","M "+cx+","+topY+" L "+(cx+r)+","+bottomCy+" A "+r+","+r+" 0 0 1 "+(cx-r)+","+bottomCy+" Z")
+      .attr("fill","none").attr("stroke","#cfe3f3").attr("stroke-width",1.5);
+
+    var targetDots=Math.max(45,Math.min(total,260));
+    var dropArea=Math.PI*r*r*0.5+r*(bottomCy-topY);
+    var spacing=Math.sqrt(dropArea/targetDots)*1.05;
+    var dotR=spacing*0.38;
+    var pad=dotR+2;
+
+    function insideDrop(x,y){
+      var rInner=r-pad;
+      if(rInner<=0)return false;
+      var topYi=topY+pad*2;
+      var dx=x-cx,dy=y-bottomCy;
+      if(dy>=0&&dx*dx+dy*dy<=rInner*rInner)return true;
+      if(y>=topYi&&y<=bottomCy){var t=(y-topYi)/(bottomCy-topYi);if(Math.abs(x-cx)<=t*rInner)return true;}
+      return false;
+    }
+
+    var dots=[],rowIdx=0;
+    for(var y=topY+spacing/2;y<=dropY+dropH;y+=spacing){
+      var off=(rowIdx%2)*(spacing/2);rowIdx++;
+      for(var x=dropX+spacing/2+off;x<=dropX+dropW;x+=spacing){if(insideDrop(x,y))dots.push({x:x,y:y});}
+    }
+    if(!dots.length)return;
+
+    dots.sort(function(a,b){return(a.y-b.y)||(a.x-b.x);});
+    var nDots=dots.length,assigned=[];
+    counts.forEach(function(c){var k=Math.round(c.count/total*nDots);for(var j=0;j<k;j++)assigned.push(counts.indexOf(c));});
+    while(assigned.length<nDots)assigned.push(0);
+    while(assigned.length>nDots)assigned.pop();
+
+    dots.forEach(function(pt,i){
+      var idx=assigned[i],c=counts[idx];
+      svg.append("circle").attr("cx",pt.x).attr("cy",pt.y).attr("r",dotR)
+        .attr("fill",SPE_PALETTE[idx%SPE_PALETTE.length]).attr("opacity",0.92).style("cursor","pointer")
+        .on("mousemove",function(event){
+          var pct=Math.round(c.count/total*100);
+          showTooltip(event,"<strong>"+c.label+"</strong><br>"+c.count+" project"+(c.count!==1?"s":"")+"<br>"+pct+"%");
+        }).on("mouseleave",hideTooltip);
+    });
+
+    // FIX: list item font sizes scale with both row height and viewport
+    var list=document.createElement("div");
+    list.style.cssText=
+      "position:absolute;left:10px;top:8px;"+
+      "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
+      "display:flex;flex-direction:column;justify-content:space-around;"+
+      "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
+
+    var nItems=counts.length;
+    var rowH=(height-16)/nItems;
+    var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48))); // FIX: was 12–26
+    var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));  // FIX: was 11–16
+    var swatch=Math.max(7,Math.floor(pctFS*0.55));
+
+    counts.forEach(function(c,i){
+      var pct=Math.round(c.count/total*100);
+      var color=SPE_PALETTE[i%SPE_PALETTE.length];
+      var row=document.createElement("div");
+      row.style.cssText="display:flex;align-items:center;gap:6px;line-height:1.15;min-height:0;";
+      row.innerHTML=
+        '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+';border-radius:50%;flex-shrink:0;"></div>'+
+        '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+';flex-shrink:0;letter-spacing:-0.5px;">'+pct+'%</div>'+
+        '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;word-wrap:break-word;overflow-wrap:break-word;min-width:0;flex:1;">'+c.label+'</div>';
+      list.appendChild(row);
+    });
+    el.appendChild(list);
+  }
+
+  function redrawCharts(){
+    if(!_data)return;
+    drawFiscalYear(_data);
+    drawGoalChart(_data);
+    drawSpeciesChart(_data);
+  }
+
+  // FIX: redraw all charts on resize (debounced 200ms)
+  var _resizeTimer;
+  window.addEventListener('resize',function(){
+    clearTimeout(_resizeTimer);
+    _resizeTimer=setTimeout(redrawCharts,200);
   });
-
-  // ── HTML list overlay — all species, auto-sized ──
-  var list = document.createElement("div");
-  list.style.cssText =
-    "position:absolute;left:10px;top:8px;" +
-    "width:" + (leftW - 18) + "px;" +
-    "height:" + (height - 16) + "px;" +
-    "display:flex;flex-direction:column;justify-content:space-around;" +
-    "font-family:" + FONT + ";overflow:hidden;pointer-events:none;" +
-    "box-sizing:border-box;";
-
-  var nItems = counts.length;
-  var rowH = (height - 16) / nItems;
-  var pctFS  = Math.max(12, Math.min(26, Math.floor(rowH * 0.48)));
-  var nameFS = Math.max(11, Math.min(16, Math.floor(pctFS * 0.72)));
-  var swatch = Math.max(8, Math.floor(pctFS * 0.55));
-
-  counts.forEach(function(c, i){
-    var pct = Math.round(c.count / total * 100);
-    var color = SPE_PALETTE[i % SPE_PALETTE.length];
-    var row = document.createElement("div");
-    row.style.cssText =
-      "display:flex;align-items:center;gap:7px;line-height:1.15;min-height:0;";
-    row.innerHTML =
-      '<div style="width:' + swatch + 'px;height:' + swatch + 'px;background:' + color +
-        ';border-radius:50%;flex-shrink:0;"></div>' +
-      '<div style="font-size:' + pctFS + 'px;font-weight:900;color:' + color +
-        ';flex-shrink:0;letter-spacing:-0.5px;">' + pct + '%</div>' +
-      '<div style="font-size:' + nameFS + 'px;font-weight:600;color:#333;' +
-        'word-wrap:break-word;overflow-wrap:break-word;min-width:0;flex:1;">' +
-        c.label + '</div>';
-    list.appendChild(row);
-  });
-  el.appendChild(list);
-}
-
-
-
-
 
   async function init(){
-    var data=await fetchMain();
-    drawHeroStats(data);
-    drawFiscalYear(data);
-    drawGoalChart(data);
-    drawSpeciesChart(data);
+    _data=await fetchMain();
+    drawHeroStats(_data);
+    drawFiscalYear(_data);
+    drawGoalChart(_data);
+    drawSpeciesChart(_data);
   }
 
   init();
