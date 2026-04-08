@@ -219,46 +219,52 @@
   if(!counts.length)return;
   var total=d3.sum(counts,function(d){return d.count;});
 
-  var leftW=Math.max(140,width*0.42);
-  var svg=d3.select("#species-chart").append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
+  var svg=d3.select("#species-chart").append("svg")
+    .attr("width",width).attr("height",height)
+    .style("font-family",FONT);
 
-  // ── Fish geometry ──
-  var fishAreaX=leftW,fishAreaY=8;
-  var fishAreaW=width-leftW-10;
-  var fishAreaH=height-16;
-  var fw=Math.min(fishAreaW*0.95,fishAreaH*2.3);
-  var fh=Math.min(fishAreaH*0.92,fw/2.2);
-  var fcx=fishAreaX+fishAreaW/2;
-  var fcy=fishAreaY+fishAreaH/2;
+  // ── Fish silhouette path (viewBox 1000×600, pointing LEFT) ──
+  // Rounded nose, prominent dorsal fin, pelvic fin, forked tail.
+  var vbW=1000,vbH=600;
+  var fishPathStr=
+    "M 60,300 "+
+    "C 60,220 150,150 240,170 "+
+    "L 350,30 "+
+    "C 370,20 420,30 440,110 "+
+    "C 560,180 700,200 790,210 "+
+    "L 980,80 "+
+    "C 920,220 890,290 890,300 "+
+    "C 890,310 920,380 980,520 "+
+    "L 790,380 "+
+    "C 700,385 580,400 520,420 "+
+    "C 500,470 450,500 400,490 "+
+    "C 350,475 280,460 220,445 "+
+    "C 130,430 60,380 60,300 Z";
 
-  var noseX=fcx+fw/2;
-  var tailBaseX=fcx-fw*0.32;
-  var tailTipX=fcx-fw/2;
-  var bodyTopY=fcy-fh*0.50;
-  var bodyBottomY=fcy+fh*0.50;
-  var tailTopY=fcy-fh*0.55;
-  var tailBottomY=fcy+fh*0.55;
+  // Fit fish to panel (uniform scale — preserves fish proportions)
+  var pad=6;
+  var targetW=width-pad*2;
+  var targetH=height-pad*2;
+  var scale=Math.min(targetW/vbW,targetH/vbH);
+  var fishW=vbW*scale;
+  var fishH=vbH*scale;
+  var offsetX=(width-fishW)/2;
+  var offsetY=(height-fishH)/2;
+  var transform="translate("+offsetX+","+offsetY+") scale("+scale+")";
 
-  var fishPath=
-    "M "+noseX+","+fcy+
-    " C "+(fcx+fw*0.28)+","+bodyTopY+" "+(fcx-fw*0.05)+","+bodyTopY+" "+tailBaseX+","+(fcy-fh*0.30)+
-    " L "+tailTipX+","+tailTopY+
-    " L "+tailTipX+","+tailBottomY+
-    " L "+tailBaseX+","+(fcy+fh*0.30)+
-    " C "+(fcx-fw*0.05)+","+bodyBottomY+" "+(fcx+fw*0.28)+","+bodyBottomY+" "+noseX+","+fcy+
-    " Z";
-
-  var clipId="fish-layer-clip-"+Math.round(Math.random()*9999);
+  // Clip path — transforms the path into screen coords
+  var clipId="fish-clip-"+Math.round(Math.random()*9999);
   svg.append("defs").append("clipPath").attr("id",clipId)
-    .append("path").attr("d",fishPath);
+    .append("path").attr("d",fishPathStr).attr("transform",transform);
 
-  var fishTop=tailTopY;
-  var fishBottom=tailBottomY;
+  // Stacking bounds (fish bounding box in screen coords)
+  var fishTop=offsetY;
+  var fishBottom=offsetY+fishH;
   var fishTotalH=fishBottom-fishTop;
-  var layerX=tailTipX-4;
-  var layerW=(noseX-tailTipX)+8;
+  var layerX=offsetX-10;
+  var layerW=fishW+20;
 
-  // Stack layers bottom → top (largest % at bottom)
+  // ── Stack layers bottom → top (largest % at bottom) ──
   var currentBottom=fishBottom;
   counts.forEach(function(c,i){
     var pct=c.count/total;
@@ -282,30 +288,63 @@
   });
 
   // Fish outline
-  svg.append("path").attr("d",fishPath)
-    .attr("fill","none").attr("stroke","rgba(255,255,255,0.55)").attr("stroke-width",2);
+  svg.append("path").attr("d",fishPathStr).attr("transform",transform)
+    .attr("fill","none")
+    .attr("stroke","rgba(255,255,255,0.55)")
+    .attr("stroke-width",2)
+    .attr("vector-effect","non-scaling-stroke");
 
-  // Eye
-  var eyeR=Math.max(3,fh*0.07);
-  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR)
-    .attr("fill","white").attr("stroke","rgba(0,0,0,0.25)").attr("stroke-width",1);
-  svg.append("circle").attr("cx",fcx+fw*0.30).attr("cy",fcy-fh*0.15).attr("r",eyeR*0.5)
+  // Eye (positioned in viewBox coords, then transformed)
+  var eyeCx=offsetX+160*scale;
+  var eyeCy=offsetY+255*scale;
+  var eyeR=Math.max(3,22*scale);
+  svg.append("circle").attr("cx",eyeCx).attr("cy",eyeCy).attr("r",eyeR)
+    .attr("fill","white").attr("stroke","rgba(0,0,0,0.3)").attr("stroke-width",1);
+  svg.append("circle").attr("cx",eyeCx).attr("cy",eyeCy).attr("r",eyeR*0.5)
     .attr("fill","#0d1b2a");
 
-  // % labels inside layers
+  // ── Overlay stats on each layer (% + name), centered horizontally ──
+  var labelCx=offsetX+fishW/2;
   currentBottom=fishBottom;
   counts.forEach(function(c,i){
     var pct=c.count/total;
     var layerH=pct*fishTotalH;
     var layerTop=currentBottom-layerH;
     var midY=layerTop+layerH/2;
-    if(layerH>=14){
-      var labelFs=Math.max(8,Math.min(vfs(14),Math.floor(layerH*0.38)));
+
+    if(layerH>=18){
+      var pctFs=Math.max(12,Math.min(vfs(28),Math.floor(layerH*0.42)));
+      var nameFs=Math.max(9,Math.min(vfs(14),Math.floor(pctFs*0.48)));
+
       svg.append("text")
-        .attr("x",fcx).attr("y",midY)
+        .attr("x",labelCx).attr("y",midY-nameFs*0.4)
         .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",labelFs).attr("font-weight","700")
-        .attr("fill","rgba(255,255,255,0.93)").attr("font-family",FONT)
+        .attr("font-size",pctFs).attr("font-weight","900")
+        .attr("fill","white").attr("font-family",FONT)
+        .attr("paint-order","stroke")
+        .attr("stroke","rgba(0,0,0,0.55)").attr("stroke-width",3)
+        .style("pointer-events","none")
+        .text(Math.round(pct*100)+"%");
+
+      svg.append("text")
+        .attr("x",labelCx).attr("y",midY+pctFs*0.55)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",nameFs).attr("font-weight","600")
+        .attr("fill","white").attr("font-family",FONT)
+        .attr("paint-order","stroke")
+        .attr("stroke","rgba(0,0,0,0.55)").attr("stroke-width",2)
+        .style("pointer-events","none")
+        .text(c.label);
+    } else if(layerH>=9){
+      var pctFs2=Math.max(9,Math.floor(layerH*0.65));
+      svg.append("text")
+        .attr("x",labelCx).attr("y",midY)
+        .attr("text-anchor","middle").attr("dominant-baseline","middle")
+        .attr("font-size",pctFs2).attr("font-weight","900")
+        .attr("fill","white").attr("font-family",FONT)
+        .attr("paint-order","stroke")
+        .attr("stroke","rgba(0,0,0,0.55)").attr("stroke-width",2)
+        .style("pointer-events","none")
         .text(Math.round(pct*100)+"%");
     }
     currentBottom=layerTop;
@@ -329,45 +368,8 @@
       .on("mouseleave",hideTooltip);
     currentBottom=layerTop;
   });
-
-  // ── Legend — top-to-bottom matches fish top-to-bottom ──
-  var legendOrder=counts.slice().reverse();
-
-  var list=document.createElement("div");
-  list.style.cssText=
-    "position:absolute;left:10px;top:8px;"+
-    "width:"+(leftW-18)+"px;height:"+(height-16)+"px;"+
-    "display:flex;flex-direction:column;justify-content:flex-start;"+
-    "font-family:"+FONT+";overflow:hidden;pointer-events:none;box-sizing:border-box;";
-
-  var nItems=legendOrder.length;
-  var rowH=(height-16)/nItems;
-  var pctFS=Math.max(vfs(11),Math.min(vfs(22),Math.floor(rowH*0.48)));
-  var nameFS=Math.max(vfs(10),Math.min(vfs(14),Math.floor(pctFS*0.72)));
-  var swatch=Math.max(7,Math.floor(pctFS*0.55));
-
-  legendOrder.forEach(function(c){
-    var origIdx=counts.indexOf(c);
-    var pct=Math.round(c.count/total*100);
-    var color=SPE_PALETTE[origIdx%SPE_PALETTE.length];
-    var row=document.createElement("div");
-    var topPad=Math.max(1,Math.floor((rowH-nameFS*1.25)/2));
-    row.style.cssText=
-      "display:flex;align-items:flex-start;gap:6px;"+
-      "height:"+Math.floor(rowH)+"px;overflow:hidden;flex-shrink:0;"+
-      "box-sizing:border-box;padding-top:"+topPad+"px;";
-    row.innerHTML=
-      '<div style="width:'+swatch+'px;height:'+swatch+'px;background:'+color+
-        ';border-radius:50%;flex-shrink:0;margin-top:'+Math.round(nameFS*0.05)+'px;"></div>'+
-      '<div style="font-size:'+pctFS+'px;font-weight:900;color:'+color+
-        ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">'+pct+'%</div>'+
-      '<div style="font-size:'+nameFS+'px;font-weight:600;color:#333;'+
-        'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">'+
-        c.label+'</div>';
-    list.appendChild(row);
-  });
-  el.appendChild(list);
 }
+
 
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
