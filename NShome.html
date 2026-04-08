@@ -367,7 +367,7 @@ function drawSpeciesChart(data) {
   var nameFS = Math.max(vfs(10), Math.min(vfs(14), Math.floor(pctFS * 0.72)));
   var swatch = Math.max(7, Math.floor(pctFS * 0.55));
 
-  counts.forEach(function(c, i) {
+  counts.slice().reverse().forEach(function(c, i) {
     var pct   = Math.round(c.count / total * 100);
     var color = SPE_PALETTE[i % SPE_PALETTE.length];
     var row   = document.createElement("div");
