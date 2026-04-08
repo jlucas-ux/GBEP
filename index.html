@@ -2,48 +2,69 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: 'Roboto', sans-serif; }
     #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+    /* FIX: nav uses clamp() so buttons scale between laptop and desktop */
     #nav {
       display: flex; align-items: center; justify-content: center;
-      gap: 8px; padding: 12px 16px; background: white;
+      gap: clamp(4px, 0.5vw, 8px);
+      padding: clamp(6px, 0.8vw, 12px) clamp(8px, 1vw, 16px);
+      background: white;
       border-bottom: 2px solid #e8f0fe; flex-shrink: 0; flex-wrap: wrap;
     }
     .nav-btn {
-      padding: 10px 24px; border: 2px solid #1677bc; border-radius: 20px;
+      padding: clamp(5px, 0.5vw, 10px) clamp(10px, 1.2vw, 24px);
+      border: 2px solid #1677bc; border-radius: 20px;
       background: white; color: #1677bc; font-family: 'Roboto', sans-serif;
-      font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap;
+      font-size: clamp(11px, 0.95vw, 16px); /* FIX: was fixed 16px */
+      font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap;
     }
     .nav-btn:hover { background: #e8f4fb; }
     .nav-btn.active { background: #1677bc; color: white; box-shadow: 0 2px 8px rgba(22,119,188,0.25); }
+
     #charts { flex: 1; overflow: hidden; position: relative; }
     .chart-panel {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      overflow: hidden; display: none; padding: 16px 20px; background: #f8fafc;
+      overflow: hidden; display: none; padding: clamp(8px,1vw,16px) clamp(10px,1.2vw,20px); background: #f8fafc;
     }
     .chart-panel.active { display: flex; flex-direction: column; }
-    .chart-title { font-size: 19px; font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
-    .chart-subtitle { font-size:18px; color: #888; margin-bottom: 10px; flex-shrink: 0; line-height:1.7; }
+
+    /* FIX: title/subtitle use clamp() */
+    .chart-title { font-size: clamp(13px, 1.15vw, 19px); font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
+    .chart-subtitle { font-size: clamp(10px, 0.85vw, 14px); color: #888; margin-bottom: 8px; flex-shrink: 0; line-height: 1.5; }
     .chart-subtitle strong { color: #1677bc; font-weight: 700; }
     .chart-subtitle strong.green { color: #009988; }
+
     .chart-area { flex: 1; overflow: hidden; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
-    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; width: 100%; height: 100%; }
+    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; width: 100%; height: 100%; }
     .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
-    .grid-cell-title { font-size: 14px; font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    /* FIX: grid cell title scales with viewport */
+    .grid-cell-title { font-size: clamp(9px, 0.75vw, 13px); font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
     .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
     .tooltip {
       position: absolute; background: rgba(15,23,42,0.92); color: white;
-      padding: 9px 14px; border-radius: 7px; font-size: 15px;
+      padding: 8px 12px; border-radius: 7px; font-size: clamp(11px, 0.9vw, 14px);
       pointer-events: none; opacity: 0; transition: opacity 0.15s;
-      max-width: 340px; line-height: 1.5; z-index: 999;
+      max-width: 300px; line-height: 1.5; z-index: 999;
       box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
+
+    /* FIX: date filter also scales */
+    #date-filter { font-size: clamp(11px, 0.9vw, 15px); }
+    #date-filter select { font-size: clamp(11px, 0.9vw, 15px); padding: clamp(4px,0.4vw,6px) clamp(8px,0.8vw,12px); }
+    #date-filter button { font-size: clamp(10px, 0.8vw, 14px); padding: clamp(4px,0.4vw,6px) clamp(10px,1vw,16px); }
+
+    /* FIX: pp definitions box scales */
+    #pp-definitions { font-size: clamp(10px, 0.8vw, 14px); }
+    #pp-definitions .pp-def-title { font-size: clamp(11px, 0.85vw, 15px); }
   </style>
 </head>
 <body>
@@ -52,32 +73,32 @@
 <div id="app" style="display:none">
   <!-- DATE RANGE FILTER -->
   <div id="date-filter" style="
-    display:flex;align-items:center;justify-content:center;gap:12px;
-    padding:10px 16px;background:white;border-bottom:1px solid #e8f0fe;
-    flex-shrink:0;font-family:'Roboto',sans-serif;
+    display:flex;align-items:center;justify-content:center;gap:clamp(6px,0.8vw,12px);
+    padding:clamp(6px,0.6vw,10px) clamp(8px,1vw,16px);background:white;border-bottom:1px solid #e8f0fe;
+    flex-shrink:0;font-family:'Roboto',sans-serif;flex-wrap:wrap;
   ">
-    <span style="font-size:15px;font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
+    <span style="font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
     <select id="year-from" onchange="applyYearFilter()" style="
-      padding:6px 12px;border:2px solid #1677bc;border-radius:20px;
-      font-size:15px;font-family:'Roboto',sans-serif;color:#1677bc;
+      border:2px solid #1677bc;border-radius:20px;
+      font-family:'Roboto',sans-serif;color:#1677bc;
       background:white;cursor:pointer;outline:none;
     ">
       <option value="">From</option>
     </select>
-    <span style="font-size:15px;color:#888;">—</span>
+    <span style="color:#888;">—</span>
     <select id="year-to" onchange="applyYearFilter()" style="
-      padding:6px 12px;border:2px solid #1677bc;border-radius:20px;
-      font-size:15px;font-family:'Roboto',sans-serif;color:#1677bc;
+      border:2px solid #1677bc;border-radius:20px;
+      font-family:'Roboto',sans-serif;color:#1677bc;
       background:white;cursor:pointer;outline:none;
     ">
       <option value="">To</option>
     </select>
     <button onclick="clearYearFilter()" style="
-      padding:6px 16px;border:2px solid #aaa;border-radius:20px;
-      font-size:14px;font-family:'Roboto',sans-serif;color:#888;
+      border:2px solid #aaa;border-radius:20px;
+      font-family:'Roboto',sans-serif;color:#888;
       background:white;cursor:pointer;
     ">Clear</button>
-    <span id="filter-count" style="font-size:14px;color:#aaa;"></span>
+    <span id="filter-count" style="color:#aaa;"></span>
   </div>
 
   <div id="nav">
@@ -89,6 +110,7 @@
     <button class="nav-btn" onclick="showChart(5)">Org × Priority</button>
     <button class="nav-btn" onclick="showChart(6)">Acres by Habitat</button>
   </div>
+
   <div id="charts">
     <div class="chart-panel active" id="panel-0">
       <div class="chart-title">Project Habitat Type Combinations</div>
@@ -99,7 +121,7 @@
       <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
       <div class="chart-subtitle">Bubble size = number of distinct NRU projects with GBEP funding. Hover for details.</div>
       <div style="flex-shrink:0;margin-bottom:6px;">
-        <button onclick="resetZoom('site-chart')" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:13px;">Reset zoom</button>
+        <button onclick="resetZoom('site-chart')" style="padding:5px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:clamp(10px,0.8vw,13px);">Reset zoom</button>
       </div>
       <div class="chart-area" id="site-chart"></div>
     </div>
@@ -121,12 +143,12 @@
         <div id="pp-definitions" style="
             background:white;border-radius:10px;
             box-shadow:0 1px 6px rgba(0,0,0,0.07);
-            padding:14px 20px;margin-top:10px;
+            padding:clamp(8px,0.8vw,14px) clamp(10px,1.2vw,20px);margin-top:8px;
             font-family:'Roboto',sans-serif;
-            flex-shrink:0; font-size:16px;
+            flex-shrink:0;
           ">
-          <div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">Category Definitions</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;">
+          <div class="pp-def-title" style="font-weight:700;color:#333;margin-bottom:6px;">Category Definitions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px 20px;line-height:1.5;">
             <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
             <span><strong style="color:#1565c0">PS</strong> — Improve water quality through point source pollution abatement.</span>
             <span><strong style="color:#1565c0">PHA</strong> — Promote public health and awareness.</span>
@@ -154,20 +176,20 @@
     <div class="chart-panel" id="panel-6">
       <div class="chart-title">Approximate Project Acres by Habitat Type</div>
       <div class="chart-subtitle" id="treemap-subtitle">Physical project acres per habitat type. Sites with multiple habitats contribute acres to each type.</div>
-      <div style="display:flex;gap:12px;margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
-        <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Physical Project Acres</div>
-          <div id="physical-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
-          <div style="font-size:10px;opacity:0.6;">Habitat-specific, shown in chart below</div>
+      <div style="display:flex;gap:clamp(6px,0.8vw,12px);margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
+        <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
+          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Physical Project Acres</div>
+          <div id="physical-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
+          <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Habitat-specific, shown in chart below</div>
         </div>
-        <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:10px 20px;flex:1;font-family:'Roboto',sans-serif;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Large Scale Project Acres</div>
-          <div id="research-acres-val" style="font-size:26px;font-weight:900;letter-spacing:-1px;">—</div>
-          <div style="font-size:10px;opacity:0.6;">Research-affected, not habitat-specific</div>
+        <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
+          <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Large Scale Project Acres</div>
+          <div id="research-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
+          <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Research-affected, not habitat-specific</div>
         </div>
       </div>
       <div style="flex-shrink:0;margin-bottom:6px;">
-        <button onclick="resetZoom('treemap-chart')" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:13px;">Reset zoom</button>
+        <button onclick="resetZoom('treemap-chart')" style="padding:5px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:clamp(10px,0.8vw,13px);">Reset zoom</button>
       </div>
       <div class="chart-area" id="treemap-chart"></div>
     </div>
@@ -179,6 +201,13 @@
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
   var PALETTE=[C1,C2,C3,C4,"#90caf9","#b2ebf2","#80deea","#4dd0e1","#006994","#0288d1","#29b6f6","#81d4fa","#0097a7","#00acc1","#00bcd4","#4fc3f7","#039be5","#0277bd","#01579b","#26c6da"];
+
+  // FIX: Global font-size scaler — baseline is 1600px wide, scales proportionally.
+  // Clamps between 60% and 100% of the base value so text never gets unreadably tiny.
+  function vfs(base) {
+    var ratio = Math.min(1, Math.max(0.6, window.innerWidth / 1600));
+    return Math.round(base * ratio);
+  }
 
   var PP_PALETTES={
     1:["#1565c0","#1976d2","#1e88e5","#42a5f5","#90caf9","#bbdefb","#e3f2fd","#1677bc","#0d47a1","#2196f3","#64b5f6","#b3e5fc"],
@@ -222,7 +251,6 @@
       var o1=document.createElement("option");o1.value=y;o1.textContent=y;fromSel.appendChild(o1);
       var o2=document.createElement("option");o2.value=y;o2.textContent=y;toSel.appendChild(o2);
     });
-    // Default to last value in To
     toSel.value=years[years.length-1]||"";
   }
 
@@ -269,14 +297,12 @@
     return s==="1"||s==="true"||s==="yes"||s==="y";
   }
 
-
   function cleanTick(s){ return String(s).replace(/_/g," "); }
   function fmtDollars(v){
     if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";
     if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";
     return "$"+Math.round(v);
   }
-
   function fmtAcres(v){
     if(v>=1e6)return (v/1e6).toFixed(1)+"M ac";
     if(v>=1e3)return (v/1e3).toFixed(0)+"K ac";
@@ -300,6 +326,15 @@
     }
   }
 
+  // FIX: Redraw the active chart when the window resizes
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      redrawAll();
+    }, 200);
+  });
+
   async function fetchData(){
     var ppFields=[];
     for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
@@ -319,8 +354,6 @@
     var width=el.clientWidth||window.innerWidth;
     var height=el.clientHeight||(window.innerHeight-100);
 
-    // Separate by project scale
-    // Count all projects (remove GBEP-funded-only filter)
     var physicalFunded=filteredData.filter(function(d){
       return d.project_landscape_type &&
         d.numeric_approximate_project_siz>0 &&
@@ -331,7 +364,6 @@
         d.project_scale==="Large scale representative proj";
     });
 
-    // Update indicators
     var physAcres=d3.sum(physicalFunded,function(d){return d.numeric_approximate_project_siz||0;});
     var largeAcres=d3.sum(largeFunded,function(d){return d.numeric_approximate_project_siz||0;});
     var physEl=document.getElementById("physical-acres-val");
@@ -341,7 +373,6 @@
 
     var funded=physicalFunded;
 
-    // Year range for subtitle
     var years=filteredData.filter(function(d){return d.fiscal_year_awarded;}).map(function(d){
       var fy=d.fiscal_year_awarded;
       if(String(fy).length===4)return parseInt(fy);
@@ -353,84 +384,53 @@
       if(subtitleEl)subtitleEl.textContent="Total approximate acres across GBEP-funded projects per habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Sites with multiple habitats contribute acres to each type.";
     }
 
-    // Sum acres per habitat type (multi-habitat sites contribute to each)
     var acreMap={};
     funded.forEach(function(row){
       var acres=row.numeric_approximate_project_siz||0;
       var types=row.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
-      types.forEach(function(type){
-        acreMap[type]=(acreMap[type]||0)+acres;
-      });
+      types.forEach(function(type){acreMap[type]=(acreMap[type]||0)+acres;});
     });
 
-    var leaves=Object.keys(acreMap).map(function(k){
-      return {name:k,value:acreMap[k]};
-    }).filter(function(d){return d.value>0;});
-
+    var leaves=Object.keys(acreMap).map(function(k){return{name:k,value:acreMap[k]};}).filter(function(d){return d.value>0;});
     if(leaves.length===0)return;
 
     var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-    // Build discrete buckets: under 1000 use 200-acre buckets, 1000+ use 1000-acre buckets
-    var smallStep = 200, smallMax = 1000;
-    var largeStep = 1000;
-    var numSmallBuckets = Math.ceil(smallMax / smallStep); // e.g., 5 buckets for 0-1000
-    var numLargeBuckets = Math.max(1, Math.ceil((Math.max(0, maxVal - smallMax)) / largeStep));
-    var totalBuckets = numSmallBuckets + numLargeBuckets;
+    var smallStep=200,smallMax=1000;
+    var largeStep=1000;
+    var numSmallBuckets=Math.ceil(smallMax/smallStep);
+    var numLargeBuckets=Math.max(1,Math.ceil((Math.max(0,maxVal-smallMax))/largeStep));
+    var totalBuckets=numSmallBuckets+numLargeBuckets;
 
-    // Create a brand-aligned green→blue interpolator (light -> dark green-blue)
-    // User-provided palette (light -> dark): will be sampled and reversed so
-    // interp(0)=light, interp(1)=dark. Hex list provided by user.
-    var userPalette = ["#025043","#036cd5","#037c6e","#048c7f","#05998c","#28a99e","#4fb9af"];
-    // Reverse to go from light -> dark for the interpolator
-    var paletteStops = userPalette.slice().reverse();
-    var interp = d3.interpolateRgbBasis(paletteStops);
+    var userPalette=["#025043","#036cd5","#037c6e","#048c7f","#05998c","#28a99e","#4fb9af"];
+    var paletteStops=userPalette.slice().reverse();
+    var interp=d3.interpolateRgbBasis(paletteStops);
 
-    // Map a value to a discrete bucket index
     function bucketIndex(val){
-      if(val <= 0) return 0;
-      if(val < smallMax){
-        return Math.min(numSmallBuckets-1, Math.floor(val / smallStep));
-      }
-      var above = val - smallMax;
-      return numSmallBuckets + Math.min(numLargeBuckets-1, Math.floor(above / largeStep));
+      if(val<=0)return 0;
+      if(val<smallMax)return Math.min(numSmallBuckets-1,Math.floor(val/smallStep));
+      var above=val-smallMax;
+      return numSmallBuckets+Math.min(numLargeBuckets-1,Math.floor(above/largeStep));
     }
 
-    // Pre-sample discrete colors for each bucket, biasing toward darker tones
-    // so that small buckets (<=5k) are darker and have readable white text,
-    // while larger buckets remain distinct.
-    var idx5000 = bucketIndex(5000);
-    var bucketColors = d3.range(totalBuckets).map(function(i){
-      if(totalBuckets <= 1) return interp(0.8);
-      if(i <= idx5000){
-        // Map low buckets to t in [0.40, 0.70]
-        var denom = Math.max(1, idx5000);
-        var t = 0.40 + 0.30 * (i / denom);
-        return interp(t);
-      } else {
-        // Map high buckets to t in [0.70, 1.0]
-        var denom2 = Math.max(1, totalBuckets - 1 - idx5000);
-        var t2 = 0.70 + 0.30 * ((i - idx5000) / denom2);
-        return interp(t2);
-      }
+    var idx5000=bucketIndex(5000);
+    var bucketColors=d3.range(totalBuckets).map(function(i){
+      if(totalBuckets<=1)return interp(0.8);
+      if(i<=idx5000){var denom=Math.max(1,idx5000);return interp(0.40+0.30*(i/denom));}
+      else{var denom2=Math.max(1,totalBuckets-1-idx5000);return interp(0.70+0.30*((i-idx5000)/denom2));}
     });
 
     function colorScale(val){
-      var idx = bucketIndex(val);
-      return bucketColors[Math.max(0, Math.min(bucketColors.length-1, idx))];
+      var idx=bucketIndex(val);
+      return bucketColors[Math.max(0,Math.min(bucketColors.length-1,idx))];
     }
 
-    // Build hierarchy for d3 treemap — fill full width and height
     var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
-
     var treemap=d3.treemap().size([width,height]).padding(2).round(true);
     treemap(root);
 
     d3.select("#treemap-chart").select("svg").remove();
-    var svg=d3.select("#treemap-chart").append("svg")
-      .attr("width",width).attr("height",height);
-
-    // Make treemap zoomable by placing cells inside a zoom group
-    var gZoom = svg.append("g").attr("class","zoom-root");
+    var svg=d3.select("#treemap-chart").append("svg").attr("width",width).attr("height",height);
+    var gZoom=svg.append("g").attr("class","zoom-root");
 
     var cell=gZoom.selectAll("g").data(root.leaves()).enter().append("g")
       .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
@@ -438,27 +438,24 @@
     var cellW=function(d){return Math.max(18,d.x1-d.x0);};
     var cellH=function(d){return Math.max(18,d.y1-d.y0);};
 
-    cell.append("rect")
-      .attr("width",cellW).attr("height",cellH)
+    cell.append("rect").attr("width",cellW).attr("height",cellH)
       .attr("fill",function(d){return colorScale(d.data.value);})
       .attr("rx",4).attr("opacity",0.88)
       .on("mousemove",function(event,d){
-        var title = d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
-        showTooltip(event,"<strong style='font-size:16px'>"+title+"</strong><br><span style='font-size:15px'>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total</span>");
+        var title=d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
+        showTooltip(event,"<strong>"+title+"</strong><br>"+fmtAcres(d.data.value)+"<br>"+Math.round(d.data.value).toLocaleString()+" acres total");
       }).on("mouseleave",hideTooltip);
 
-    // Only show labels on cells large enough to contain them
-    var totalAcres=d3.sum(leaves,function(d){return d.value;});
     cell.each(function(d){
       var w=cellW(d),h=cellH(d);
-      // Skip tiny cells entirely — tooltip only
-      if(w<80||h<50) return;
+      if(w<80||h<50)return;
       var g=d3.select(this);
       var label=d.data.name.replace(/_/g," ")
         .replace(/Submerged Aquatic Vegetati\w*/i,"SAV")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
 
-      var fontSize=Math.min(18,Math.max(12,w/12));
+      // FIX: font size scales with both cell size and viewport
+      var fontSize=Math.min(vfs(18),Math.max(vfs(12),w/12));
       var words=label.split(" ");
       var lines=[],cur="";
       words.forEach(function(word){
@@ -471,40 +468,32 @@
       var lineH=fontSize+4;
       var maxLines=Math.floor((h-lineH*2)/lineH);
       lines=lines.slice(0,Math.max(1,maxLines));
-
       var totalTextH=lines.length*lineH;
       var startY=(h-totalTextH)/2;
 
       lines.forEach(function(line,li){
-        // choose readable text color based on background luminance
-        var bg = colorScale(d.data.value);
-        var col = (d3.color(bg).luminance && d3.color(bg).luminance() > 0.55) ? '#111' : 'white';
-        g.append("text")
-          .attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
+        var bg=colorScale(d.data.value);
+        var col=(d3.color(bg).luminance&&d3.color(bg).luminance()>0.55)?'#111':'white';
+        g.append("text").attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
           .attr("font-size",fontSize).attr("font-family",FONT)
-          .attr("fill",col).attr("font-weight","600")
-          .text(line);
+          .attr("fill",col).attr("font-weight","600").text(line);
       });
 
-      // Only show acreage if there's room below the label
-      if(h > totalTextH + lineH*2.5){
-        var bg2 = colorScale(d.data.value);
-        var col2 = (d3.color(bg2).luminance && d3.color(bg2).luminance() > 0.55) ? '#111' : 'rgba(255,255,255,0.9)';
-        g.append("text")
-          .attr("x",w/2).attr("y",startY+totalTextH+lineH)
+      if(h>totalTextH+lineH*2.5){
+        var bg2=colorScale(d.data.value);
+        var col2=(d3.color(bg2).luminance&&d3.color(bg2).luminance()>0.55)?'#111':'rgba(255,255,255,0.9)';
+        g.append("text").attr("x",w/2).attr("y",startY+totalTextH+lineH)
           .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",Math.max(11,fontSize-3)).attr("font-family",FONT)
-          .attr("fill",col2)
-          .text(fmtAcres(d.data.value));
+          .attr("font-size",Math.max(vfs(11),fontSize-3)).attr("font-family",FONT)
+          .attr("fill",col2).text(fmtAcres(d.data.value));
       }
     });
 
-    // Add zoom behavior to the treemap svg and register it for reset
-    var zoom = d3.zoom().scaleExtent([0.6,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
+    var zoom=d3.zoom().scaleExtent([0.6,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
     svg.call(zoom);
-    window._zoomBehaviors = window._zoomBehaviors || {};
-    window._zoomBehaviors['treemap-chart'] = { svg: svg, zoom: zoom };
+    window._zoomBehaviors=window._zoomBehaviors||{};
+    window._zoomBehaviors['treemap-chart']={svg:svg,zoom:zoom};
   }
 
   // ── FISCAL YEAR ──────────────────────────────────────────
@@ -529,40 +518,36 @@
      .sort(function(a,b){return a.year-b.year;});
     if(byYear.length===0)return;
 
-    // Update subtitle with year range
-    var minY=byYear[0].year, maxY=byYear[byYear.length-1].year;
+    var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;
     var subtitleEl=document.querySelector("#panel-4 .chart-subtitle");
     if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"–"+maxY+".";
 
-    // Make scrollable if many years
-    el.style.overflowX="auto";
-    el.style.overflowY="visible";
+    el.style.overflowX="auto";el.style.overflowY="visible";
     var minBarW=28;
-    var mL=55,mR=30,mT=20,mB=85;
-    var chartW=Math.max(width, byYear.length*minBarW+mL+mR);
+    // FIX: margins scale with viewport
+    var mL=Math.round(vfs(55)),mR=30,mT=20,mB=Math.round(vfs(85));
+    var chartW=Math.max(width,byYear.length*minBarW+mL+mR);
     var w=chartW-mL-mR,h=height-mT-mB;
 
     var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
     var yMax=d3.max(byYear,function(d){return d.count;})||1;
     var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
-
-    // Light-to-dark blue scale
     var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
 
     d3.select("#fy-chart").select("svg").remove();
     var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // Left axis — project count
     g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d")))
       .call(function(ax){ax.select(".domain").remove();})
-      .call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",18).attr("fill","#666");});
+      .call(function(ax){
+        ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");
+        ax.selectAll("text").attr("font-size",vfs(13)).attr("fill","#666"); // FIX: was 18
+      });
 
-    // Y axis label — inside margin, won't get cut off
-    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-42)
-      .attr("text-anchor","middle").attr("font-size",18).attr("fill","#888").attr("font-weight","500").text("Projects");
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(32,mL-12))
+      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("fill","#888").attr("font-weight","500").text("Projects"); // FIX: was 18
 
-    // Bars — light-to-dark by count
     g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
       .attr("x",function(d){return xScale(d.year);})
       .attr("y",function(d){return yScale(d.count);})
@@ -572,17 +557,15 @@
       .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
       .on("mouseleave",hideTooltip);
 
-    // Count labels on top of bars
     g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label")
       .attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;})
       .attr("y",function(d){return yScale(d.count)-4;})
-      .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","700")
+      .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700") // FIX: was 18
       .attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});
 
-    // X axis
     g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
       .call(function(ax){ax.select(".domain").attr("stroke","#ddd");})
-      .call(function(ax){ax.selectAll("text").attr("font-size",18).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
+      .call(function(ax){ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");}); // FIX: was 18
   }
 
   // ── HEATMAP ──────────────────────────────────────────────
@@ -607,28 +590,29 @@
       var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
       return tb-ta;
     });
-    var mL=Math.min(266,width*0.32),mR=20,mT=50,mB=20;
+    var mL=Math.min(240,width*0.30),mR=20,mT=45,mB=20; // FIX: was 266/0.32 — tighter on small screens
     var w=width-mL-mR,h=height-mT-mB;
     var cellW=w/priorities.length,cellH=h/orgs.length;
     var maxVal=d3.max(Object.values(cellMap))||1;
     var ppColorScales={
-      "PP1": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f4fb","#1565c0")),
-      "PP2": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f5e9","#1b5e20")),
-      "PP3": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#f3e5f5","#4a148c")),
-      "PP4": d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#fbe9e7","#bf360c"))
+      "PP1":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f4fb","#1565c0")),
+      "PP2":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f5e9","#1b5e20")),
+      "PP3":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#f3e5f5","#4a148c")),
+      "PP4":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#fbe9e7","#bf360c"))
     };
     d3.select("#heatmap-chart").select("svg").remove();
     var svg=d3.select("#heatmap-chart").append("svg").attr("width",width).attr("height",height);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
     priorities.forEach(function(pp,pi){
-      g.append("text").attr("x",pi*cellW+cellW/2).attr("y",-12).attr("text-anchor","middle").attr("font-size",18).attr("font-weight","700")
+      g.append("text").attr("x",pi*cellW+cellW/2).attr("y",-10).attr("text-anchor","middle")
+        .attr("font-size",vfs(13)).attr("font-weight","700") // FIX: was 18
         .attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);
     });
     orgs.forEach(function(org,oi){
       var cleanOrg=org.replace(/_/g," ");
       var label=cleanOrg.length>36?cleanOrg.slice(0,34)+"…":cleanOrg;
-      g.append("text").attr("x",-8).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(18,cellH*0.55)).attr("fill","#333").text(label);
+      g.append("text").attr("x",-6).attr("y",oi*cellH+cellH/2).attr("text-anchor","end").attr("dominant-baseline","middle")
+        .attr("font-size",Math.min(vfs(13),cellH*0.55)).attr("fill","#333").text(label); // FIX: was 18
       priorities.forEach(function(pp,pi){
         var val=cellMap[org+"||"+pp]||0;
         var dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0);
@@ -640,7 +624,7 @@
           }).on("mouseleave",hideTooltip);
         if(val>0&&cellH>14){
           g.append("text").attr("x",x+cellW/2).attr("y",y+cellH/2).attr("text-anchor","middle").attr("dominant-baseline","middle")
-            .attr("font-size",Math.min(19,cellH*0.45)).attr("font-weight","600")
+            .attr("font-size",Math.min(vfs(14),cellH*0.45)).attr("font-weight","600") // FIX: was 19
             .attr("fill",val>maxVal*0.5?"white":{"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#4a148c","PP4":"#bf360c"}[pp]).text(val);
         }
       });
@@ -663,23 +647,22 @@
       groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});
     });
 
-    var mL=50,mR=10,mT=36,mB=32; // mT=36 gives room for numbers above bars
+    // FIX: margins scale with viewport
+    var mL=Math.round(vfs(40)),mR=8,mT=30,mB=26;
     var cW=width-mL-mR,cH=height-mT-mB;
     var groupW=cW/groups.length,barW=groupW*0.7;
     var maxY=d3.max(groups,function(g){return d3.sum(g.subs,function(s){return s.value;});})||1;
-    // Scale domain slightly above maxY so top label never clips
     var yScale=d3.scaleLinear().domain([0,maxY*1.15]).range([cH,0]);
 
     d3.select("#"+containerId).select("svg").remove();
     var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // Y axis — project count
     g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(d3.format("d")))
       .call(function(ax){
         ax.select(".domain").remove();
         ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");
-        ax.selectAll("text").attr("font-size",18);
+        ax.selectAll("text").attr("font-size",vfs(11)); // FIX: was 18
       });
 
     groups.forEach(function(grp,gi){
@@ -692,15 +675,13 @@
           .on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+sub.value+" project"+(sub.value!==1?"s":""));})
           .on("mouseleave",hideTooltip);
       });
-      // Group label below bars
-      g.append("text").attr("x",x+barW/2).attr("y",cH+22)
-        .attr("text-anchor","middle").attr("font-size",19).attr("font-weight","700").attr("fill","#333")
+      g.append("text").attr("x",x+barW/2).attr("y",cH+18)
+        .attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700").attr("fill","#333") // FIX: was 19
         .text(grp.group);
-      // Total above bars — safely inside chart area due to 1.15 domain padding
       var total=d3.sum(grp.subs,function(s){return s.value;});
       if(total>0){
-        g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-6)
-          .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","600").attr("fill","#555")
+        g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-4)
+          .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","600").attr("fill","#555") // FIX: was 18
           .text(total);
       }
     });
@@ -713,95 +694,71 @@
     var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
     if(!counts||counts.length===0)return;
     var maxCount=d3.max(counts,function(d){return d.count;})||1;
-    // Increase minimum bubble radius and allow for a larger max radius on big screens.
-    var minR = 36;
-    var maxR = Math.min(width, height) * 0.12;
-    var rScale = d3.scaleSqrt().domain([1, maxCount]).range([minR, Math.max(minR, maxR)]);
-    // Multi-color palette with dark colors for readable white labels
+    var minR=30;
+    var maxR=Math.min(width,height)*0.11;
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([minR,Math.max(minR,maxR)]);
     var SITE_PALETTE=["#0d47a1","#1677bc","#006994","#0288d1","#00838f","#00695c","#1565c0","#0277bd","#006064","#01579b","#1e88e5","#0097a7","#00acc1","#1976d2","#2e7d32"];
-    var nodes = counts.map(function(d,i){
-      return {
-        label: d.label,
-        count: d.count,
-        r: rScale(d.count),
-        color: SITE_PALETTE[i % SITE_PALETTE.length],
-        x: width*0.2 + Math.random()*width*0.6,
-        y: height*0.2 + Math.random()*height*0.6
-      };
+    var nodes=counts.map(function(d,i){
+      return{label:d.label,count:d.count,r:rScale(d.count),color:SITE_PALETTE[i%SITE_PALETTE.length],
+        x:width*0.2+Math.random()*width*0.6,y:height*0.2+Math.random()*height*0.6};
     });
 
     d3.select("#"+containerId).select("svg").remove();
-    var svg = d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
+    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height);
+    var gZoom=svg.append("g").attr("class","zoom-root");
 
-    // Create a zoomable group so users can pan/zoom the bubble chart
-    var gZoom = svg.append("g").attr("class","zoom-root");
-
-    // Increase collision padding to avoid labels touching circle edges and each other
-    var collisionPadding = 10;
-    var sim = d3.forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(-6))
-      .force("center", d3.forceCenter(width/2, height/2))
-      .force("collision", d3.forceCollide().radius(function(d){ return d.r + collisionPadding; }).strength(1))
+    var sim=d3.forceSimulation(nodes)
+      .force("charge",d3.forceManyBody().strength(-6))
+      .force("center",d3.forceCenter(width/2,height/2))
+      .force("collision",d3.forceCollide().radius(function(d){return d.r+10;}).strength(1))
       .stop();
-    for(var i=0;i<600;i++) sim.tick();
-    // Keep nodes inside bounds
-    nodes.forEach(function(d){ d.x = Math.max(d.r+6, Math.min(width-d.r-6, d.x)); d.y = Math.max(d.r+6, Math.min(height-d.r-6, d.y)); });
+    for(var i=0;i<600;i++)sim.tick();
+    nodes.forEach(function(d){d.x=Math.max(d.r+6,Math.min(width-d.r-6,d.x));d.y=Math.max(d.r+6,Math.min(height-d.r-6,d.y));});
 
-    var node = gZoom.selectAll("g.node").data(nodes).enter().append("g").attr("class","node").attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
-      .on("mousemove",function(event,d){ showTooltip(event, "<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":"")); })
-      .on("mouseleave", hideTooltip);
+    var node=gZoom.selectAll("g.node").data(nodes).enter().append("g").attr("class","node")
+      .attr("transform",function(d){return "translate("+d.x+","+d.y+")";})
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" NRU project"+(d.count!==1?"s":""));})
+      .on("mouseleave",hideTooltip);
 
-    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;}).attr("opacity",0.92).attr("stroke","white").attr("stroke-width",2);
+    node.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return d.color;})
+      .attr("opacity",0.92).attr("stroke","white").attr("stroke-width",2);
 
     node.each(function(d){
-      var g = d3.select(this);
-      var words = d.label.split(/[^\w&'@]+/).filter(function(w){return w;});
-      // Font sizing and line height scale with radius; raise minimum font for readability
-      var minFont = 12, maxFont = 20;
-      var fs = Math.max(minFont, Math.min(maxFont, Math.floor(d.r/3)));
-      var lh = Math.max(14, Math.round(fs * 1.15));
-      var mw = d.r * 1.6; // max text width inside circle
-
-      // Build lines that fit within mw
-      var lines = [], cur = "";
+      var g=d3.select(this);
+      var words=d.label.split(/[^\w&'@]+/).filter(function(w){return w;});
+      var minFont=10,maxFont=vfs(18); // FIX: was hardcoded 20
+      var fs=Math.max(minFont,Math.min(maxFont,Math.floor(d.r/3)));
+      var lh=Math.max(13,Math.round(fs*1.15));
+      var mw=d.r*1.6;
+      var lines=[],cur="";
       words.forEach(function(w){
-        var test = cur ? cur + " " + w : w;
-        if(test.length * fs * 0.55 > mw && cur){ lines.push(cur); cur = w; }
-        else { cur = test; }
+        var test=cur?cur+" "+w:w;
+        if(test.length*fs*0.55>mw&&cur){lines.push(cur);cur=w;}
+        else{cur=test;}
       });
-      if(cur) lines.push(cur);
-
-      // Limit lines to what fits vertically inside the circle
-      var maxLines = Math.max(1, Math.floor((d.r*1.8) / lh));
-      lines = lines.slice(0, maxLines).map(function(line){
-        var maxChars = Math.floor(mw / (fs * 0.55)) || 1;
-        if(line.length > maxChars) return line.slice(0, maxChars-1) + "…";
-        return line;
+      if(cur)lines.push(cur);
+      var maxLines=Math.max(1,Math.floor((d.r*1.8)/lh));
+      lines=lines.slice(0,maxLines).map(function(line){
+        var maxChars=Math.floor(mw/(fs*0.55))||1;
+        return line.length>maxChars?line.slice(0,maxChars-1)+"…":line;
       });
-
-      var th = lines.length * lh;
-      var startY = -th/2;
-      lines.forEach(function(line, li){
-        g.append("text")
-          .attr("x", 0).attr("y", startY + li*lh + lh/2)
-          .attr("text-anchor", "middle").attr("dominant-baseline","middle")
-          .attr("font-size", fs).attr("font-family", FONT)
-          .attr("fill", "white").attr("font-weight","600").text(line);
+      var th=lines.length*lh,startY=-th/2;
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",0).attr("y",startY+li*lh+lh/2)
+          .attr("text-anchor","middle").attr("dominant-baseline","middle")
+          .attr("font-size",fs).attr("font-family",FONT).attr("fill","white").attr("font-weight","600").text(line);
       });
-
-      // Show count only if there is clear space below the label inside the circle
-      if(d.r > minFont && (d.r - th/2) > (lh + 8)){
-        g.append("text").attr("x",0).attr("y", d.r - Math.max(10, Math.round(lh/2)))
-          .attr("text-anchor","middle").attr("font-size", Math.max(11, fs-2)).attr("font-family", FONT)
+      if(d.r>minFont&&(d.r-th/2)>(lh+8)){
+        g.append("text").attr("x",0).attr("y",d.r-Math.max(10,Math.round(lh/2)))
+          .attr("text-anchor","middle").attr("font-size",Math.max(9,fs-2)).attr("font-family",FONT)
           .attr("fill","rgba(255,255,255,0.9)").attr("font-weight","700").text(d.count);
       }
     });
 
-    // Add zoom behavior to svg, targeting the zoom-root group, and register for reset
-    var zoom = d3.zoom().scaleExtent([0.5,8]).on("zoom", function(event){ gZoom.attr("transform", event.transform); });
+    var zoom=d3.zoom().scaleExtent([0.5,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
     svg.call(zoom);
-    window._zoomBehaviors = window._zoomBehaviors || {};
-    window._zoomBehaviors['site-chart'] = { svg: svg, zoom: zoom };
+    window._zoomBehaviors=window._zoomBehaviors||{};
+    window._zoomBehaviors['site-chart']={svg:svg,zoom:zoom};
   }
 
   function drawSiteChart(){
@@ -813,34 +770,30 @@
   function drawOrgChart(){
     var el=document.getElementById("org-chart");
     var width=el.clientWidth||window.innerWidth;
-
     var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});
     var grouped=d3.rollups(funded,function(v){return v.length;},function(d){return d.lead_organization_name;});
     var sorted=grouped.map(function(r){return{label:r[0],count:r[1]};}).sort(function(a,b){return b.count-a.count;});
     if(!sorted.length)return;
 
-    var ROW_H=46;
-    var mL=Math.min(306,width*0.40), mR=60, mT=10, mB=50;
+    var ROW_H=42; // FIX: was 46 — slightly tighter rows
+    var mL=Math.min(280,width*0.36),mR=55,mT=10,mB=45; // FIX: tighter margins
     var totalH=sorted.length*ROW_H+mT+mB;
     var xMax=d3.max(sorted,function(d){return d.count;})||1;
     var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
-    var dotR=Math.min(ROW_H*0.22,8);
+    var dotR=Math.min(ROW_H*0.22,7);
 
-    // Make container scrollable
-    el.style.overflowY="auto";
-    el.style.overflowX="hidden";
+    el.style.overflowY="auto";el.style.overflowX="hidden";
 
     d3.select("#org-chart").select("svg").remove();
     var svg=d3.select("#org-chart").append("svg").attr("width",width).attr("height",totalH).style("font-family",FONT);
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // X axis pinned at bottom of full SVG
     var axisG=g.append("g").attr("transform","translate(0,"+(totalH-mT-mB)+")");
     axisG.call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d")))
       .call(function(gr){
         gr.select(".domain").remove();
         gr.selectAll(".tick line").attr("y1",-(totalH-mT-mB)).attr("y2",0).attr("stroke","#f0f0f0");
-        gr.selectAll("text").attr("font-size",18).attr("fill","#555").attr("dy","1em");
+        gr.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("dy","1em"); // FIX: was 18
       });
 
     sorted.forEach(function(d,i){
@@ -851,70 +804,41 @@
       if(i%2===0){
         g.append("rect").attr("x",-mL).attr("y",i*ROW_H).attr("width",width).attr("height",ROW_H).attr("fill","#fafbff").attr("opacity",0.7);
       }
-
       g.append("line").attr("x1",0).attr("x2",xEnd).attr("y1",y).attr("y2",y).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.5);
-
       g.append("circle").attr("cx",xEnd).attr("cy",y).attr("r",dotR).attr("fill",col).attr("stroke","white").attr("stroke-width",1.5)
         .on("mousemove",function(event){showTooltip(event,"<strong>"+d.label+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));})
         .on("mouseleave",hideTooltip);
+      g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle")
+        .attr("font-size",vfs(13)).attr("font-weight","700").attr("fill",col).text(d.count); // FIX: was 18
 
-      g.append("text").attr("x",xEnd+dotR+4).attr("y",y).attr("dominant-baseline","middle").attr("font-size",18).attr("font-weight","700").attr("fill",col).text(d.count);
+      var cleanLabel=d.label.replace(/_/g," ");
+      var availablePx=Math.max(70,mL-20);
+      var fs=vfs(14),minFs=10; // FIX: was 20
+      function maxCharsForFs(f){return Math.max(1,Math.floor(availablePx/(f*0.55)));}
+      var maxChars=maxCharsForFs(fs);
+      while(fs>minFs&&maxChars<8){fs--;maxChars=maxCharsForFs(fs);}
 
-      // Stacked label — wrap dynamically to fit the left margin and avoid overflow
-      var cleanLabel = d.label.replace(/_/g, " ");
-      // Available pixel width to the left of the chart for labels (leave a bit of padding)
-      var availablePx = Math.max(80, mL - 24);
-      var fs = 20, minFs = 12;
-      function maxCharsForFs(f){ return Math.max(1, Math.floor(availablePx / (f * 0.55))); }
-      var maxChars = maxCharsForFs(fs);
-      // Reduce font size if the available width is too small so we get a reasonable chars-per-line
-      while(fs > minFs && maxChars < 8){ fs--; maxChars = maxCharsForFs(fs); }
-
-      var words = cleanLabel.split(/\s+/).filter(Boolean);
-      var lines = [], cur = "";
+      var words=cleanLabel.split(/\s+/).filter(Boolean);
+      var lines=[],cur="";
       words.forEach(function(word){
-        var test = cur ? cur + " " + word : word;
-        if(test.length > maxChars && cur){ lines.push(cur); cur = word; }
-        else { cur = test; }
+        var test=cur?cur+" "+word:word;
+        if(test.length>maxChars&&cur){lines.push(cur);cur=word;}
+        else{cur=test;}
       });
-      if(cur) lines.push(cur);
+      if(cur)lines.push(cur);
 
-      // Limit to a few lines depending on row height
-      var maxLines = Math.min(3, Math.max(1, Math.floor((ROW_H*0.9) / (fs + 3))));
-      lines = lines.slice(0, maxLines).map(function(line){
-        var m = maxChars;
-        return line.length > m ? line.slice(0, m-1) + "…" : line;
+      var maxLines=Math.min(3,Math.max(1,Math.floor((ROW_H*0.9)/(fs+3))));
+      lines=lines.slice(0,maxLines).map(function(line){
+        var m=maxChars;return line.length>m?line.slice(0,m-1)+"…":line;
       });
 
-      var lineH = fs + 3;
-      var startY = y - (lines.length-1) * lineH / 2;
-      lines.forEach(function(line, li){
-        g.append("text").attr("x", -8).attr("y", startY + li*lineH)
-          .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-          .attr("font-size", fs).attr("fill", "#333").text(line);
+      var lineH=fs+3;
+      var startY=y-(lines.length-1)*lineH/2;
+      lines.forEach(function(line,li){
+        g.append("text").attr("x",-8).attr("y",startY+li*lineH)
+          .attr("text-anchor","end").attr("dominant-baseline","middle")
+          .attr("font-size",fs).attr("fill","#333").text(line);
       });
-    });
-  }
-
-  function drawHorizontalBar(counts,containerId,color){
-    var el=document.getElementById(containerId);
-    var width=el.clientWidth||window.innerWidth,height=el.clientHeight||(window.innerHeight-80);
-    if(!counts||counts.length===0)return;
-    var sorted=counts.slice().sort(function(a,b){return b.count-a.count;});
-    var mL=Math.min(306,width*0.38),mR=50,mT=10,mB=30;
-    var baH=height-mT-mB,rowH=baH/sorted.length,barH=Math.min(26,rowH*0.65);
-    var xMax=d3.max(sorted,function(d){return d.count;})||1;
-    var xScale=d3.scaleLinear().domain([0,xMax]).range([0,width-mL-mR]);
-    d3.select("#"+containerId).select("svg").remove();
-    var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
-    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-    g.append("g").call(d3.axisBottom(xScale).ticks(Math.min(xMax,8)).tickFormat(d3.format("d"))).attr("transform","translate(0,"+baH+")")
-      .call(function(gr){gr.select(".domain").remove();}).call(function(gr){gr.selectAll(".tick line").attr("y1",-baH).attr("y2",0).attr("stroke","#eee");gr.selectAll("text").attr("font-size",20);});
-    sorted.forEach(function(d,i){
-      var y=i*rowH+(rowH-barH)/2;
-      g.append("rect").attr("x",0).attr("y",y).attr("width",xScale(d.count)).attr("height",barH).attr("fill",color).attr("rx",2);
-      g.append("text").attr("x",xScale(d.count)+4).attr("y",y+barH/2).attr("dominant-baseline","middle").attr("font-size",20).attr("fill","#333").text(d.count);
-      g.append("text").attr("x",-6).attr("y",y+barH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",20).attr("fill","#333").text(d.label.length>42?d.label.slice(0,40)+"...":d.label);
     });
   }
 
@@ -924,34 +848,17 @@
     var width=el.clientWidth,height=el.clientHeight;
 
     var raw=data.map(function(d){return d.project_landscape_type;}).filter(function(d){return d;})
-      .map(function(d){return d.split(",").map(function(s){
-        return s.trim().replace(/_/g," ").replace(/\s+/g," "); // clean underscores and extra spaces
-      }).filter(function(s){return s;}).sort();});
+      .map(function(d){return d.split(",").map(function(s){return s.trim().replace(/_/g," ").replace(/\s+/g," ");}).filter(function(s){return s;}).sort();});
 
-    // Deduplicate using lowercase key but preserve original casing
     var seenTypes={};
     raw=raw.map(function(combo){
       var seen={};
-      return combo.filter(function(t){
-        var key=t.toLowerCase().trim();
-        if(seen[key])return false;
-        seen[key]=true;
-        return true;
-      });
+      return combo.filter(function(t){var key=t.toLowerCase().trim();if(seen[key])return false;seen[key]=true;return true;});
     });
 
-    // Build canonical type names — prefer the version without underscores
     var typeMap={};
-    raw.forEach(function(combo){
-      combo.forEach(function(t){
-        var key=t.toLowerCase().trim();
-        if(!typeMap[key]) typeMap[key]=t;
-      });
-    });
-    // Re-map raw to use canonical names
-    raw=raw.map(function(combo){
-      return combo.map(function(t){return typeMap[t.toLowerCase().trim()]||t;}).sort();
-    });
+    raw.forEach(function(combo){combo.forEach(function(t){var key=t.toLowerCase().trim();if(!typeMap[key])typeMap[key]=t;});});
+    raw=raw.map(function(combo){return combo.map(function(t){return typeMap[t.toLowerCase().trim()]||t;}).sort();});
 
     var cMap=new Map();
     raw.forEach(function(c){var k=c.slice().sort().join(" | ");cMap.set(k,(cMap.get(k)||0)+1);});
@@ -964,52 +871,41 @@
     allT.forEach(function(t){tT.set(t,0);});
     raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});
 
-    // Colorblind-safe colors
-    var DOT_FILLED  = "#009988"; // green/teal — matches right bars (habitat totals)
-    var DOT_CONNECT = "#0077bb"; // blue — matches top bars (combination counts)
-    var BAR_TOP     = "#0077bb"; // blue for top bars
-    var BAR_RIGHT   = "#009988"; // teal for right bars — matches filled dots
-    var DOT_EMPTY   = "#eeeeee";
+    var DOT_FILLED="#009988",DOT_CONNECT="#0077bb",BAR_TOP="#0077bb",BAR_RIGHT="#009988",DOT_EMPTY="#eeeeee";
 
-    // Layout constants
-    var SECTION_LABEL_H = 20;
-    var INSTRUCTION_H = 0;   // instruction text moved to HTML above chart
-    var rBW=110, mL=290, mR=rBW+56, mT=SECTION_LABEL_H+8;
-    var bH2=Math.floor((height-mT-INSTRUCTION_H)*0.28);
-    var dotAreaH=height-mT-bH2-INSTRUCTION_H-24;
+    var SECTION_LABEL_H=18;
+    // FIX: right bar width and left margin scale with viewport
+    var rBW=Math.round(vfs(100));
+    var mL=Math.min(260,width*0.26); // FIX: was hardcoded 290
+    var mR=rBW+50,mT=SECTION_LABEL_H+6;
+    var bH2=Math.floor((height-mT)*0.28);
+    var dotAreaH=height-mT-bH2-24;
     var rH=dotAreaH/allT.length;
     var cW=(width-mL-mR)/sc.length;
-    var dotTop=bH2+mT+22;
+    var dotTop=bH2+mT+20;
+
+    // FIX: responsive font size for labels in upset
+    var labelFs = Math.min(vfs(14), rH * 0.50);
 
     d3.select("#"+container).select("svg").remove();
     var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);
 
-    // ── SUMMARY COUNT top-right ──
-    svg.append("text")
-      .attr("x",width-mR+rBW/2).attr("y",mT-6)
-      .attr("text-anchor","middle").attr("font-size",18).attr("fill","#aaa")
+    svg.append("text").attr("x",width-mR+rBW/2).attr("y",mT-4)
+      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("fill","#aaa") // FIX: was 18
       .text(sc.length+" combinations");
 
-    // ── SECTION HEADER: Combination Count (top bars) ──
-    svg.append("text")
-      .attr("x",mL+(sc.length*cW)/2).attr("y",mT-6)
-      .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","700").attr("fill",DOT_FILLED)
-      .attr("letter-spacing","0.5")
+    svg.append("text").attr("x",mL+(sc.length*cW)/2).attr("y",mT-4)
+      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED) // FIX: was 18
       .text("▲  Projects per Habitat Combination");
 
-    // ── SECTION HEADER: Habitat Types (dot rows) ──
-    svg.append("text")
-      .attr("x",mL-8).attr("y",dotTop-6)
-      .attr("text-anchor","end").attr("font-size",18).attr("font-weight","700").attr("fill",DOT_FILLED)
+    svg.append("text").attr("x",mL-8).attr("y",dotTop-5)
+      .attr("text-anchor","end").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED) // FIX: was 18
       .text("Habitat Types  →");
 
-    // ── SECTION HEADER: Total Projects (right bars) — darker and bolder ──
-    svg.append("text")
-      .attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-6)
-      .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","900").attr("fill","#333")
+    svg.append("text").attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-5)
+      .attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","900").attr("fill","#333") // FIX: was 18
       .text("Total Projects");
 
-    // ── TOP BARS (combination counts) ──
     var mxC=d3.max(sc,function(d){return d.count;});
     var yB=d3.scaleLinear().domain([0,mxC]).range([bH2,0]);
     var bG=svg.append("g").attr("transform","translate("+mL+","+mT+")");
@@ -1018,69 +914,52 @@
       .call(function(g){g.select(".domain").remove();})
       .call(function(g){
         g.selectAll(".tick line").attr("x2",sc.length*cW).attr("stroke","#f0f0f0");
-        g.selectAll("text").style("font-size","18px").attr("fill","#888");
+        g.selectAll("text").style("font-size",vfs(11)+"px").attr("fill","#888"); // FIX: was 18
       });
 
     sc.forEach(function(d,i){
-      var bx=i*cW+cW*0.18, bw=cW*0.64;
+      var bx=i*cW+cW*0.18,bw=cW*0.64;
       bG.append("rect").attr("x",bx).attr("y",yB(d.count)).attr("width",bw).attr("height",bH2-yB(d.count))
         .attr("fill",BAR_TOP).attr("rx",2).attr("opacity",0.9)
         .on("mousemove",function(event){
           var label=d.key.split(" | ").map(function(t){return t.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});}).join(", ");
-          showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='font-size:18px;opacity:0.85'>"+label+"</span>");
+          showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='opacity:0.85'>"+label+"</span>");
         }).on("mouseleave",hideTooltip);
       if(cW>16)
         bG.append("text").attr("x",bx+bw/2).attr("y",yB(d.count)-3)
-          .attr("text-anchor","middle").attr("font-size",18).attr("font-weight","600").attr("fill","#444").text(d.count);
+          .attr("text-anchor","middle").attr("font-size",vfs(11)).attr("font-weight","600").attr("fill","#444").text(d.count); // FIX: was 18
     });
 
-    // ── DOT MATRIX ──
     var dG=svg.append("g").attr("transform","translate("+mL+","+dotTop+")");
 
-    // Alternating row backgrounds
     allT.forEach(function(type,ri){
-      if(ri%2===0){
-        dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);
-      }
+      if(ri%2===0){dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);}
     });
-
-    // Horizontal grid lines
     for(var ri=0;ri<=allT.length;ri++){
-      dG.append("line").attr("x1",-mL).attr("x2",sc.length*cW+mR)
-        .attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#e8e8e8").attr("stroke-width",1);
+      dG.append("line").attr("x1",-mL).attr("x2",sc.length*cW+mR).attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#e8e8e8").attr("stroke-width",1);
     }
 
-    // Habitat type row labels — fix SAV parenthesis, longer labels, bolder
     allT.forEach(function(type,ri){
       var label=type.replace(/_/g," ")
         .replace(/Submerged Aquatic Vegetation\s*\(/i,"Submerged Aquatic Vegetation (SAV)")
         .replace(/Submerged Aquatic Veg[a-z]*\s*\(?[^)]*\)?/i,"Submerged Aquatic Vegetation (SAV)")
         .replace(/\b\w/g,function(c){return c.toUpperCase();});
-      // Add closing paren to SAV if missing
-      if(label.toLowerCase().indexOf("sav")>=0 && label.indexOf(")")<0){
-        label=label.replace(/\(sav/i,"(SAV)");
-      }
+      if(label.toLowerCase().indexOf("sav")>=0&&label.indexOf(")")<0){label=label.replace(/\(sav/i,"(SAV)");}
       dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2)
         .attr("text-anchor","end").attr("dominant-baseline","middle")
-        .attr("font-size",Math.min(19,rH*0.52)).attr("font-weight","700").attr("fill","#222")
+        .attr("font-size",labelFs).attr("font-weight","700").attr("fill","#222") // FIX: was Math.min(19,rH*0.52)
         .text(label);
     });
 
-    // Vertical column grid lines — thin light gray, gives structure without implying data
     sc.forEach(function(d,ci){
       var cx=ci*cW+cW/2;
-      dG.append("line").attr("x1",cx).attr("x2",cx)
-        .attr("y1",0).attr("y2",allT.length*rH)
-        .attr("stroke","#e0e0e0").attr("stroke-width",1);
-    });
-
-    // Dots and connectors
-    sc.forEach(function(d,ci){
+      sc.forEach(function(d2,ci2){});
       var types=d.key.split(" | ");
-      var cx=ci*cW+cW/2;
       var r=Math.min(cW,rH)*0.30;
 
-      // All dots — single color filled/empty, no connector
+      dG.append("line").attr("x1",ci*cW+cW/2).attr("x2",ci*cW+cW/2)
+        .attr("y1",0).attr("y2",allT.length*rH).attr("stroke","#e0e0e0").attr("stroke-width",1);
+
       allT.forEach(function(type,ri){
         var filled=types.indexOf(type)>=0;
         dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r)
@@ -1090,7 +969,6 @@
       });
     });
 
-    // ── RIGHT BARS (totals per habitat type) — light turquoise ──
     var mxT=d3.max(Array.from(tT.values()))||1;
     var xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]);
     var sBG=svg.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");
@@ -1098,12 +976,11 @@
     allT.forEach(function(type,ri){
       var total=tT.get(type)||0;
       var cy=ri*rH+rH/2;
-      var bh=Math.min(rH*0.55,14);
-      sBG.append("rect").attr("x",0).attr("y",cy-bh/2)
-        .attr("width",xSB(total)).attr("height",bh)
+      var bh=Math.min(rH*0.55,13);
+      sBG.append("rect").attr("x",0).attr("y",cy-bh/2).attr("width",xSB(total)).attr("height",bh)
         .attr("fill",BAR_RIGHT).attr("rx",2).attr("opacity",0.9);
       sBG.append("text").attr("x",xSB(total)+4).attr("y",cy)
-        .attr("dominant-baseline","middle").attr("font-size",18).attr("font-weight","700").attr("fill","#222")
+        .attr("dominant-baseline","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill","#222") // FIX: was 18
         .text(total);
     });
   }
@@ -1118,15 +995,11 @@
     chartDrawn[0]=true;
   }
 
-  // Reset zoom for any registered chart. Pass the container id used when drawing (e.g., 'site-chart' or 'treemap-chart').
   function resetZoom(containerId){
     if(!window._zoomBehaviors||!window._zoomBehaviors[containerId])return;
     var obj=window._zoomBehaviors[containerId];
-    try{
-      obj.svg.transition().duration(400).call(obj.zoom.transform, d3.zoomIdentity);
-    }catch(e){
-      console.warn('resetZoom failed for',containerId,e);
-    }
+    try{obj.svg.transition().duration(400).call(obj.zoom.transform,d3.zoomIdentity);}
+    catch(e){console.warn('resetZoom failed for',containerId,e);}
   }
 
   init();
