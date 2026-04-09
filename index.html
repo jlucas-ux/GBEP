@@ -181,16 +181,119 @@
       <div class="chart-title">Percent of Projects by Habitat Type</div>
       <div class="chart-subtitle" id="treemap-subtitle">Share of projects that included a component affecting each habitat type. Projects touching multiple habitats are counted toward each.</div>
       <div style="display:flex;gap:clamp(6px,0.8vw,12px);margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
-  <div style="background:linear-gradient(135deg,#0d47a1,#1677bc);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
-    <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Projects with Habitat Data</div>
-    <div id="physical-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
-    <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Counted toward this view</div>
+  <!-- REPLACE the two stat-card divs in panel-6 with this block -->
+<!-- Also update these element IDs in drawTreemap():
+     physical-acres-val  → still used (shows project count in bubble)
+     research-acres-val  → still used (shows habitat type count in bubble)
+     Add new IDs: hab-tags-val, hab-avg-val, hab-reading-guide -->
+
+<div id="hab-stats" style="
+  display:flex;align-items:center;justify-content:center;
+  gap:0;flex-wrap:wrap;
+  padding:clamp(6px,0.6vw,10px) clamp(4px,0.5vw,8px);
+  flex-shrink:0;
+">
+
+  <!-- Bubble 1: Projects -->
+  <div style="
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    width:clamp(90px,9vw,130px);height:clamp(90px,9vw,130px);
+    border-radius:50%;
+    background:rgba(13,71,161,0.10);
+    padding:8px;flex-shrink:0;
+  ">
+    <div id="physical-acres-val" style="
+      font-size:clamp(22px,2.8vw,40px);font-weight:900;color:#0d47a1;
+      line-height:1;letter-spacing:-1px;font-family:'Roboto',sans-serif;
+    ">—</div>
+    <div style="font-size:clamp(10px,0.8vw,13px);font-weight:700;color:#0d47a1;font-family:'Roboto',sans-serif;margin-top:3px;line-height:1.2;">funded<br>projects</div>
   </div>
-  <div style="background:linear-gradient(135deg,#00695c,#00897b);color:white;border-radius:8px;padding:clamp(6px,0.8vw,10px) clamp(10px,1.2vw,20px);flex:1;font-family:'Roboto',sans-serif;">
-    <div style="font-size:clamp(9px,0.7vw,11px);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;opacity:0.8;">Total Habitat Tags</div>
-    <div id="research-acres-val" style="font-size:clamp(16px,1.8vw,26px);font-weight:900;letter-spacing:-1px;">—</div>
-    <div style="font-size:clamp(8px,0.6vw,10px);opacity:0.6;">Sum across all projects &amp; habitats</div>
+
+  <!-- Connector -->
+  <div style="display:flex;align-items:center;justify-content:center;width:clamp(28px,3vw,48px);flex-shrink:0;">
+    <span style="font-size:11px;color:rgba(0,0,0,0.35);font-weight:600;font-family:'Roboto',sans-serif;white-space:nowrap;background:white;padding:2px 5px;border-radius:20px;border:1px solid rgba(0,0,0,0.1);">across</span>
   </div>
+
+  <!-- Bubble 2: Habitat types -->
+  <div style="
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    width:clamp(108px,11vw,158px);height:clamp(108px,11vw,158px);
+    border-radius:50%;
+    background:rgba(0,105,92,0.10);
+    padding:8px;flex-shrink:0;
+  ">
+    <div id="research-acres-val" style="
+      font-size:clamp(26px,3.4vw,50px);font-weight:900;color:#00695c;
+      line-height:1;letter-spacing:-1px;font-family:'Roboto',sans-serif;
+    ">—</div>
+    <div style="font-size:clamp(10px,0.8vw,13px);font-weight:700;color:#00695c;font-family:'Roboto',sans-serif;margin-top:3px;line-height:1.2;">distinct<br>habitat types</div>
+  </div>
+
+  <!-- Connector -->
+  <div style="display:flex;align-items:center;justify-content:center;width:clamp(28px,3vw,48px);flex-shrink:0;">
+    <span style="font-size:11px;color:rgba(0,0,0,0.35);font-weight:600;font-family:'Roboto',sans-serif;white-space:nowrap;background:white;padding:2px 5px;border-radius:20px;border:1px solid rgba(0,0,0,0.1);">totaling</span>
+  </div>
+
+  <!-- Bubble 3: Total tags (largest) -->
+  <div style="
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    width:clamp(126px,13vw,186px);height:clamp(126px,13vw,186px);
+    border-radius:50%;
+    background:rgba(22,119,188,0.10);
+    padding:8px;flex-shrink:0;
+  ">
+    <div id="hab-tags-val" style="
+      font-size:clamp(30px,4vw,58px);font-weight:900;color:#1677bc;
+      line-height:1;letter-spacing:-1px;font-family:'Roboto',sans-serif;
+    ">—</div>
+    <div style="font-size:clamp(10px,0.8vw,13px);font-weight:700;color:#1677bc;font-family:'Roboto',sans-serif;margin-top:3px;line-height:1.2;">total habitat<br>tags</div>
+  </div>
+
+  <!-- Connector -->
+  <div style="display:flex;align-items:center;justify-content:center;width:clamp(28px,3vw,48px);flex-shrink:0;">
+    <span style="font-size:11px;color:rgba(0,0,0,0.35);font-weight:600;font-family:'Roboto',sans-serif;white-space:nowrap;background:white;padding:2px 5px;border-radius:20px;border:1px solid rgba(0,0,0,0.1);">avg</span>
+  </div>
+
+  <!-- Bubble 4: Avg habitats/project -->
+  <div style="
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    width:clamp(98px,10vw,144px);height:clamp(98px,10vw,144px);
+    border-radius:50%;
+    background:rgba(46,125,50,0.10);
+    padding:8px;flex-shrink:0;
+  ">
+    <div id="hab-avg-val" style="
+      font-size:clamp(24px,3.2vw,46px);font-weight:900;color:#2e7d32;
+      line-height:1;letter-spacing:-1px;font-family:'Roboto',sans-serif;
+    ">—</div>
+    <div style="font-size:clamp(10px,0.8vw,13px);font-weight:700;color:#2e7d32;font-family:'Roboto',sans-serif;margin-top:3px;line-height:1.2;">habitats per<br>project</div>
+  </div>
+
+</div>
+
+<!-- Reading guide -->
+<div id="hab-reading-guide" style="
+  display:none;
+  margin:0 clamp(6px,0.8vw,14px) 6px;
+  padding:clamp(7px,0.6vw,10px) clamp(10px,1vw,16px);
+  background:rgba(22,119,188,0.06);
+  border-left:3px solid #1677bc;
+  border-radius:0 6px 6px 0;
+  font-size:clamp(11px,0.85vw,13px);
+  color:rgba(0,0,0,0.55);
+  line-height:1.55;
+  font-family:'Roboto',sans-serif;
+  flex-shrink:0;
+">
+  <strong style="color:#1677bc;">How to read this chart:</strong>
+  Each bar shows what percentage of the <span id="rg-total">—</span> funded projects worked in that habitat type.
+  Because most projects involve multiple habitats (an average of <span id="rg-avg">—</span> per project),
+  the bars are <strong>independent</strong> — they will not add up to 100%.
+</div>
 </div>
       <div style="flex-shrink:0;margin-bottom:6px;">
         <button onclick="resetZoom('treemap-chart')" style="padding:5px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:clamp(10px,0.8vw,13px);">Reset zoom</button>
@@ -449,32 +552,32 @@ function drawTreemap() {
   });
   var totalProjects = funded.length;
 
-  var physEl = document.getElementById("physical-acres-val");
-  var resEl  = document.getElementById("research-acres-val");
+    var physEl    = document.getElementById("physical-acres-val");
+  var resEl     = document.getElementById("research-acres-val");
+  var tagsEl    = document.getElementById("hab-tags-val");
+  var avgEl     = document.getElementById("hab-avg-val");
+  var guideEl   = document.getElementById("hab-reading-guide");
+  var rgTotal   = document.getElementById("rg-total");
+  var rgAvg     = document.getElementById("rg-avg");
 
-  function normHab(s) {
-    return String(s).replace(/_/g, " ").replace(/\s+/g, " ").trim()
-      .replace(/^[\s\-]+|[\s\-]+$/g, "")
-      .replace(/none\s*[-]*\s*this project was research/i, "Research only")
-      .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  // totalTags = sum of all habitat tag counts (one per habitat per project)
+  var totalTags = Object.keys(habitatCount).reduce(function(s, k) {
+    return s + habitatCount[k];
+  }, 0);
+  var avgPerProject = totalProjects > 0
+    ? (totalTags / totalProjects).toFixed(1)
+    : "—";
+
+  if (physEl) physEl.textContent = totalProjects;
+  if (resEl)  resEl.textContent  = uniqueTypes;
+  if (tagsEl) tagsEl.textContent = totalTags;
+  if (avgEl)  avgEl.textContent  = avgPerProject;
+
+  if (guideEl) {
+    guideEl.style.display = "block";
+    if (rgTotal) rgTotal.textContent = totalProjects;
+    if (rgAvg)   rgAvg.textContent   = avgPerProject;
   }
-
-  var habitatCount = {}, canonMap = {};
-  funded.forEach(function(row) {
-    var seen = {};
-    String(row.project_landscape_type).split(",").forEach(function(s) {
-      var norm = normHab(s.trim());
-      var key  = norm.toLowerCase();
-      if (!norm || seen[key]) return;
-      seen[key] = true;
-      if (!canonMap[key]) canonMap[key] = norm;
-      habitatCount[canonMap[key]] = (habitatCount[canonMap[key]] || 0) + 1;
-    });
-  });
-
-  var uniqueTypes = Object.keys(habitatCount).length;
-  if (physEl) physEl.textContent = totalProjects + " projects";
-  if (resEl)  resEl.textContent  = uniqueTypes + " types";
 
   var subtitleEl = document.getElementById("treemap-subtitle");
   if (subtitleEl) {
