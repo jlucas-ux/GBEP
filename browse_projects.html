@@ -232,22 +232,33 @@ function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?Stri
 var allData=[], filtered=[], activeId=null;
 
 async function fetchData(){
-  var fields=["nru_project_title","site_name_long_term_project_nam","lead_organization_name",
-    "general_project_location","gbep_award_amount","total_cost_of_project","fiscal_year_awarded",
-    "numeric_approximate_project_siz","project_scale","project_landscape_type",
-    "targeted_focal_species","broad_project_goals","current_project_stage",
-    "pi_organization_link","project_pi_contact_information","lead_implementer_type",
-    "is_this_a_phase_part_of_a_larger","leveraging_in_kind_and_cash_","partners_on_the_project",
-    "gbep_contract_number","project_duration","year_1_amount","year_2_amount","year_3_amount",
-    "hc_1","hc_2","hc_3","sc_1","sc_2","fwi_1","fwi_2","fwi_3",
-    "nps_1","nps_2","nps_3","nps_4","ps_1","ps_2","ps_3","pha_1","pha_2","pha_3","pha_4","pha_5",
-    "spo_1","spo_2","spo_3","spo_4","pea_1","pea_2","pea_3",
-    "res_1","res_2","res_3","res_4","res_5","res_6","res_7","res_8","acs_1","acs_2","acs_3"
-  ];
-  var url=LAYER_URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000&orderByFields=gbep_award_amount+DESC";
-  var res=await fetch(url);
-  var json=await res.json();
-  return json.features.map(function(f,i){var a=f.attributes;a._id=i;return a;});
+  // outFields=* fetches everything — avoids any field-name mismatch causing a silent error.
+  // where=1=1 is the safest universal filter (URL encoded as 1%3D1).
+  var url=LAYER_URL+"?where=1%3D1&outFields=*&f=json&resultRecordCount=2000";
+  try{
+    var res=await fetch(url);
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    var json=await res.json();
+    if(json.error){
+      showError("ArcGIS error: "+json.error.message+" (code "+json.error.code+")");
+      return [];
+    }
+    if(!json.features||!json.features.length){
+      showError("No features returned from service.");
+      return [];
+    }
+    // Sort by award descending here since orderByFields can be finicky with some services
+    var rows=json.features.map(function(f,i){var a=f.attributes;a._id=i;return a;});
+    rows.sort(function(a,b){return (b.gbep_award_amount||0)-(a.gbep_award_amount||0);});
+    return rows;
+  }catch(err){
+    showError("Could not load data: "+err.message);
+    return [];
+  }
+}
+
+function showError(msg){
+  document.getElementById("loading").innerHTML='<div style="color:#e65100;font-size:13px;text-align:center;padding:20px;">'+msg+'<br><small style="color:#94a3b8;margin-top:8px;display:block;">Check the browser console for details.</small></div>';
 }
 
 function getActionPlanTags(row){
