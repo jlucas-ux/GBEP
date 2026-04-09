@@ -295,7 +295,8 @@ function drawTreemap() {
       name:"Other ("+rest.length+" types)",
       count:otherCount,
       pct:Math.round(otherCount/totalProjects*100),
-      isOther:true
+      isOther:true,
+      stackedSegments: rest  // pass the individual types for stacking
     });
   }
 
@@ -307,7 +308,7 @@ function drawTreemap() {
   availH = Math.max(availH, 220);
 
   // Reserve right side for stat panel if wide enough
-  var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.22, 260)) : 0;
+  var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.24, 300)) : 0;
   var chartW   = availW - STAT_W - (STAT_W > 0 ? 12 : 0);
   var GAP      = Math.max(6, Math.round(chartW * 0.007));
   var Y_PAD    = 28; // left padding for y-axis labels
@@ -382,13 +383,46 @@ function drawTreemap() {
     emptyArea.appendChild(pctEl);
 
     var fill = document.createElement("div");
-    fill.style.cssText =
-      "flex:0 0 "+fillH+"px;background:"+color+";border-radius:6px 6px 0 0;"+
-      "display:flex;align-items:flex-end;justify-content:center;"+
-      "padding-bottom:"+Math.max(6,Math.round(fillH*0.07))+"px;"+
-      "cursor:pointer;overflow:hidden;box-sizing:border-box;";
 
-    if (iconSz >= 18 && fillH >= iconSz+8) {
+    // For "Other" — render as a stacked bar showing individual types
+    if (d.isOther && d.stackedSegments && d.stackedSegments.length > 0) {
+      fill.style.cssText =
+        "flex:0 0 "+fillH+"px;border-radius:6px 6px 0 0;"+
+        "display:flex;flex-direction:column-reverse;overflow:hidden;"+
+        "cursor:pointer;box-sizing:border-box;position:relative;";
+      var STACK_COLORS=["#546e7a","#607d8b","#78909c","#90a4ae","#b0bec5","#455a64","#37474f","#4a6572","#5c7a7a","#6a8580","#7a9090","#8a9a9a","#9aacac"];
+      var totalStackPct = d.stackedSegments.reduce(function(s,seg){return s+seg.pct;},0) || 1;
+      d.stackedSegments.forEach(function(seg,si){
+        var segH = Math.max(1, Math.round((seg.pct / totalStackPct) * fillH));
+        var segDiv = document.createElement("div");
+        segDiv.style.cssText =
+          "flex:0 0 "+segH+"px;background:"+STACK_COLORS[si%STACK_COLORS.length]+";"+
+          "display:flex;align-items:center;justify-content:center;overflow:hidden;"+
+          "border-top:1px solid rgba(255,255,255,0.2);box-sizing:border-box;";
+        if (segH >= 14) {
+          var segLabel = document.createElement("div");
+          var labelText = seg.name.length > 16 ? seg.name.slice(0,14)+"…" : seg.name;
+          segLabel.style.cssText = "font-size:"+Math.min(10,Math.max(8,Math.round(segH*0.45)))+"px;color:rgba(255,255,255,0.88);font-family:'Roboto',sans-serif;font-weight:600;text-align:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;";
+          segLabel.textContent = labelText+" "+seg.pct+"%";
+          segDiv.appendChild(segLabel);
+        }
+        (function(s){
+          segDiv.addEventListener("mousemove",function(evt){
+            showTooltip(evt,"<strong>"+s.name+"</strong><br>"+s.pct+"% of projects<br>"+s.count+" project"+(s.count!==1?"s":""));
+          });
+          segDiv.addEventListener("mouseleave",hideTooltip);
+        })(seg);
+        fill.appendChild(segDiv);
+      });
+    } else {
+      fill.style.cssText =
+        "flex:0 0 "+fillH+"px;background:"+color+";border-radius:6px 6px 0 0;"+
+        "display:flex;align-items:flex-end;justify-content:center;"+
+        "padding-bottom:"+Math.max(6,Math.round(fillH*0.07))+"px;"+
+        "cursor:pointer;overflow:hidden;box-sizing:border-box;";
+    }
+
+    if (!d.isOther && iconSz >= 18 && fillH >= iconSz+8) {
       var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
       var iconWrap = document.createElement("div");
       iconWrap.style.cssText = "position:relative;line-height:1;display:flex;align-items:center;justify-content:center;width:"+iconSz+"px;height:"+iconSz+"px;";
@@ -406,12 +440,14 @@ function drawTreemap() {
       fill.appendChild(iconWrap);
     }
 
-    (function(hab){
-      fill.addEventListener("mousemove",function(evt){
-        showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":""));
-      });
-      fill.addEventListener("mouseleave",hideTooltip);
-    })(d);
+    if (!d.isOther) {
+      (function(hab){
+        fill.addEventListener("mousemove",function(evt){
+          showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":""));
+        });
+        fill.addEventListener("mouseleave",hideTooltip);
+      })(d);
+    }
 
     col.appendChild(emptyArea);
     col.appendChild(fill);
@@ -447,20 +483,20 @@ function drawTreemap() {
       // Number bubble
       var bubble = document.createElement("div");
       bubble.style.cssText =
-        "width:52px;height:52px;"+
+        "width:68px;height:68px;"+
         "border-radius:50%;flex-shrink:0;"+
         "background:"+s.color+"1a;"+ // 1a = ~10% opacity hex
         "display:flex;align-items:center;justify-content:center;";
       var valEl = document.createElement("div");
       valEl.style.cssText =
-        "font-size:18px;font-weight:900;color:"+s.color+";"+
+        "font-size:24px;font-weight:900;color:"+s.color+";"+
         "line-height:1;letter-spacing:-0.5px;font-family:'Roboto',sans-serif;";
       valEl.textContent = s.val;
       bubble.appendChild(valEl);
 
       var labelEl = document.createElement("div");
       labelEl.style.cssText =
-        "font-size:12px;font-weight:600;color:"+s.color+";"+
+        "font-size:13px;font-weight:600;color:"+s.color+";"+
         "line-height:1.3;font-family:'Roboto',sans-serif;flex:1;min-width:0;";
       labelEl.textContent = s.label;
 
