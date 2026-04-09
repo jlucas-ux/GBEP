@@ -190,15 +190,6 @@
 <!-- REPLACE the entire stat div block in panel-6 with this.
      The numbers are populated by drawTreemap() — see drawTreemap_v2_full.js  -->
 
-<div id="hab-stats-row" style="
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:0;
-  flex-wrap:wrap;
-  padding:8px 16px 4px;
-  flex-shrink:0;
-">
 
   <!-- Bubble 1 — Projects -->
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
@@ -247,19 +238,6 @@
 </div>
 
 <!-- Reading guide — shown by drawTreemap() after render -->
-<div id="hab-guide" style="
-  display:none;
-  margin:0 16px 6px;
-  padding:8px 14px;
-  background:rgba(22,119,188,0.06);
-  border-left:3px solid #1677bc;
-  border-radius:0 6px 6px 0;
-  font-size:clamp(11px,0.85vw,13px);
-  color:rgba(0,0,0,0.5);
-  line-height:1.55;
-  font-family:'Roboto',sans-serif;
-  flex-shrink:0;
-">
   <strong style="color:#1677bc;">How to read:</strong>
   Each bar shows what % of <span id="guide-n">—</span> funded projects included that habitat type.
   Because projects average <span id="guide-avg">—</span> habitat types each, bars are <strong>independent</strong> — they won't add up to 100%.
@@ -427,80 +405,29 @@
   }
 
   // ── TREEMAP ──────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════
-// SETUP — add this ONE line to your <head> in gbep_facts_figures_responsive.html
-// (right after the Google Fonts link is fine):
-//
-// <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
-//
-// That loads ~90KB of CSS + font (cached after first visit). If the icons
-// don't appear, check the browser console for a 404 or CSP error on that URL.
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Also update panel-6 HTML:
-//   nav button text  → "Habitat Types"
-//   chart-title text → "Projects by Habitat Type"
-//   Remove the Reset zoom button entirely (no zoom on this chart)
-//   Stat card 1 label: "Physical Project Acres" → "Projects with habitat data"
-//   Stat card 2 label: "Large Scale Project Acres" → "Unique habitat types"
-
-// ── PHOSPHOR ICON MAP ──────────────────────────────────────────────────────
-// Maps habitat name keywords → Phosphor fill class name.
-// Full icon list at https://phosphoricons.com — search for alternatives if any
-// don't render (they show as a blank space, not an error).
-var PHOSPHOR_ICONS = [
-  { match: ["estuarine wetland"],              cls: "ph-shrimp"           },
-  { match: ["estuarine shoreline"],            cls: "ph-waves"            },
-  { match: ["coastal prairie", "prairie"],     cls: "ph-plant"            },
-  { match: ["open bay", "water column",
-            "estuarine water"],               cls: "ph-fish"             },
-  { match: ["freshwater"],                     cls: "ph-drop-half"        },
-  { match: ["riparian"],                       cls: "ph-scribble"         },
-  { match: ["living shoreline"],               cls: "ph-anchor-simple"    },
-  { match: ["forested wetland"],               cls: "ph-tree-evergreen"   },
-  { match: ["urban", "park"],                  cls: "ph-buildings"        },
-  { match: ["forest", "woodland"],             cls: "ph-tree-structure"   },
-  { match: ["agri", "ranch", "farm"],          cls: "ph-wheat"            },
-  { match: ["beach", "dune"],                  cls: "ph-sun-horizon"      },
-  { match: ["seagrass", "sav", "submerged"],   cls: "ph-leaf"             },
-  { match: ["intertidal", "reef"],             cls: "ph-anchor"           },
-  { match: ["research", "none"],               cls: "ph-flask"            },
-];
-
-function getPhosphorIcon(name) {
-  var n = name.toLowerCase();
-  for (var i = 0; i < PHOSPHOR_ICONS.length; i++) {
-    var entry = PHOSPHOR_ICONS[i];
-    for (var j = 0; j < entry.match.length; j++) {
-      if (n.indexOf(entry.match[j]) > -1) return entry.cls;
-    }
-  }
-  return "ph-question";
-}
-
-// ── REPLACEMENT drawTreemap() ──────────────────────────────────────────────
-// ── COMPLETE drawTreemap() replacement — paste over the old one ─────────────
-// Requires panel6_stats_v2.html stat block in panel-6 (IDs: stat-projects,
-// stat-types, stat-tags, stat-avg, hab-guide, guide-n, guide-avg)
-// Requires Phosphor fill CSS in <head>:
-//   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+// ── drawTreemap() v3 — stats panel floats INSIDE the chart area ─────────────
+// PANEL-6 HTML changes needed:
+//   1. Remove (or delete) the entire hab-stats-row div and hab-guide div
+//   2. Remove the Reset zoom button div — not needed for this chart
+//   3. Keep: chart-title, chart-subtitle (id="treemap-subtitle"), chart-area (id="treemap-chart")
+// Everything else is self-contained below.
 
 var PHOSPHOR_ICONS = [
-  { match:["estuarine wetland"],                       cls:"ph-shrimp"        },
-  { match:["estuarine shoreline"],                     cls:"ph-waves"         },
-  { match:["coastal prairie","prairie"],               cls:"ph-plant"         },
-  { match:["open bay","water column","estuarine water"],cls:"ph-fish"         },
-  { match:["freshwater"],                              cls:"ph-drop-half"     },
-  { match:["riparian"],                                cls:"ph-tree"          },
-  { match:["living shoreline"],                        cls:"ph-anchor-simple" },
-  { match:["forested wetland"],                        cls:"ph-tree-evergreen"},
-  { match:["urban","park"],                            cls:"ph-buildings"     },
-  { match:["forest","woodland"],                       cls:"ph-tree-structure"},
-  { match:["agri","ranch","farm"],                     cls:"ph-wheat"         },
-  { match:["beach","dune"],                            cls:"ph-sun-horizon"   },
-  { match:["seagrass","sav","submerged"],              cls:"ph-leaf"          },
-  { match:["intertidal","reef"],                       cls:"ph-anchor"        },
-  { match:["research","none"],                         cls:"ph-flask"         },
+  { match:["estuarine wetland"],                        cls:"ph-shrimp"        },
+  { match:["estuarine shoreline"],                      cls:"ph-waves"         },
+  { match:["coastal prairie","prairie"],                cls:"ph-plant"         },
+  { match:["open bay","water column","estuarine water"],cls:"ph-fish"          },
+  { match:["freshwater"],                               cls:"ph-drop-half"     },
+  { match:["riparian"],                                 cls:"ph-tree"          },
+  { match:["living shoreline"],                         cls:"ph-anchor-simple" },
+  { match:["forested wetland"],                         cls:"ph-tree-evergreen"},
+  { match:["urban","park"],                             cls:"ph-buildings"     },
+  { match:["forest","woodland"],                        cls:"ph-tree-structure"},
+  { match:["agri","ranch","farm"],                      cls:"ph-wheat"         },
+  { match:["beach","dune"],                             cls:"ph-sun-horizon"   },
+  { match:["seagrass","sav","submerged"],               cls:"ph-leaf"          },
+  { match:["intertidal","reef"],                        cls:"ph-anchor"        },
+  { match:["research","none"],                          cls:"ph-flask"         },
 ];
 
 function getPhosphorIcon(name) {
@@ -517,13 +444,14 @@ function getPhosphorIcon(name) {
 function drawTreemap() {
   var el = document.getElementById("treemap-chart");
   el.innerHTML = "";
+  el.style.position = "relative"; // needed for absolute children
 
   // ── NORMALIZE & COUNT ────────────────────────────────────────────────────
   function normHab(s) {
     return String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
       .replace(/^[\s\-]+|[\s\-]+$/g,"")
       .replace(/none\s*[-]*\s*this project was research/i,"Research only")
-      .replace(/\b\w/g, function(c){return c.toUpperCase();});
+      .replace(/\b\w/g,function(c){return c.toUpperCase();});
   }
 
   var funded = filteredData.filter(function(d){
@@ -544,19 +472,9 @@ function drawTreemap() {
     });
   });
 
-  var uniqueTypes  = Object.keys(habitatCount).length;
-  var totalTags    = Object.keys(habitatCount).reduce(function(s,k){return s+habitatCount[k];},0);
-  var avgPerProj   = totalProjects ? (totalTags/totalProjects).toFixed(1) : "—";
-
-  // ── POPULATE STAT BUBBLES ────────────────────────────────────────────────
-  function setEl(id, val) {
-    var el = document.getElementById(id);
-    if (el) el.textContent = val;
-  }
-  setEl("stat-projects", totalProjects || "—");
-  setEl("stat-types",    uniqueTypes   || "—");
-  setEl("stat-tags",     totalTags     || "—");
-  setEl("stat-avg",      totalProjects ? avgPerProj : "—");
+  var uniqueTypes = Object.keys(habitatCount).length;
+  var totalTags   = Object.keys(habitatCount).reduce(function(s,k){return s+habitatCount[k];},0);
+  var avgPerProj  = totalProjects ? (totalTags/totalProjects).toFixed(1) : "0";
 
   // Update subtitle
   var subtitleEl = document.getElementById("treemap-subtitle");
@@ -571,28 +489,15 @@ function drawTreemap() {
       ". Values are independent — one project may count toward multiple habitats.";
   }
 
-  // Show reading guide
-  var guide = document.getElementById("hab-guide");
-  if (guide) {
-    guide.style.display = "block";
-    setEl("guide-n",   totalProjects || "—");
-    setEl("guide-avg", avgPerProj);
-  }
-
   if (!totalProjects) return;
 
   // ── SORT & GROUP ─────────────────────────────────────────────────────────
   var leaves = Object.keys(habitatCount).map(function(k){
-    return {name:k, count:habitatCount[k],
-            pct:Math.round(habitatCount[k]/totalProjects*100)};
+    return {name:k, count:habitatCount[k], pct:Math.round(habitatCount[k]/totalProjects*100)};
   }).sort(function(a,b){return b.count-a.count;});
 
-  var TOP_N = 6;
-  var main  = leaves.slice(0, TOP_N);
-  var rest  = leaves.slice(TOP_N);
-
+  var TOP_N = 6, main = leaves.slice(0,TOP_N), rest = leaves.slice(TOP_N);
   if (rest.length > 0) {
-    // Distinct projects touching any remaining habitat
     var otherSet = {};
     funded.forEach(function(row){
       var topKeys = main.map(function(d){return d.name.toLowerCase();});
@@ -611,29 +516,39 @@ function drawTreemap() {
     });
   }
 
-  // ── CHART ────────────────────────────────────────────────────────────────
+  // ── SIZING ───────────────────────────────────────────────────────────────
   var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#78909c"];
   var N      = main.length;
   var availW = el.clientWidth  || 600;
   var availH = el.clientHeight || 280;
   availH = Math.max(availH, 220);
 
-  var GAP  = Math.max(6, Math.round(availW * 0.006));
-  var colW = Math.floor((availW - GAP*(N-1) - 28) / N); // 28 = y-axis label space
+  // Reserve right side for stat panel if wide enough
+  var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.22, 260)) : 0;
+  var chartW   = availW - STAT_W - (STAT_W > 0 ? 12 : 0);
+  var GAP      = Math.max(6, Math.round(chartW * 0.007));
+  var Y_PAD    = 28; // left padding for y-axis labels
+  var colW     = Math.floor((chartW - GAP*(N-1) - Y_PAD) / N);
 
-  var nameFontPx = Math.max(11, Math.min(Math.round(colW * 0.09), 16));
-  var pctFontPx  = Math.max(13, Math.min(Math.round(colW * 0.12), 22));
+  var nameFontPx = Math.max(11, Math.min(Math.round(colW*0.09), 16));
+  var pctFontPx  = Math.max(13, Math.min(Math.round(colW*0.12), 22));
 
-  // Outer chart row
+  // ── WRAPPER (chart + stat panel side by side) ─────────────────────────────
+  var wrapper = document.createElement("div");
+  wrapper.style.cssText =
+    "display:flex;align-items:flex-start;gap:"+(STAT_W>0?12:0)+"px;"+
+    "height:"+availH+"px;width:100%;box-sizing:border-box;";
+
+  // ── BAR CHART ─────────────────────────────────────────────────────────────
   var chart = document.createElement("div");
   chart.style.cssText =
     "display:flex;align-items:flex-end;gap:"+GAP+"px;"+
-    "height:"+availH+"px;"+
+    "height:"+availH+"px;flex-shrink:0;"+
     "border-bottom:2px solid rgba(0,0,0,0.15);"+
-    "position:relative;width:100%;box-sizing:border-box;"+
-    "padding-left:28px;";
+    "position:relative;width:"+chartW+"px;box-sizing:border-box;"+
+    "padding-left:"+Y_PAD+"px;";
 
-  // Gridlines + y-axis labels
+  // Gridlines + y-labels
   [0,25,50,75,100].forEach(function(v){
     var gl = document.createElement("div");
     gl.style.cssText =
@@ -655,52 +570,41 @@ function drawTreemap() {
     var color  = d.isOther ? "#78909c" : COLORS[i%COLORS.length];
     var fillH  = Math.max(4, Math.round((d.pct/100)*availH));
     var emptyH = availH - fillH;
-
-    // Icon: 55% of column width, capped by fill height
-    var iconSz = Math.round(Math.min(colW*0.55, fillH*0.55));
-    iconSz = Math.max(18, iconSz);
+    var iconSz = Math.max(18, Math.round(Math.min(colW*0.55, fillH*0.55)));
 
     var col = document.createElement("div");
     col.style.cssText =
       "flex:1;min-width:0;height:"+availH+"px;"+
       "display:flex;flex-direction:column;position:relative;z-index:1;";
 
-    // Empty area — name + pct centred in available space
     var emptyArea = document.createElement("div");
     emptyArea.style.cssText =
-      "height:"+emptyH+"px;min-height:0;"+
-      "display:flex;flex-direction:column;"+
-      "align-items:center;justify-content:center;"+
-      "padding:4px 2px;box-sizing:border-box;overflow:hidden;";
+      "height:"+emptyH+"px;min-height:0;overflow:hidden;"+
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;"+
+      "padding:4px 2px;box-sizing:border-box;";
 
     var nameEl = document.createElement("div");
     nameEl.style.cssText =
       "font-size:"+nameFontPx+"px;font-weight:700;color:"+color+";"+
-      "text-align:center;line-height:1.25;font-family:'Roboto',sans-serif;"+
-      "word-break:break-word;";
+      "text-align:center;line-height:1.25;font-family:'Roboto',sans-serif;word-break:break-word;";
     nameEl.textContent = d.name;
 
     var pctEl = document.createElement("div");
     pctEl.style.cssText =
       "font-size:"+pctFontPx+"px;font-weight:900;color:"+color+";"+
-      "letter-spacing:-0.5px;font-family:'Roboto',sans-serif;"+
-      "line-height:1;margin-top:3px;";
+      "letter-spacing:-0.5px;font-family:'Roboto',sans-serif;line-height:1;margin-top:3px;";
     pctEl.textContent = d.pct+"%";
 
     emptyArea.appendChild(nameEl);
     emptyArea.appendChild(pctEl);
 
-    // Fill
     var fill = document.createElement("div");
     fill.style.cssText =
-      "flex:0 0 "+fillH+"px;"+
-      "background:"+color+";"+
-      "border-radius:6px 6px 0 0;"+
+      "flex:0 0 "+fillH+"px;background:"+color+";border-radius:6px 6px 0 0;"+
       "display:flex;align-items:flex-end;justify-content:center;"+
       "padding-bottom:"+Math.max(6,Math.round(fillH*0.07))+"px;"+
       "cursor:pointer;overflow:hidden;box-sizing:border-box;";
 
-    // Phosphor icon
     if (iconSz >= 18 && fillH >= iconSz+8) {
       var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
       var icon = document.createElement("i");
@@ -709,13 +613,9 @@ function drawTreemap() {
       fill.appendChild(icon);
     }
 
-    // Tooltip
     (function(hab){
       fill.addEventListener("mousemove",function(evt){
-        showTooltip(evt,
-          "<strong>"+hab.name+"</strong><br>"+
-          hab.pct+"% of projects<br>"+
-          hab.count+" project"+(hab.count!==1?"s":""));
+        showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":""));
       });
       fill.addEventListener("mouseleave",hideTooltip);
     })(d);
@@ -725,17 +625,87 @@ function drawTreemap() {
     chart.appendChild(col);
   });
 
-  el.appendChild(chart);
+  wrapper.appendChild(chart);
 
-  // Footer note
-  var note = document.createElement("div");
-  note.style.cssText =
-    "font-size:11px;color:#888;margin-top:5px;"+
-    "font-family:'Roboto',sans-serif;line-height:1.4;";
-  note.textContent =
-    "Top 6 habitat types shown. 'Other' reflects distinct projects touching any of the "+
-    (rest.length||"remaining")+" additional types.";
-  el.appendChild(note);
+  // ── STAT PANEL (right side, inside chart area) ────────────────────────────
+  if (STAT_W > 0) {
+    var panel = document.createElement("div");
+    panel.style.cssText =
+      "width:"+STAT_W+"px;flex-shrink:0;height:"+availH+"px;"+
+      "display:flex;flex-direction:column;justify-content:center;gap:6px;"+
+      "padding:12px 10px;box-sizing:border-box;"+
+      "background:rgba(248,250,252,0.95);"+
+      "border-left:2px solid rgba(22,119,188,0.2);"+
+      "border-radius:0 8px 8px 0;";
+
+    var stats = [
+      {val:totalProjects, label:"funded projects",      color:"#0d47a1"},
+      {val:uniqueTypes,   label:"distinct habitat types",color:"#00695c"},
+      {val:totalTags,     label:"total habitat tags",    color:"#1677bc"},
+      {val:avgPerProj,    label:"habitats per project",  color:"#2e7d32"},
+    ];
+
+    stats.forEach(function(s,i){
+      var row = document.createElement("div");
+      row.style.cssText =
+        "display:flex;align-items:center;gap:8px;"+
+        (i < stats.length-1 ? "padding-bottom:6px;border-bottom:1px solid rgba(0,0,0,0.07);" : "");
+
+      // Number bubble
+      var bubble = document.createElement("div");
+      bubble.style.cssText =
+        "width:clamp(44px,4.5vw,62px);height:clamp(44px,4.5vw,62px);"+
+        "border-radius:50%;flex-shrink:0;"+
+        "background:"+s.color+"1a;"+ // 1a = ~10% opacity hex
+        "display:flex;align-items:center;justify-content:center;";
+      var valEl = document.createElement("div");
+      valEl.style.cssText =
+        "font-size:clamp(14px,1.6vw,22px);font-weight:900;color:"+s.color+";"+
+        "line-height:1;letter-spacing:-0.5px;font-family:'Roboto',sans-serif;";
+      valEl.textContent = s.val;
+      bubble.appendChild(valEl);
+
+      var labelEl = document.createElement("div");
+      labelEl.style.cssText =
+        "font-size:clamp(11px,0.85vw,13px);font-weight:600;color:"+s.color+";"+
+        "line-height:1.3;font-family:'Roboto',sans-serif;flex:1;min-width:0;";
+      labelEl.textContent = s.label;
+
+      row.appendChild(bubble);
+      row.appendChild(labelEl);
+      panel.appendChild(row);
+    });
+
+    // Reading guide at bottom
+    var guide = document.createElement("div");
+    guide.style.cssText =
+      "margin-top:8px;padding-top:8px;border-top:1px solid rgba(22,119,188,0.15);"+
+      "font-size:clamp(11px,0.75vw,12px);color:rgba(0,0,0,0.45);"+
+      "line-height:1.5;font-family:'Roboto',sans-serif;";
+    guide.innerHTML =
+      "<strong style='color:#1677bc;'>How to read:</strong> "+
+      "Each bar = % of "+totalProjects+" projects in that habitat. "+
+      "Bars are <strong>independent</strong> — they won't add to 100% because "+
+      "projects average "+avgPerProj+" habitats each.";
+    panel.appendChild(guide);
+
+    wrapper.appendChild(panel);
+  } else {
+    // Narrow screen: append reading guide below chart as text
+    var noteEl = document.createElement("div");
+    noteEl.style.cssText =
+      "font-size:11px;color:rgba(0,0,0,0.45);margin-top:6px;"+
+      "font-family:'Roboto',sans-serif;line-height:1.4;";
+    noteEl.textContent =
+      totalProjects+" funded projects · "+uniqueTypes+" habitat types · "+
+      totalTags+" total tags · "+avgPerProj+" habitats per project on average. "+
+      "Bars are independent — values won't add to 100%.";
+    el.appendChild(wrapper);
+    el.appendChild(noteEl);
+    return;
+  }
+
+  el.appendChild(wrapper);
 }
 
   
