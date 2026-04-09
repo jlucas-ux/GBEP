@@ -390,10 +390,20 @@ function drawTreemap() {
 
     if (iconSz >= 18 && fillH >= iconSz+8) {
       var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
+      var iconWrap = document.createElement("div");
+      iconWrap.style.cssText = "position:relative;line-height:1;display:flex;align-items:center;justify-content:center;width:"+iconSz+"px;height:"+iconSz+"px;";
       var icon = document.createElement("i");
       icon.className = "ph-fill "+iconCls;
       icon.style.cssText = "font-size:"+iconSz+"px;color:rgba(255,255,255,0.88);line-height:1;display:block;";
-      fill.appendChild(icon);
+      iconWrap.appendChild(icon);
+      // Emoji fallback — shown if Phosphor font fails to load
+      var EMOJI_MAP = {"ph-shrimp":"🦐","ph-waves":"🌊","ph-plant":"🌿","ph-fish":"🐟","ph-drop-half":"💧","ph-tree":"🌳","ph-anchor-simple":"⚓","ph-tree-evergreen":"🌲","ph-buildings":"🏙️","ph-tree-structure":"🌲","ph-wheat":"🌾","ph-sun-horizon":"🌅","ph-leaf":"🍃","ph-anchor":"⚓","ph-flask":"🧪","ph-question":"❓"};
+      var emo = document.createElement("span");
+      emo.textContent = EMOJI_MAP[iconCls] || "•";
+      emo.style.cssText = "position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:"+Math.round(iconSz*0.75)+"px;opacity:0;";
+      emo.className = "icon-fallback";
+      iconWrap.appendChild(emo);
+      fill.appendChild(iconWrap);
     }
 
     (function(hab){
@@ -414,7 +424,7 @@ function drawTreemap() {
   if (STAT_W > 0) {
     var panel = document.createElement("div");
     panel.style.cssText =
-      "width:"+STAT_W+"px;flex-shrink:0;height:"+availH+"px;"+
+      "width:"+STAT_W+"px;flex-shrink:0;height:"+availH+"px;overflow:hidden;"+
       "display:flex;flex-direction:column;justify-content:center;gap:6px;"+
       "padding:12px 10px;box-sizing:border-box;"+
       "background:rgba(248,250,252,0.95);"+
@@ -437,20 +447,20 @@ function drawTreemap() {
       // Number bubble
       var bubble = document.createElement("div");
       bubble.style.cssText =
-        "width:clamp(44px,4.5vw,62px);height:clamp(44px,4.5vw,62px);"+
+        "width:52px;height:52px;"+
         "border-radius:50%;flex-shrink:0;"+
         "background:"+s.color+"1a;"+ // 1a = ~10% opacity hex
         "display:flex;align-items:center;justify-content:center;";
       var valEl = document.createElement("div");
       valEl.style.cssText =
-        "font-size:clamp(14px,1.6vw,22px);font-weight:900;color:"+s.color+";"+
+        "font-size:18px;font-weight:900;color:"+s.color+";"+
         "line-height:1;letter-spacing:-0.5px;font-family:'Roboto',sans-serif;";
       valEl.textContent = s.val;
       bubble.appendChild(valEl);
 
       var labelEl = document.createElement("div");
       labelEl.style.cssText =
-        "font-size:clamp(11px,0.85vw,13px);font-weight:600;color:"+s.color+";"+
+        "font-size:12px;font-weight:600;color:"+s.color+";"+
         "line-height:1.3;font-family:'Roboto',sans-serif;flex:1;min-width:0;";
       labelEl.textContent = s.label;
 
@@ -463,7 +473,7 @@ function drawTreemap() {
     var guide = document.createElement("div");
     guide.style.cssText =
       "margin-top:8px;padding-top:8px;border-top:1px solid rgba(22,119,188,0.15);"+
-      "font-size:clamp(11px,0.75vw,12px);color:rgba(0,0,0,0.45);"+
+      "font-size:11px;color:rgba(0,0,0,0.45);"+
       "line-height:1.5;font-family:'Roboto',sans-serif;";
     guide.innerHTML =
       "<strong style='color:#1677bc;'>How to read:</strong> "+
@@ -509,6 +519,27 @@ function drawTreemap() {
   async function init(){allData=await fetchData();filteredData=allData.slice();document.getElementById("loading").style.display="none";document.getElementById("app").style.display="flex";populateYearDropdowns();drawUpset(filteredData,"upset-chart");chartDrawn[0]=true;}
 
   function resetZoom(containerId){if(!window._zoomBehaviors||!window._zoomBehaviors[containerId])return;var obj=window._zoomBehaviors[containerId];try{obj.svg.transition().duration(400).call(obj.zoom.transform,d3.zoomIdentity);}catch(e){console.warn("resetZoom failed",e);}}
+
+  // Check if Phosphor icons loaded; show emoji fallbacks if not
+  setTimeout(function(){
+    var testIcon = document.createElement("i");
+    testIcon.className = "ph-fill ph-fish";
+    testIcon.style.cssText = "position:absolute;visibility:hidden;font-size:20px;";
+    document.body.appendChild(testIcon);
+    var w = testIcon.offsetWidth;
+    document.body.removeChild(testIcon);
+    if(w === 0 || w > 30) {
+      // Phosphor didn't load — show emoji fallbacks
+      document.querySelectorAll(".icon-fallback").forEach(function(el){
+        el.style.opacity = "0.88";
+        el.style.color = "white";
+      });
+      document.querySelectorAll(".ph-fill").forEach(function(el){
+        el.style.opacity = "0";
+        el.style.position = "absolute";
+      });
+    }
+  }, 1500);
 
   init();
 </script>
