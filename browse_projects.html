@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<title>GBEP Project Browser</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;background:#f4f6f9;color:#1a2332;}
+
+/* ── TOP FILTER BAR ─────────────────────────────── */
+#filter-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 14px;background:white;
+  border-bottom:1px solid #e2e8f0;flex-shrink:0;
+}
+#filter-bar select,#filter-bar input{
+  height:32px;border:1px solid #cbd5e1;border-radius:6px;
+  padding:0 10px;font-family:'Roboto',sans-serif;font-size:12px;
+  color:#334155;background:white;outline:none;cursor:pointer;
+}
+#filter-bar select:focus,#filter-bar input:focus{border-color:#1677bc;}
+#search-input{flex:1;min-width:160px;}
+#clear-btn{
+  height:32px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;
+  background:white;font-size:12px;color:#64748b;cursor:pointer;white-space:nowrap;
+}
+#clear-btn:hover{background:#f1f5f9;}
+#result-count{font-size:12px;color:#94a3b8;white-space:nowrap;margin-left:auto;}
+
+/* ── MAIN LAYOUT ────────────────────────────────── */
+#app{width:100%;height:100%;display:flex;flex-direction:column;}
+#main{flex:1;display:flex;overflow:hidden;}
+
+/* ── CARD LIST ──────────────────────────────────── */
+#list-pane{
+  width:420px;flex-shrink:0;
+  display:flex;flex-direction:column;
+  border-right:1px solid #e2e8f0;background:#f8fafc;
+  overflow:hidden;
+}
+#list-header{
+  padding:10px 14px 8px;border-bottom:1px solid #e2e8f0;
+  display:flex;align-items:center;justify-content:space-between;
+  background:white;flex-shrink:0;
+}
+#list-count{font-size:12px;font-weight:700;color:#1677bc;}
+#sort-sel{height:26px;border:1px solid #e2e8f0;border-radius:5px;font-size:11px;color:#64748b;padding:0 6px;background:white;cursor:pointer;}
+#card-scroll{flex:1;overflow-y:auto;padding:8px;}
+#card-scroll::-webkit-scrollbar{width:4px;}
+#card-scroll::-webkit-scrollbar-track{background:transparent;}
+#card-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px;}
+
+/* ── CARDS ──────────────────────────────────────── */
+.pcard{
+  background:white;border:1px solid #e2e8f0;border-radius:8px;
+  margin-bottom:6px;cursor:pointer;display:flex;
+  transition:box-shadow .15s, border-color .15s;
+  overflow:hidden;
+}
+.pcard:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(22,119,188,.12);}
+.pcard.active{border-color:#1677bc;border-width:1.5px;box-shadow:0 2px 12px rgba(22,119,188,.2);}
+.pcard-accent{width:4px;flex-shrink:0;}
+.pcard-body{flex:1;padding:9px 10px 8px;min-width:0;}
+.pcard-title{font-size:13px;font-weight:700;color:#1a2332;line-height:1.3;margin-bottom:2px;}
+.pcard-org{font-size:11px;color:#64748b;margin-bottom:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.pcard-stats{display:flex;gap:14px;margin-bottom:6px;}
+.pcard-stat-val{font-size:12px;font-weight:700;color:#1a2332;line-height:1;}
+.pcard-stat-lbl{font-size:9px;color:#94a3b8;margin-top:1px;line-height:1;}
+.pcard-tags{display:flex;gap:4px;flex-wrap:wrap;}
+.ptag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;line-height:1.4;}
+.ptag-hab{background:#dbeafe;color:#1e40af;}
+.ptag-plan{background:#dcfce7;color:#166534;}
+.ptag-scale{background:#f3e8ff;color:#6b21a8;}
+
+/* ── DETAIL PANEL ───────────────────────────────── */
+#detail-pane{
+  flex:1;display:flex;flex-direction:column;
+  background:white;overflow:hidden;
+}
+#detail-empty{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#94a3b8;gap:10px;
+}
+#detail-empty svg{opacity:.3;}
+#detail-empty p{font-size:13px;}
+#detail-content{flex:1;overflow-y:auto;display:none;flex-direction:column;}
+#detail-content::-webkit-scrollbar{width:4px;}
+#detail-content::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:2px;}
+#detail-header{
+  padding:16px 20px 12px;border-bottom:1px solid #e2e8f0;flex-shrink:0;
+}
+#detail-title{font-size:16px;font-weight:900;color:#1677bc;line-height:1.3;margin-bottom:4px;}
+#detail-site{font-size:12px;color:#64748b;}
+#detail-hero{
+  display:flex;gap:0;border-bottom:1px solid #e2e8f0;flex-shrink:0;
+}
+.dhero-stat{
+  flex:1;padding:12px 16px;text-align:center;
+  border-right:1px solid #e2e8f0;
+}
+.dhero-stat:last-child{border-right:none;}
+.dhero-val{font-size:18px;font-weight:900;color:#1677bc;}
+.dhero-lbl{font-size:10px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+#detail-body{padding:0 20px 20px;flex:1;}
+.dfield-section{margin-top:16px;}
+.dfield-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f1f5f9;}
+.dfield-row{display:flex;padding:5px 0;border-bottom:1px solid #f8fafc;}
+.dfield-label{font-size:11px;color:#64748b;width:180px;flex-shrink:0;line-height:1.4;}
+.dfield-value{font-size:11px;color:#1a2332;flex:1;line-height:1.4;}
+.dfield-value a{color:#1677bc;text-decoration:none;}
+.dfield-value a:hover{text-decoration:underline;}
+#detail-tags-row{display:flex;gap:6px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid #e2e8f0;flex-shrink:0;}
+
+/* ── LOADING / EMPTY ────────────────────────────── */
+#loading{
+  position:fixed;inset:0;background:white;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:#1677bc;font-weight:500;
+  flex-direction:column;gap:12px;
+}
+.spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#1677bc;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#no-results{display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:13px;}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div>Loading projects…</div>
+
+<div id="app" style="display:none;height:100%;">
+  <div id="filter-bar">
+    <input id="search-input" type="text" placeholder="Search projects…" oninput="applyFilters()">
+    <select id="f-org" onchange="applyFilters()"><option value="">All organizations</option></select>
+    <select id="f-hab" onchange="applyFilters()"><option value="">All habitat types</option></select>
+    <select id="f-fy"  onchange="applyFilters()"><option value="">All fiscal years</option></select>
+    <select id="f-scale" onchange="applyFilters()"><option value="">All scales</option></select>
+    <button id="clear-btn" onclick="clearFilters()">Clear</button>
+    <span id="result-count"></span>
+  </div>
+
+  <div id="main">
+    <div id="list-pane">
+      <div id="list-header">
+        <span id="list-count">— projects</span>
+        <select id="sort-sel" onchange="applyFilters()">
+          <option value="award">Sort: Award ↓</option>
+          <option value="title">Sort: Name A–Z</option>
+          <option value="fy">Sort: Year ↓</option>
+          <option value="acres">Sort: Acres ↓</option>
+        </select>
+      </div>
+      <div id="card-scroll">
+        <div id="no-results">No projects match your filters.</div>
+      </div>
+    </div>
+
+    <div id="detail-pane">
+      <div id="detail-empty">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="8" y="6" width="32" height="36" rx="4" stroke="#94a3b8" stroke-width="2"/>
+          <line x1="15" y1="16" x2="33" y2="16" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+          <line x1="15" y1="22" x2="33" y2="22" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+          <line x1="15" y1="28" x2="25" y2="28" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <p>Select a project to view its details</p>
+      </div>
+      <div id="detail-content">
+        <div id="detail-header">
+          <div id="detail-title"></div>
+          <div id="detail-site"></div>
+        </div>
+        <div id="detail-hero">
+          <div class="dhero-stat"><div class="dhero-val" id="dh-award">—</div><div class="dhero-lbl">GBEP award</div></div>
+          <div class="dhero-stat"><div class="dhero-val" id="dh-total">—</div><div class="dhero-lbl">Total project cost</div></div>
+          <div class="dhero-stat"><div class="dhero-val" id="dh-fy">—</div><div class="dhero-lbl">Fiscal year</div></div>
+          <div class="dhero-stat"><div class="dhero-val" id="dh-acres">—</div><div class="dhero-lbl">Approx. acres</div></div>
+        </div>
+        <div id="detail-tags-row"></div>
+        <div id="detail-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+
+var HAB_COLORS={
+  "marsh":       "#2e7d32",
+  "oyster":      "#1677bc",
+  "seagrass":    "#1b5e20",
+  "freshwater":  "#006994",
+  "wetland":     "#00695c",
+  "upland":      "#6a1b9a",
+  "shoreline":   "#e65100",
+  "coastal":     "#bf360c",
+  "aquatic":     "#0277bd",
+  "prairie":     "#827717",
+  "riparian":    "#00838f",
+  "default":     "#1677bc"
+};
+
+function habitatColor(val){
+  if(!val)return HAB_COLORS.default;
+  var v=val.toLowerCase();
+  for(var k in HAB_COLORS){if(k!=="default"&&v.indexOf(k)>-1)return HAB_COLORS[k];}
+  return HAB_COLORS.default;
+}
+
+function fmtDollars(v){
+  if(!v||isNaN(v))return "—";
+  if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";
+  if(v>=1e3)return "$"+Math.round(v/1e3)+"K";
+  return "$"+Math.round(v);
+}
+function fmtAcres(v){
+  if(!v||isNaN(v)||v<=0)return "—";
+  if(v>=1e3)return Math.round(v/1e3)+"K ac";
+  return Math.round(v)+" ac";
+}
+function fmtFY(v){
+  if(!v)return "—";
+  var s=String(v);if(s.length===4)return "FY "+s;
+  var p=new Date(v);if(!isNaN(p))return "FY "+p.getFullYear();
+  return "FY "+s.slice(0,4);
+}
+function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?String(v).trim():null;}
+
+var allData=[], filtered=[], activeId=null;
+
+async function fetchData(){
+  var fields=["nru_project_title","site_name_long_term_project_nam","lead_organization_name",
+    "general_project_location","gbep_award_amount","total_cost_of_project","fiscal_year_awarded",
+    "numeric_approximate_project_siz","project_scale","project_landscape_type",
+    "targeted_focal_species","broad_project_goals","current_project_stage",
+    "pi_organization_link","project_pi_contact_information","lead_implementer_type",
+    "is_this_a_phase_part_of_a_larger","leveraging_in_kind_and_cash_","partners_on_the_project",
+    "gbep_contract_number","project_duration","year_1_amount","year_2_amount","year_3_amount",
+    "hc_1","hc_2","hc_3","sc_1","sc_2","fwi_1","fwi_2","fwi_3",
+    "nps_1","nps_2","nps_3","nps_4","ps_1","ps_2","ps_3","pha_1","pha_2","pha_3","pha_4","pha_5",
+    "spo_1","spo_2","spo_3","spo_4","pea_1","pea_2","pea_3",
+    "res_1","res_2","res_3","res_4","res_5","res_6","res_7","res_8","acs_1","acs_2","acs_3"
+  ];
+  var url=LAYER_URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000&orderByFields=gbep_award_amount+DESC";
+  var res=await fetch(url);
+  var json=await res.json();
+  return json.features.map(function(f,i){var a=f.attributes;a._id=i;return a;});
+}
+
+function getActionPlanTags(row){
+  var pp={
+    "HC-1":"hc_1","HC-2":"hc_2","HC-3":"hc_3",
+    "SC-1":"sc_1","SC-2":"sc_2",
+    "FWI-1":"fwi_1","FWI-2":"fwi_2","FWI-3":"fwi_3",
+    "NPS-1":"nps_1","NPS-2":"nps_2","NPS-3":"nps_3","NPS-4":"nps_4",
+    "PS-1":"ps_1","PS-2":"ps_2","PS-3":"ps_3",
+    "PHA-1":"pha_1","PHA-2":"pha_2","PHA-3":"pha_3","PHA-4":"pha_4","PHA-5":"pha_5",
+    "SPO-1":"spo_1","SPO-2":"spo_2","SPO-3":"spo_3","SPO-4":"spo_4",
+    "PEA-1":"pea_1","PEA-2":"pea_2","PEA-3":"pea_3",
+    "RES-1":"res_1","RES-2":"res_2","RES-3":"res_3","RES-4":"res_4",
+    "RES-5":"res_5","RES-6":"res_6","RES-7":"res_7","RES-8":"res_8",
+    "ACS-1":"acs_1","ACS-2":"acs_2","ACS-3":"acs_3"
+  };
+  var tags=[];
+  Object.keys(pp).forEach(function(label){
+    var v=row[pp[label]];
+    if(v===1||v===true||v==="1"||v==="true"||v==="yes")tags.push(label);
+  });
+  return tags;
+}
+
+function populateFilters(){
+  var orgs=Array.from(new Set(allData.map(function(d){return clean(d.lead_organization_name);}).filter(Boolean))).sort();
+  var habs=Array.from(new Set(allData.flatMap(function(d){
+    return d.project_landscape_type?String(d.project_landscape_type).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
+  }))).sort();
+  var fys=Array.from(new Set(allData.map(function(d){
+    var v=d.fiscal_year_awarded;if(!v)return null;
+    var s=String(v);return s.length===4?s:String(new Date(v).getFullYear()||s.slice(0,4));
+  }).filter(Boolean))).sort(function(a,b){return b-a;});
+  var scales=Array.from(new Set(allData.map(function(d){return clean(d.project_scale);}).filter(Boolean))).sort();
+
+  function fill(id,items){
+    var sel=document.getElementById(id);
+    items.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;sel.appendChild(o);});
+  }
+  fill("f-org",orgs); fill("f-hab",habs); fill("f-fy",fys); fill("f-scale",scales);
+}
+
+function applyFilters(){
+  var search=(document.getElementById("search-input").value||"").toLowerCase().trim();
+  var org=document.getElementById("f-org").value;
+  var hab=document.getElementById("f-hab").value;
+  var fy=document.getElementById("f-fy").value;
+  var scale=document.getElementById("f-scale").value;
+  var sort=document.getElementById("sort-sel").value;
+
+  filtered=allData.filter(function(d){
+    if(search){var t=(clean(d.nru_project_title)||"").toLowerCase();var o=(clean(d.lead_organization_name)||"").toLowerCase();if(t.indexOf(search)<0&&o.indexOf(search)<0)return false;}
+    if(org&&clean(d.lead_organization_name)!==org)return false;
+    if(hab){var lt=clean(d.project_landscape_type)||"";if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
+    if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
+    if(scale&&clean(d.project_scale)!==scale)return false;
+    return true;
+  });
+
+  filtered.sort(function(a,b){
+    if(sort==="title")return (clean(a.nru_project_title)||"").localeCompare(clean(b.nru_project_title)||"");
+    if(sort==="fy"){var ay=parseInt(fmtFY(a.fiscal_year_awarded).replace("FY ","")),by=parseInt(fmtFY(b.fiscal_year_awarded).replace("FY ",""));return by-ay;}
+    if(sort==="acres")return (b.numeric_approximate_project_siz||0)-(a.numeric_approximate_project_siz||0);
+    return (b.gbep_award_amount||0)-(a.gbep_award_amount||0);
+  });
+
+  renderCards();
+  document.getElementById("result-count").textContent=filtered.length+" of "+allData.length+" projects";
+}
+
+function clearFilters(){
+  document.getElementById("search-input").value="";
+  ["f-org","f-hab","f-fy","f-scale"].forEach(function(id){document.getElementById(id).selectedIndex=0;});
+  applyFilters();
+}
+
+function renderCards(){
+  var scroll=document.getElementById("card-scroll");
+  var noRes=document.getElementById("no-results");
+  // remove existing cards
+  Array.from(scroll.querySelectorAll(".pcard")).forEach(function(c){c.remove();});
+
+  if(!filtered.length){noRes.style.display="block";document.getElementById("list-count").textContent="0 projects";return;}
+  noRes.style.display="none";
+  document.getElementById("list-count").textContent=filtered.length+" project"+(filtered.length!==1?"s":"");
+
+  filtered.forEach(function(d){
+    var title=clean(d.nru_project_title)||"Untitled";
+    var org=clean(d.lead_organization_name)||"";
+    var award=fmtDollars(d.gbep_award_amount);
+    var fy=fmtFY(d.fiscal_year_awarded);
+    var acres=fmtAcres(d.numeric_approximate_project_siz);
+    var hab=clean(d.project_landscape_type)||"";
+    var habFirst=hab.split(",")[0].trim();
+    var color=habitatColor(habFirst);
+    var apTags=getActionPlanTags(d).slice(0,3);
+
+    var card=document.createElement("div");
+    card.className="pcard"+(activeId===d._id?" active":"");
+    card.dataset.id=d._id;
+    card.innerHTML=
+      '<div class="pcard-accent" style="background:'+color+'"></div>'+
+      '<div class="pcard-body">'+
+        '<div class="pcard-title">'+title+'</div>'+
+        '<div class="pcard-org">'+org+'</div>'+
+        '<div class="pcard-stats">'+
+          '<div><div class="pcard-stat-val">'+award+'</div><div class="pcard-stat-lbl">awarded</div></div>'+
+          (fy!=="—"?'<div><div class="pcard-stat-val">'+fy+'</div><div class="pcard-stat-lbl">year</div></div>':'')+
+          (acres!=="—"?'<div><div class="pcard-stat-val">'+acres+'</div><div class="pcard-stat-lbl">area</div></div>':'')+
+        '</div>'+
+        '<div class="pcard-tags">'+
+          (habFirst?'<span class="ptag ptag-hab">'+habFirst+'</span>':'')+
+          apTags.map(function(t){return '<span class="ptag ptag-plan">'+t+'</span>';}).join("")+
+          (clean(d.project_scale)?'<span class="ptag ptag-scale">'+clean(d.project_scale)+'</span>':'')+
+        '</div>'+
+      '</div>';
+
+    card.addEventListener("click",function(){selectCard(d);});
+    scroll.appendChild(card);
+  });
+}
+
+function selectCard(d){
+  activeId=d._id;
+  // update active state on cards
+  document.querySelectorAll(".pcard").forEach(function(c){
+    c.classList.toggle("active",parseInt(c.dataset.id)===d._id);
+  });
+  showDetail(d);
+  // scroll card into view
+  var active=document.querySelector(".pcard.active");
+  if(active)active.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+
+function showDetail(d){
+  document.getElementById("detail-empty").style.display="none";
+  var dc=document.getElementById("detail-content");
+  dc.style.display="flex";
+
+  document.getElementById("detail-title").textContent=clean(d.nru_project_title)||"Untitled";
+  document.getElementById("detail-site").textContent=clean(d.site_name_long_term_project_nam)||"";
+  document.getElementById("dh-award").textContent=fmtDollars(d.gbep_award_amount);
+  document.getElementById("dh-total").textContent=fmtDollars(d.total_cost_of_project);
+  document.getElementById("dh-fy").textContent=fmtFY(d.fiscal_year_awarded);
+  document.getElementById("dh-acres").textContent=fmtAcres(d.numeric_approximate_project_siz);
+
+  // Tags row
+  var tagsRow=document.getElementById("detail-tags-row");
+  tagsRow.innerHTML="";
+  var hab=clean(d.project_landscape_type)||"";
+  if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=h;tagsRow.appendChild(sp);}});}
+  getActionPlanTags(d).forEach(function(t){var sp=document.createElement("span");sp.className="ptag ptag-plan";sp.textContent=t;tagsRow.appendChild(sp);});
+  if(clean(d.project_scale)){var sp=document.createElement("span");sp.className="ptag ptag-scale";sp.textContent=clean(d.project_scale);tagsRow.appendChild(sp);}
+
+  // Body fields
+  var body=document.getElementById("detail-body");
+  body.innerHTML="";
+
+  function section(title,rows){
+    var any=rows.some(function(r){return r[1];});
+    if(!any)return;
+    var sec=document.createElement("div");sec.className="dfield-section";
+    var h=document.createElement("div");h.className="dfield-section-title";h.textContent=title;sec.appendChild(h);
+    rows.forEach(function(r){
+      if(!r[1])return;
+      var row=document.createElement("div");row.className="dfield-row";
+      var lbl=document.createElement("div");lbl.className="dfield-label";lbl.textContent=r[0];
+      var val=document.createElement("div");val.className="dfield-value";
+      if(r[2]==="link"&&r[1]){val.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">'+r[1]+'</a>';}
+      else{val.textContent=r[1];}
+      row.appendChild(lbl);row.appendChild(val);sec.appendChild(row);
+    });
+    body.appendChild(sec);
+  }
+
+  section("Project details",[
+    ["General location",        clean(d.general_project_location)],
+    ["Lead organization",       clean(d.lead_organization_name)],
+    ["Lead implementer type",   clean(d.lead_implementer_type)],
+    ["PI contact",              clean(d.project_pi_contact_information)],
+    ["Organization link",       clean(d.pi_organization_link),"link"],
+    ["Current project stage",   clean(d.current_project_stage)],
+    ["Part of larger project",  clean(d.is_this_a_phase_part_of_a_larger)],
+    ["GBEP contract number",    clean(d.gbep_contract_number)],
+    ["Project duration",        clean(d.project_duration)],
+  ]);
+  section("Funding",[
+    ["GBEP award",              clean(d.gbep_award_amount)?fmtDollars(d.gbep_award_amount):null],
+    ["Total project cost",      clean(d.total_cost_of_project)?fmtDollars(d.total_cost_of_project):null],
+    ["Year 1 amount",           d.year_1_amount?fmtDollars(d.year_1_amount):null],
+    ["Year 2 amount",           d.year_2_amount?fmtDollars(d.year_2_amount):null],
+    ["Year 3 amount",           d.year_3_amount?fmtDollars(d.year_3_amount):null],
+    ["Leveraging (in-kind/cash)",clean(d.leveraging_in_kind_and_cash_)],
+  ]);
+  section("Conservation focus",[
+    ["Broad project goals",     clean(d.broad_project_goals)],
+    ["Targeted focal species",  clean(d.targeted_focal_species)],
+    ["Landscape / habitat",     clean(d.project_landscape_type)],
+    ["Project scale",           clean(d.project_scale)],
+    ["Approx. project size",    d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
+  ]);
+  section("Partners",[
+    ["Partners on the project", clean(d.partners_on_the_project)],
+  ]);
+
+  dc.scrollTop=0;
+}
+
+async function init(){
+  allData=await fetchData();
+  document.getElementById("loading").style.display="none";
+  document.getElementById("app").style.display="flex";
+  populateFilters();
+  applyFilters();
+}
+
+init();
+</script>
+</body>
+</html>
