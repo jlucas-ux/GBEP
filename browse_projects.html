@@ -282,6 +282,24 @@ function fmtFY(v){
 }
 function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?String(v).trim():null;}
 
+  // Normalize Survey123 values: underscores→spaces, collapse whitespace, trim dashes
+  function normalizeVal(s){
+    return String(s).replace(/_/g," ").replace(/\s+/g," ").replace(/^[\s\-]+|[\s\-]+$/g,"").trim();
+  }
+
+  // Split comma-separated field, normalize each part, deduplicate case-insensitively
+  function dedupList(raw){
+    if(!raw)return [];
+    var seen={};
+    return String(raw).split(",").map(function(s){return normalizeVal(s.trim());}).filter(function(s){
+      if(!s||s.toLowerCase()==="null")return false;
+      var key=s.toLowerCase();if(seen[key])return false;seen[key]=true;return true;
+    });
+  }
+
+  // clean() + underscore normalization for single display values
+  function cleanDisplay(v){var c=clean(v);return c?normalizeVal(c):null;}
+
 var allData=[], filtered=[], activeId=null;
 
 async function fetchData(){
@@ -439,7 +457,7 @@ function renderCards(){
     var fy=fmtFY(d.fiscal_year_awarded);
     var acres=fmtAcres(d.numeric_approximate_project_siz);
     var hab=clean(d.project_landscape_type)||"";
-    var habFirst=hab.split(",")[0].trim();
+    var habFirst=dedupList(d.project_landscape_type)[0]||"";
     var color=habitatColor(habFirst);
     var apTags=getActionPlanTags(d).slice(0,3);
 
@@ -505,7 +523,8 @@ function showDetail(d){
   var body=document.getElementById("detail-body");
   body.innerHTML="";
 
-  function val(v){return clean(v);}
+  function val(v){return cleanDisplay(v);}
+  function valList(v){return dedupList(v).join(", ")||null;}
 
   function section(title,rows){
     var anyVal=rows.some(function(r){return r[1];});
@@ -557,7 +576,7 @@ function showDetail(d){
     ["Year 1 amount",             d.year_1_amount?fmtDollars(d.year_1_amount):null],
     ["Year 2 amount",             d.year_2_amount?fmtDollars(d.year_2_amount):null],
     ["Year 3 amount",             d.year_3_amount?fmtDollars(d.year_3_amount):null],
-    ["Additional funding types",  val(d.what_were_your_additional_fundi)||val(d.were_there_any_additional_fundin)],
+    ["Additional funding types",  valList(d.what_were_your_additional_fundi)||valList(d.were_there_any_additional_fundin)],
     ["In-kind leveraging",        val(d.in_kind_leveraging_amount)],
     ["Cash leveraging",           val(d.cash_leveraging_amount)],
     ["Leveraging notes",          val(d.leveraging_in_kind_and_cash_)||val(d.other_additional_leveraging_non)],
@@ -571,26 +590,26 @@ function showDetail(d){
   ]);
 
   section("Conservation focus",[
-    ["Broad project goals",       val(d.broad_project_goals)],
-    ["Main physical goals",       val(d.what_were_the_main_physical_goa)||val(d.what_were_the_main_physical_goal)],
-    ["Long-term goals",           val(d.what_were_the_long_term_goals_o)||val(d.what_were_the_long_term_goals_of)],
-    ["Landscape / habitat type",  val(d.project_landscape_type)],
+    ["Broad project goals",       valList(d.broad_project_goals)],
+    ["Main physical goals",       valList(d.what_were_the_main_physical_goa)||valList(d.what_were_the_main_physical_goal)],
+    ["Long-term goals",           valList(d.what_were_the_long_term_goals_o)||valList(d.what_were_the_long_term_goals_of)],
+    ["Landscape / habitat type",  valList(d.project_landscape_type)],
     ["Project scale",             val(d.project_scale)],
     ["Approx. project size",      d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
-    ["Focal species targeted",    val(d.targeted_focal_species)||val(d.what_focal_species_were_targeted)],
-    ["Other benefiting species",  val(d.what_other_species_were_identif)||val(d.what_other_species_were_identifi)],
+    ["Focal species targeted",    valList(d.targeted_focal_species)||valList(d.what_focal_species_were_targeted)],
+    ["Other benefiting species",  valList(d.what_other_species_were_identif)||valList(d.what_other_species_were_identifi)],
   ]);
 
   section("Implementation",[
     ["Contractors",               val(d.contractors_used_on_project_if_)||val(d.contractors_used_on_project_if_a)],
-    ["Equipment used",            val(d.what_types_of_equipment_were_re)||val(d.what_types_of_equipment_were_req)],
-    ["Materials used",            val(d.what_types_of_materials_were_us)||val(d.what_types_of_materials_were_use)],
+    ["Equipment used",            valList(d.what_types_of_equipment_were_re)||valList(d.what_types_of_equipment_were_req)],
+    ["Materials used",            valList(d.what_types_of_materials_were_us)||valList(d.what_types_of_materials_were_use)],
     ["Volume of material (cu yd)",val(d.what_was_the_volume_of_material)],
     ["Key design elements",       val(d.explain_key_design_elements_ele)||val(d.explain_key_design_elements_elev)],
   ]);
 
   section("Permitting",[
-    ["Permits required",          val(d.what_permits_were_required_)],
+    ["Permits required",          valList(d.what_permits_were_required_)],
     ["Who applied for permits",   val(d.who_was_responsible_for_applyin)||val(d.who_was_responsible_for_applying)],
     ["Permitting affected design",val(d.did_permitting_requirements_aff)||val(d.did_permitting_requirements_affe)],
   ]);
@@ -613,7 +632,7 @@ function showDetail(d){
   ]);
 
   section("Partners",[
-    ["Partners on project",       val(d.partners_on_the_project)],
+    ["Partners on project",       valList(d.partners_on_the_project)],
     ["Partnership development",   val(d.how_was_partnership_developed_a)||val(d.how_was_partnership_developed_an)],
   ]);
 
@@ -622,7 +641,7 @@ function showDetail(d){
     ["Lessons learned",           val(d.whether_or_not_the_project_was_)||val(d.lessons_learned)],
     ["Policy & regulatory barriers",val(d.were_there_policy_incentives_or)||val(d.were_there_policy_incentives_or_)],
     ["Advice for similar projects",val(d.what_advice_would_you_give_othe)||val(d.what_advice_would_you_give_other)],
-    ["Data sources & tools",      val(d.what_data_sources_and_decision_)],
+    ["Data sources & tools",      valList(d.what_data_sources_and_decision_)],
     ["Successes",                 val(d.what_did_you_see_as_the_immedia)||val(d.what_did_you_see_as_the_immediat)],
   ];
   var anyNarr=narratives.some(function(n){return n[1];});
