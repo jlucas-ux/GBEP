@@ -481,8 +481,9 @@ function selectCard(d){
 }
 
 function showDetail(d){
-  document.getElementById("detail-empty").style.display="none";
   document.getElementById("detail-pane").classList.add("open");
+  document.getElementById("detail-empty").style.display="none";
+  var dc=document.getElementById("detail-content");
   dc.style.display="flex";
 
   document.getElementById("detail-title").textContent=clean(d.nru_project_title)||"Untitled";
@@ -499,59 +500,206 @@ function showDetail(d){
   if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=h;tagsRow.appendChild(sp);}});}
   getActionPlanTags(d).forEach(function(t){var sp=document.createElement("span");sp.className="ptag ptag-plan";sp.textContent=t;tagsRow.appendChild(sp);});
   if(clean(d.project_scale)){var sp=document.createElement("span");sp.className="ptag ptag-scale";sp.textContent=clean(d.project_scale);tagsRow.appendChild(sp);}
+  if(clean(d.current_project_stage)){var sp=document.createElement("span");sp.className="ptag";sp.style.cssText="background:#fef3c7;color:#92400e;";sp.textContent=clean(d.current_project_stage);tagsRow.appendChild(sp);}
 
-  // Body fields
   var body=document.getElementById("detail-body");
   body.innerHTML="";
 
+  function val(v){return clean(v);}
+
   function section(title,rows){
-    var any=rows.some(function(r){return r[1];});
-    if(!any)return;
+    var anyVal=rows.some(function(r){return r[1];});
+    if(!anyVal)return;
     var sec=document.createElement("div");sec.className="dfield-section";
     var h=document.createElement("div");h.className="dfield-section-title";h.textContent=title;sec.appendChild(h);
     rows.forEach(function(r){
       if(!r[1])return;
       var row=document.createElement("div");row.className="dfield-row";
       var lbl=document.createElement("div");lbl.className="dfield-label";lbl.textContent=r[0];
-      var val=document.createElement("div");val.className="dfield-value";
-      if(r[2]==="link"&&r[1]){val.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">'+r[1]+'</a>';}
-      else{val.textContent=r[1];}
-      row.appendChild(lbl);row.appendChild(val);sec.appendChild(row);
+      var v=document.createElement("div");v.className="dfield-value";
+      if(r[2]==="link"){v.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">'+r[1]+'</a>';}
+      else if(r[2]==="long"){v.style.whiteSpace="pre-wrap";}
+      v.textContent=r[2]==="link"?v.textContent:r[1];
+      if(r[2]==="link")v.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">Open link ↗</a>';
+      row.appendChild(lbl);row.appendChild(v);sec.appendChild(row);
     });
     body.appendChild(sec);
   }
 
+  // Abstract — full width block if present
+  var abstract=val(d.project_abstract)||val(d.project_abstract_);
+  if(abstract){
+    var absDiv=document.createElement("div");
+    absDiv.style.cssText="margin-top:14px;padding:12px 14px;background:#f8fafc;border-radius:6px;border-left:3px solid #1677bc;";
+    absDiv.innerHTML='<div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Project abstract</div>'+
+      '<div style="font-size:11px;color:#334155;line-height:1.65;">'+abstract+'</div>';
+    body.appendChild(absDiv);
+  }
+
   section("Project details",[
-    ["General location",        clean(d.general_project_location)],
-    ["Lead organization",       clean(d.lead_organization_name)],
-    ["Lead implementer type",   clean(d.lead_implementer_type)],
-    ["PI contact",              clean(d.project_pi_contact_information)],
-    ["Organization link",       clean(d.pi_organization_link),"link"],
-    ["Current project stage",   clean(d.current_project_stage)],
-    ["Part of larger project",  clean(d.is_this_a_phase_part_of_a_larger)],
-    ["GBEP contract number",    clean(d.gbep_contract_number)],
-    ["Project duration",        clean(d.project_duration)],
-  ]);
-  section("Funding",[
-    ["GBEP award",              clean(d.gbep_award_amount)?fmtDollars(d.gbep_award_amount):null],
-    ["Total project cost",      clean(d.total_cost_of_project)?fmtDollars(d.total_cost_of_project):null],
-    ["Year 1 amount",           d.year_1_amount?fmtDollars(d.year_1_amount):null],
-    ["Year 2 amount",           d.year_2_amount?fmtDollars(d.year_2_amount):null],
-    ["Year 3 amount",           d.year_3_amount?fmtDollars(d.year_3_amount):null],
-    ["Leveraging (in-kind/cash)",clean(d.leveraging_in_kind_and_cash_)],
-  ]);
-  section("Conservation focus",[
-    ["Broad project goals",     clean(d.broad_project_goals)],
-    ["Targeted focal species",  clean(d.targeted_focal_species)],
-    ["Landscape / habitat",     clean(d.project_landscape_type)],
-    ["Project scale",           clean(d.project_scale)],
-    ["Approx. project size",    d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
-  ]);
-  section("Partners",[
-    ["Partners on the project", clean(d.partners_on_the_project)],
+    ["General location",          val(d.general_project_location)],
+    ["Lead organization",         val(d.lead_organization_name)],
+    ["Lead implementer type",     val(d.lead_implementer_type)],
+    ["PI contact",                val(d.project_pi_contact_information)],
+    ["Organization link",         val(d.pi_organization_link),"link"],
+    ["Current stage",             val(d.current_project_stage)],
+    ["Date status updated",       val(d.date_that_this_current_status_wa)],
+    ["Part of larger project",    val(d.is_this_a_phase_part_of_a_larger)],
+    ["Related projects",          val(d.if_project_is_part_of_a_phase_p)],
+    ["GBEP contract number",      val(d.gbep_contract_number)],
+    ["Project duration",          val(d.project_duration)||val(d.project_duration1)],
+    ["CAP program",               val(d.was_this_project_part_of_the_con)],
   ]);
 
+  section("Funding",[
+    ["GBEP award",                d.gbep_award_amount?fmtDollars(d.gbep_award_amount):null],
+    ["Total project cost",        d.total_cost_of_project?fmtDollars(d.total_cost_of_project):null],
+    ["Year 1 amount",             d.year_1_amount?fmtDollars(d.year_1_amount):null],
+    ["Year 2 amount",             d.year_2_amount?fmtDollars(d.year_2_amount):null],
+    ["Year 3 amount",             d.year_3_amount?fmtDollars(d.year_3_amount):null],
+    ["Additional funding types",  val(d.what_were_your_additional_fundi)||val(d.were_there_any_additional_fundin)],
+    ["In-kind leveraging",        val(d.in_kind_leveraging_amount)],
+    ["Cash leveraging",           val(d.cash_leveraging_amount)],
+    ["Leveraging notes",          val(d.leveraging_in_kind_and_cash_)||val(d.other_additional_leveraging_non)],
+    ["Costs exceeded estimates",  val(d.did_costs_exceed_estimates_)],
+    ["Planning costs",            val(d.what_is_a_general_estimate_of_p)||val(d.what_is_a_general_estimate_of_pl)],
+    ["Engineering costs",         val(d.what_is_a_general_estimate_of_e)],
+    ["Permitting costs",          val(d.what_is_a_general_estimate_of_1)],
+    ["Materials costs",           val(d.what_is_a_general_estimate_of_m)],
+    ["Construction costs",        val(d.what_is_a_general_estimate_of_c)],
+    ["Closing costs",             val(d.what_is_a_general_estimate_of_2)],
+  ]);
+
+  section("Conservation focus",[
+    ["Broad project goals",       val(d.broad_project_goals)],
+    ["Main physical goals",       val(d.what_were_the_main_physical_goa)||val(d.what_were_the_main_physical_goal)],
+    ["Long-term goals",           val(d.what_were_the_long_term_goals_o)||val(d.what_were_the_long_term_goals_of)],
+    ["Landscape / habitat type",  val(d.project_landscape_type)],
+    ["Project scale",             val(d.project_scale)],
+    ["Approx. project size",      d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
+    ["Focal species targeted",    val(d.targeted_focal_species)||val(d.what_focal_species_were_targeted)],
+    ["Other benefiting species",  val(d.what_other_species_were_identif)||val(d.what_other_species_were_identifi)],
+  ]);
+
+  section("Implementation",[
+    ["Contractors",               val(d.contractors_used_on_project_if_)||val(d.contractors_used_on_project_if_a)],
+    ["Equipment used",            val(d.what_types_of_equipment_were_re)||val(d.what_types_of_equipment_were_req)],
+    ["Materials used",            val(d.what_types_of_materials_were_us)||val(d.what_types_of_materials_were_use)],
+    ["Volume of material (cu yd)",val(d.what_was_the_volume_of_material)],
+    ["Key design elements",       val(d.explain_key_design_elements_ele)||val(d.explain_key_design_elements_elev)],
+  ]);
+
+  section("Permitting",[
+    ["Permits required",          val(d.what_permits_were_required_)],
+    ["Who applied for permits",   val(d.who_was_responsible_for_applyin)||val(d.who_was_responsible_for_applying)],
+    ["Permitting affected design",val(d.did_permitting_requirements_aff)||val(d.did_permitting_requirements_affe)],
+  ]);
+
+  section("Monitoring",[
+    ["Monitoring funded",         val(d.do_you_have_funding_for_monitor)||val(d.do_you_have_funding_for_monitori)],
+    ["Who monitors",              val(d.who_monitors_the_project_)],
+    ["How monitored",             val(d.how_is_the_project_monitored_)],
+    ["Wildlife populations",      val(d.wildlife_populations)],
+    ["Habitat quality",           val(d.habitat_quality)],
+    ["Invasive species",          val(d.invasive_species)],
+    ["Vegetation",                val(d.vegetation)],
+    ["Elevation",                 val(d.elevation)],
+    ["Erosion",                   val(d.erosion)],
+  ]);
+
+  section("Outreach",[
+    ["Public outreach made",      val(d.were_any_public_outreach_or_edu)||val(d.were_any_public_outreach_or_educ)],
+    ["Public perception challenges",val(d.were_there_public_perception_ch)||val(d.were_there_public_perception_cha)],
+  ]);
+
+  section("Partners",[
+    ["Partners on project",       val(d.partners_on_the_project)],
+    ["Partnership development",   val(d.how_was_partnership_developed_a)||val(d.how_was_partnership_developed_an)],
+  ]);
+
+  // Narrative / reflections — long text fields get their own styled blocks
+  var narratives=[
+    ["Lessons learned",           val(d.whether_or_not_the_project_was_)||val(d.lessons_learned)],
+    ["Policy & regulatory barriers",val(d.were_there_policy_incentives_or)||val(d.were_there_policy_incentives_or_)],
+    ["Advice for similar projects",val(d.what_advice_would_you_give_othe)||val(d.what_advice_would_you_give_other)],
+    ["Data sources & tools",      val(d.what_data_sources_and_decision_)],
+    ["Successes",                 val(d.what_did_you_see_as_the_immedia)||val(d.what_did_you_see_as_the_immediat)],
+  ];
+  var anyNarr=narratives.some(function(n){return n[1];});
+  if(anyNarr){
+    var nsec=document.createElement("div");nsec.className="dfield-section";
+    var nh=document.createElement("div");nh.className="dfield-section-title";nh.textContent="Reflections & Outcomes";nsec.appendChild(nh);
+    narratives.forEach(function(n){
+      if(!n[1])return;
+      var blk=document.createElement("div");
+      blk.style.cssText="margin-bottom:10px;padding:10px 12px;background:#f8fafc;border-radius:6px;";
+      blk.innerHTML='<div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:5px;">'+n[0]+'</div>'+
+        '<div style="font-size:11px;color:#334155;line-height:1.65;">'+n[1]+'</div>';
+      nsec.appendChild(blk);
+    });
+    body.appendChild(nsec);
+  }
+
+  // Report link
+  var reportLink=val(d.if_available_provide_the_gbep_li)||val(d.if_available_provide_the_gbep_l);
+  if(reportLink&&reportLink.toLowerCase()!=="view"){
+    var rsec=document.createElement("div");rsec.className="dfield-section";
+    var rh=document.createElement("div");rh.className="dfield-section-title";rh.textContent="Documents";rsec.appendChild(rh);
+    var rrow=document.createElement("div");rrow.className="dfield-row";
+    rrow.innerHTML='<div class="dfield-label">GBEP final report</div>'+
+      '<div class="dfield-value"><a href="'+reportLink+'" target="_blank" rel="noopener">Open report ↗</a></div>';
+    rsec.appendChild(rrow);
+    body.appendChild(rsec);
+  }
+
+  // Attachments section — fetched async
+  var attSec=document.createElement("div");attSec.className="dfield-section";attSec.id="att-section";
+  var atth=document.createElement("div");atth.className="dfield-section-title";atth.textContent="Attachments";attSec.appendChild(atth);
+  var attBody=document.createElement("div");attBody.id="att-body";
+  attBody.style.cssText="font-size:11px;color:#94a3b8;";attBody.textContent="Loading…";
+  attSec.appendChild(attBody);
+  body.appendChild(attSec);
+  loadAttachments(d.OBJECTID||d.objectid||d.ObjectID, attBody);
+
   dc.scrollTop=0;
+}
+
+// Fetch attachments from ArcGIS Feature Service attachments endpoint
+async function loadAttachments(objectId, container){
+  if(!objectId){container.textContent="No attachment data.";return;}
+  try{
+    var url=LAYER_URL.replace("/query","")+"/"+ objectId+"/attachments?f=json";
+    var res=await fetch(url);
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    var json=await res.json();
+    var atts=(json.attachmentInfos||[]);
+    if(!atts.length){container.textContent="No attachments for this project.";return;}
+    container.innerHTML="";
+    atts.forEach(function(att){
+      var dlUrl=LAYER_URL.replace("/query","")+"/"+objectId+"/attachments/"+att.id;
+      var ext=(att.name||"").split(".").pop().toUpperCase();
+      var extColors={"PDF":"#dc2626","DOC":"#2563eb","DOCX":"#2563eb","XLS":"#16a34a","XLSX":"#16a34a","CSV":"#0891b2"};
+      var extColor=extColors[ext]||"#64748b";
+      var row=document.createElement("div");
+      row.style.cssText="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;";
+      row.innerHTML=
+        '<span style="font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;background:'+extColor+';color:white;flex-shrink:0;">'+ext+'</span>'+
+        '<span style="flex:1;font-size:11px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+att.name+'</span>'+
+        '<span style="font-size:10px;color:#94a3b8;flex-shrink:0;">'+fmtSize(att.size)+'</span>'+
+        '<a href="'+dlUrl+'" target="_blank" rel="noopener" style="font-size:11px;color:#1677bc;flex-shrink:0;text-decoration:none;font-weight:600;">↓</a>';
+      container.appendChild(row);
+    });
+  }catch(err){
+    container.textContent="Could not load attachments.";
+    console.warn("Attachment fetch failed:",err);
+  }
+}
+
+function fmtSize(bytes){
+  if(!bytes)return "";
+  if(bytes>1048576)return (bytes/1048576).toFixed(1)+" MB";
+  if(bytes>1024)return Math.round(bytes/1024)+" KB";
+  return bytes+" B";
 }
 
 // ── MOBILE HELPERS ────────────────────────────────────────────────────────────
