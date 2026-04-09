@@ -402,131 +402,164 @@ function drawTreemap() {
       .replace(/_/g," ")
       .replace(/\s+/g," ")
       .trim()
-      .replace(/^[\s\-]+|[\s\-]+$/g,"")
-      .replace(/none\s*[-]*\s*this project was research/i,"Research only")
-      .replace(/\b\w/g,function(c){return c.toUpperCase();});
+      .replace(/\b\w/g,c=>c.toUpperCase());
   }
 
-  var funded = filteredData.filter(function(d){
-    return d.project_landscape_type && String(d.project_landscape_type).trim();
-  });
+  var funded = filteredData.filter(d =>
+    d.project_landscape_type && String(d.project_landscape_type).trim()
+  );
 
   var totalProjects = funded.length;
+  if (!totalProjects) return;
 
-  var habitatCount = {}, canonMap = {};
-
-  funded.forEach(function(row){
+  var habitatCount = {};
+  funded.forEach(row => {
     var seen = {};
-    String(row.project_landscape_type).split(",").forEach(function(s){
+    String(row.project_landscape_type).split(",").forEach(s => {
       var norm = normHab(s.trim());
-      var key  = norm.toLowerCase();
+      var key = norm.toLowerCase();
       if (!norm || seen[key]) return;
       seen[key] = true;
-      if (!canonMap[key]) canonMap[key] = norm;
-      habitatCount[canonMap[key]] = (habitatCount[canonMap[key]]||0) + 1;
+      habitatCount[norm] = (habitatCount[norm] || 0) + 1;
     });
   });
 
-  var uniqueTypes = Object.keys(habitatCount).length;
-  var totalTags   = Object.values(habitatCount).reduce((s,v)=>s+v,0);
-  var avgPerProj  = totalProjects ? (totalTags/totalProjects).toFixed(1) : "0";
-
-  if (!totalProjects) return;
-
-  var leaves = Object.keys(habitatCount).map(function(k){
-    return {
-      name:k,
-      count:habitatCount[k],
-      pct:Math.round(habitatCount[k]/totalProjects*100)
-    };
-  }).sort((a,b)=>b.count-a.count);
+  var leaves = Object.keys(habitatCount).map(k => ({
+    name: k,
+    count: habitatCount[k],
+    pct: Math.round(habitatCount[k] / totalProjects * 100)
+  })).sort((a,b)=>b.count-a.count);
 
   var TOP_N = 6;
-  var main = leaves.slice(0,TOP_N);
+  var main = leaves.slice(0, TOP_N);
   var rest = leaves.slice(TOP_N);
 
-  if (rest.length > 0) {
-    var otherSet = {};
-    funded.forEach(function(row){
-      var topKeys = main.map(d=>d.name.toLowerCase());
-      var types = String(row.project_landscape_type)
-        .split(",")
-        .map(s=>normHab(s.trim()).toLowerCase());
-
-      if (types.some(t=>t && !topKeys.includes(t))) {
-        otherSet[row.OBJECTID || JSON.stringify(row)] = true;
-      }
-    });
-
-    var otherCount = Object.keys(otherSet).length;
-
+  if (rest.length) {
+    var otherCount = rest.reduce((s,d)=>s+d.count,0);
     main.push({
-      name:"Other ("+rest.length+" types)",
-      count:otherCount,
-      pct:Math.round(otherCount/totalProjects*100),
-      isOther:true
+      name: "Other ("+rest.length+" types)",
+      count: otherCount,
+      pct: Math.round(otherCount / totalProjects * 100),
+      isOther: true
     });
   }
 
-  var availW = el.clientWidth || 600;
-  var availH = Math.max(el.clientHeight || 280, 220);
+  var width = el.clientWidth || 800;
+  var height = Math.max(el.clientHeight || 300, 240);
 
-  var STAT_W = availW >= 700 ? Math.min(availW * 0.22, 260) : 0;
-  var chartW = availW - STAT_W - (STAT_W ? 12 : 0);
+  var STAT_W = width >= 700 ? 220 : 0;
+  var chartW = width - STAT_W - (STAT_W ? 12 : 0);
 
-  var GAP = Math.max(6, chartW * 0.007);
-  var Y_PAD = 28;
-  var colW = Math.floor((chartW - GAP*(main.length-1) - Y_PAD) / main.length);
+  var GAP = 10;
+  var colW = Math.floor((chartW - GAP*(main.length-1)) / main.length);
 
   var wrapper = document.createElement("div");
-  wrapper.style.cssText = `
-    display:flex;
-    gap:${STAT_W ? 12 : 0}px;
-    height:${availH}px;
-    width:100%;
-  `;
+  wrapper.style.display = "flex";
+  wrapper.style.height = height + "px";
+  wrapper.style.gap = "12px";
 
   var chart = document.createElement("div");
-  chart.style.cssText = `
-    display:flex;
-    align-items:flex-end;
-    gap:${GAP}px;
-    height:${availH}px;
-    width:${chartW}px;
-    padding-left:${Y_PAD}px;
-    border-bottom:2px solid rgba(0,0,0,0.15);
-    position:relative;
-  `;
+  chart.style.display = "flex";
+  chart.style.alignItems = "flex-end";
+  chart.style.gap = GAP + "px";
+  chart.style.width = chartW + "px";
+  chart.style.height = "100%";
 
-  main.forEach(function(d){
+  var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#78909c"];
+
+  main.forEach((d,i)=>{
+    var fillH = Math.round((d.pct/100) * height);
+    var emptyH = height - fillH;
+
     var col = document.createElement("div");
     col.style.flex = "1";
+    col.style.display = "flex";
+    col.style.flexDirection = "column";
 
-    var fill = document.createElement("div");
-    fill.style.height = d.pct + "%";
-    fill.style.background = d.isOther ? "#78909c" : "#1677bc";
+    // TOP (label + %)
+    var top = document.createElement("div");
+    top.style.height = emptyH + "px";
+    top.style.display = "flex";
+    top.style.flexDirection = "column";
+    top.style.alignItems = "center";
+    top.style.justifyContent = "center";
 
-    col.appendChild(fill);
+    var name = document.createElement("div");
+    name.textContent = d.name;
+    name.style.fontWeight = "700";
+    name.style.fontSize = "13px";
+    name.style.textAlign = "center";
+
+    var pct = document.createElement("div");
+    pct.textContent = d.pct + "%";
+    pct.style.fontWeight = "900";
+    pct.style.fontSize = "16px";
+
+    top.appendChild(name);
+    top.appendChild(pct);
+
+    // BOTTOM (bar)
+    var bar = document.createElement("div");
+    bar.style.height = fillH + "px";
+    bar.style.background = d.isOther ? "#78909c" : COLORS[i % COLORS.length];
+    bar.style.borderRadius = "6px 6px 0 0";
+    bar.style.display = "flex";
+    bar.style.alignItems = "center";
+    bar.style.justifyContent = "center";
+
+    // icon
+    var icon = document.createElement("i");
+    icon.className = "ph-fill " + (d.isOther ? "ph-question" : "ph-leaf");
+    icon.style.fontSize = "28px";
+    icon.style.color = "rgba(255,255,255,0.9)";
+
+    bar.appendChild(icon);
+
+    col.appendChild(top);
+    col.appendChild(bar);
     chart.appendChild(col);
   });
 
   wrapper.appendChild(chart);
 
-  // ✅ FIXED BLOCK
+  // RIGHT PANEL (restored styled stats)
   if (STAT_W > 0) {
     var panel = document.createElement("div");
     panel.style.width = STAT_W + "px";
+    panel.style.display = "flex";
+    panel.style.flexDirection = "column";
+    panel.style.justifyContent = "center";
+    panel.style.gap = "10px";
 
     var stats = [
-      {val:totalProjects, label:"projects"},
-      {val:uniqueTypes, label:"types"},
-      {val:totalTags, label:"tags"},
-      {val:avgPerProj, label:"avg"}
+      {v: totalProjects, t:"funded projects"},
+      {v: Object.keys(habitatCount).length, t:"distinct habitat types"},
+      {v: Object.values(habitatCount).reduce((a,b)=>a+b,0), t:"total habitat tags"},
+      {v: (Object.values(habitatCount).reduce((a,b)=>a+b,0)/totalProjects).toFixed(1), t:"habitats per project"}
     ];
 
-    stats.forEach(function(s){
+    stats.forEach(s=>{
       var row = document.createElement("div");
-      row.textContent = s.val + " " + s.label;
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.gap = "10px";
+
+      var bubble = document.createElement("div");
+      bubble.style.width = "44px";
+      bubble.style.height = "44px";
+      bubble.style.borderRadius = "50%";
+      bubble.style.background = "#e3f2fd";
+      bubble.style.display = "flex";
+      bubble.style.alignItems = "center";
+      bubble.style.justifyContent = "center";
+      bubble.style.fontWeight = "900";
+      bubble.textContent = s.v;
+
+      var label = document.createElement("div");
+      label.textContent = s.t;
+
+      row.appendChild(bubble);
+      row.appendChild(label);
       panel.appendChild(row);
     });
 
