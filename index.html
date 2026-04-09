@@ -664,6 +664,14 @@ function drawTreemap() {
       panel.appendChild(row);
     });
 
+    var guide = document.createElement("div");
+    guide.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid rgba(22,119,188,0.15);font-size:11px;color:rgba(0,0,0,0.45);line-height:1.5;font-family:'Roboto',sans-serif;";
+    guide.innerHTML = "<strong style='color:#1677bc;'>How to read:</strong> Each bar = % of "+totalProjects+" projects in that habitat. Bars are <strong>independent</strong> — they won't add to 100% because projects average "+avgPerProj+" habitats each.";
+    panel.appendChild(guide);
+
+    wrapper.appendChild(panel);
+  }
+
   el.appendChild(wrapper);
 }
 
