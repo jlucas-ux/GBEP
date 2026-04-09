@@ -123,7 +123,18 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 }
 .spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#1677bc;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-#no-results{display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:13px;}
+#download-btn{
+  height:26px;padding:0 10px;border-radius:5px;
+  border:1px solid #1677bc;background:white;
+  font-size:11px;color:#1677bc;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+#download-btn:hover{background:#eff6ff;}
+.dl-item{padding:9px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;}
+.dl-item:last-child{border-bottom:none;}
+.dl-item:hover{background:#f8fafc;}
+.dl-item-title{font-size:12px;font-weight:600;color:#1a2332;margin-bottom:2px;display:flex;align-items:center;}
+.dl-item-sub{font-size:10px;color:#94a3b8;line-height:1.4;}
 #legend-bar{
   display:flex;align-items:center;gap:16px;flex-wrap:wrap;
   padding:5px 14px;background:#f8fafc;
@@ -172,12 +183,45 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <div id="list-pane">
       <div id="list-header">
         <span id="list-count">— projects</span>
-        <select id="sort-sel" onchange="applyFilters()">
-          <option value="award">Sort: Award ↓</option>
-          <option value="title">Sort: Name A–Z</option>
-          <option value="fy">Sort: Year ↓</option>
-          <option value="acres">Sort: Acres ↓</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <select id="sort-sel" onchange="applyFilters()">
+            <option value="award">Sort: Award ↓</option>
+            <option value="title">Sort: Name A–Z</option>
+            <option value="fy">Sort: Year ↓</option>
+            <option value="acres">Sort: Acres ↓</option>
+          </select>
+          <div id="dl-wrap" style="position:relative;">
+            <button id="download-btn" onclick="toggleDlMenu()">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 10h8" stroke="#1677bc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Download
+            </button>
+            <div id="dl-menu" style="display:none;position:absolute;right:0;top:30px;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:100;min-width:210px;overflow:hidden;">
+              <div class="dl-item" onclick="downloadCSV(false)">
+                <div class="dl-item-title">CSV — filtered results</div>
+                <div class="dl-item-sub">Spreadsheet of <span id="dl-count-label">all</span> shown projects, all attribute fields</div>
+              </div>
+              <div class="dl-item" onclick="downloadCSV(true)">
+                <div class="dl-item-title">CSV — full dataset</div>
+                <div class="dl-item-sub">All projects, all attribute fields, no filter applied</div>
+              </div>
+              <div style="border-top:1px solid #f1f5f9;margin:0;"></div>
+              <div class="dl-item" onclick="downloadGeoJSON()">
+                <div class="dl-item-title">GeoJSON — filtered results
+                  <span style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:600;">GIS</span>
+                </div>
+                <div class="dl-item-sub">Geometry + attributes for filtered projects. Opens in ArcGIS, QGIS, etc.</div>
+              </div>
+              <div class="dl-item" onclick="downloadGeoJSON(true)">
+                <div class="dl-item-title">GeoJSON — full dataset
+                  <span style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:600;">GIS</span>
+                </div>
+                <div class="dl-item-sub">All project geometries + attributes</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div id="card-scroll">
         <div id="no-results">No projects match your filters.</div>
@@ -399,9 +443,12 @@ function renderCards(){
   // remove existing cards
   Array.from(scroll.querySelectorAll(".pcard")).forEach(function(c){c.remove();});
 
-  if(!filtered.length){noRes.style.display="block";document.getElementById("list-count").textContent="0 projects";return;}
+  if(!filtered.length){noRes.style.display="block";document.getElementById("list-count").textContent="0 projects";
+    var lbl=document.getElementById("dl-count-label");if(lbl)lbl.textContent="0";
+    return;}
   noRes.style.display="none";
   document.getElementById("list-count").textContent=filtered.length+" project"+(filtered.length!==1?"s":"");
+  var lbl=document.getElementById("dl-count-label");if(lbl)lbl.textContent=filtered.length;
 
   filtered.forEach(function(d){
     var title=clean(d.nru_project_title)||"Untitled";
@@ -523,6 +570,72 @@ function showDetail(d){
   ]);
 
   dc.scrollTop=0;
+}
+
+// ── DOWNLOAD ──────────────────────────────────────────────────────────────────
+function toggleDlMenu(){
+  var m=document.getElementById("dl-menu");
+  m.style.display=m.style.display==="none"?"block":"none";
+}
+document.addEventListener("click",function(e){
+  if(!document.getElementById("dl-wrap").contains(e.target)){
+    document.getElementById("dl-menu").style.display="none";
+  }
+});
+
+function downloadCSV(useAll){
+  var rows=useAll?allData:filtered;
+  if(!rows.length)return;
+  // Build column list from first row keys, excluding internal _id
+  var cols=Object.keys(rows[0]).filter(function(k){return k!=="geometry"&&k!=="_id";});
+  var lines=[cols.map(function(c){return '"'+c+'"';}).join(",")];
+  rows.forEach(function(row){
+    lines.push(cols.map(function(c){
+      var v=row[c];
+      if(v===null||v===undefined)return "";
+      var s=String(v).replace(/"/g,'""');
+      return s.indexOf(",")>-1||s.indexOf('"')>-1||s.indexOf("\n")>-1?'"'+s+'"':s;
+    }).join(","));
+  });
+  var blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8;"});
+  var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".csv";
+  triggerDownload(blob,fname);
+}
+
+async function downloadGeoJSON(useAll){
+  var rows=useAll?allData:filtered;
+  if(!rows.length)return;
+  document.getElementById("dl-menu").style.display="none";
+
+  // Show loading state
+  var btn=document.getElementById("download-btn");
+  var orig=btn.innerHTML;
+  btn.textContent="Fetching geometry…";btn.disabled=true;
+
+  try{
+    // ArcGIS supports f=geojson natively — re-query with geometry for these OBJECTIDs
+    var ids=rows.map(function(r){return r.OBJECTID||r.objectid||r.ObjectID;}).filter(Boolean);
+    var where=ids.length?("OBJECTID IN ("+ids.join(",")+")"):"1=1";
+    var url=LAYER_URL+"?where="+encodeURIComponent(where)+"&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=2000";
+    var res=await fetch(url);
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    var geojson=await res.text(); // keep as text to preserve precision
+    var blob=new Blob([geojson],{type:"application/geo+json;charset=utf-8;"});
+    var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".geojson";
+    triggerDownload(blob,fname);
+  }catch(err){
+    alert("GeoJSON download failed: "+err.message);
+  }finally{
+    btn.innerHTML=orig;btn.disabled=false;
+  }
+}
+
+function triggerDownload(blob,filename){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);
 }
 
 async function init(){
