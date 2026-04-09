@@ -178,17 +178,10 @@
       <div class="chart-area" id="heatmap-chart"></div>
     </div>
     <div class="chart-panel" id="panel-6">
-      <div class="chart-title">Percent of Projects by Habitat Type</div>
-      <div class="chart-subtitle" id="treemap-subtitle">Share of projects that included a component affecting each habitat type. Projects touching multiple habitats are counted toward each.</div>
-      <div style="display:flex;gap:clamp(6px,0.8vw,12px);margin-bottom:8px;flex-shrink:0;margin-left:8px;margin-right:8px;">
-  <!-- REPLACE the two stat-card divs in panel-6 with this block -->
-<!-- Also update these element IDs in drawTreemap():
-     physical-acres-val  → still used (shows project count in bubble)
-     research-acres-val  → still used (shows habitat type count in bubble)
-     Add new IDs: hab-tags-val, hab-avg-val, hab-reading-guide -->
-
-<!-- REPLACE the entire stat div block in panel-6 with this.
-     The numbers are populated by drawTreemap() — see drawTreemap_v2_full.js  -->
+    <div class="chart-title">Percent of Projects by Habitat Type</div>
+       <div class="chart-subtitle" id="treemap-subtitle">Share of GBEP-funded projects that included each habitat type. Values are independent — one project may count toward multiple habitats.</div>
+       <div class="chart-area" id="treemap-chart"></div>
+    </div>
 
 
   <!-- Bubble 1 — Projects -->
