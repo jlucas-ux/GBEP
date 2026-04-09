@@ -352,153 +352,314 @@
   }
 
   // ── TREEMAP ──────────────────────────────────────────────
-  function drawTreemap(){
-  var el=document.getElementById("treemap-chart");
-  var width=el.clientWidth||window.innerWidth;
-  var height=el.clientHeight||(window.innerHeight-100);
+  // ── REPLACE THE ENTIRE drawTreemap() FUNCTION WITH THIS ──────────────────────
+// Also update panel-6 HTML:
+//   chart-title  → "Projects by Habitat Type"
+//   treemap-subtitle → (managed by the function below)
+//   physical-acres-val card label → "Projects with Habitat Data"
+//   research-acres-val card label → "Unique Habitat Types"
+//   Remove the two stat card blocks and reset zoom button — this chart doesn't need them
+//   Nav button text → "Habitat Types" (tab 6)
 
-  // All projects that have a landscape type recorded
-  var projectsWithHabitat=filteredData.filter(function(d){
-    return d.project_landscape_type && String(d.project_landscape_type).trim()!=="";
+function drawTreemap() {
+  var el = document.getElementById("treemap-chart");
+  el.innerHTML = "";
+
+  var width  = el.clientWidth  || el.offsetWidth  || 600;
+  var height = el.clientHeight || el.offsetHeight || 280;
+  height = Math.max(height, 220);
+
+  // ── DATA ────────────────────────────────────────────────────────────────────
+  var funded = filteredData.filter(function(d) {
+    return d.project_landscape_type && String(d.project_landscape_type).trim() !== "";
   });
-  var totalProjects=projectsWithHabitat.length;
+  var totalProjects = funded.length;
 
-  // Update summary cards to reflect project counts instead of acres
-  var physEl=document.getElementById("physical-acres-val");
-  var resEl=document.getElementById("research-acres-val");
-  if(physEl)physEl.textContent=totalProjects+" projects";
-  if(resEl){
-    var totalMentions=0;
-    projectsWithHabitat.forEach(function(r){
-      totalMentions+=r.project_landscape_type.split(",").map(function(s){return s.trim();}).filter(Boolean).length;
-    });
-    resEl.textContent=totalMentions+" habitat tags";
-  }
+  var physEl = document.getElementById("physical-acres-val");
+  var resEl  = document.getElementById("research-acres-val");
+  if (physEl) physEl.textContent = totalProjects + " projects";
 
-  var years=filteredData.filter(function(d){return d.fiscal_year_awarded;}).map(function(d){
-    var fy=d.fiscal_year_awarded;
-    if(String(fy).length===4)return parseInt(fy);
-    var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
-    return parseInt(String(fy).slice(0,4));
-  }).filter(Boolean);
-  if(years.length){
-    var subtitleEl=document.getElementById("treemap-subtitle");
-    if(subtitleEl)subtitleEl.textContent="Share of GBEP projects that affected each habitat type, "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years)+". Projects touching multiple habitats are counted toward each.";
+  function normHab(s) {
+    return String(s).replace(/_/g, " ").replace(/\s+/g, " ").trim()
+      .replace(/^[\s\-]+|[\s\-]+$/g, "")
+      .replace(/\bnone\s*[–\-]*\s*this project was research\b/i, "Research only")
+      .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
   }
 
-    // Canonicalize habitat type names so variants (underscores, casing,
-    // extra whitespace, trailing punctuation) all collapse into one entry.
-    function canonKey(s){
-      return String(s).toLowerCase()
-        .replace(/_/g," ")
-        .replace(/[^a-z0-9() ]+/g," ")
-        .replace(/\bsubmerged aquatic veg[a-z]*\b/,"submerged aquatic vegetation")
-        .replace(/\s+/g," ")
-        .trim();
-  }
-  function prettify(s){
-    return String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
-      .replace(/\b\w/g,function(c){return c.toUpperCase();});
-  }
-  var canonMap={};   // canonical key → display name
-  var countMap={};   // display name → project count
-  projectsWithHabitat.forEach(function(row){
-    var types=row.project_landscape_type.split(",").filter(function(s){return s&&s.trim();});
-    var seen={};
-    types.forEach(function(type){
-      var key=canonKey(type);
-      if(!key||seen[key])return;
-      seen[key]=true;
-      if(!canonMap[key])canonMap[key]=prettify(type);
-      var display=canonMap[key];
-      countMap[display]=(countMap[display]||0)+1;
+  var habitatCount = {};
+  funded.forEach(function(row) {
+    var seen = {};
+    String(row.project_landscape_type).split(",").forEach(function(s) {
+      var h = normHab(s.trim()); var key = h.toLowerCase();
+      if (!h || seen[key]) return;
+      seen[key] = true;
+      habitatCount[h] = (habitatCount[h] || 0) + 1;
     });
   });
 
-  var leaves=Object.keys(countMap).map(function(k){
-    return{name:k,value:countMap[k],pct:(countMap[k]/totalProjects)*100};
-  }).filter(function(d){return d.value>0;});
-  if(leaves.length===0||totalProjects===0)return;
+  var uniqueTypes = Object.keys(habitatCount).length;
+  if (resEl) resEl.textContent = uniqueTypes + " types";
 
-  var minVal=d3.min(leaves,function(d){return d.value;})||1;
-  var maxVal=d3.max(leaves,function(d){return d.value;})||1;
-
-  var treemapPalette=[
-    "#43a047","#2e7d32","#1b5e20","#00695c","#006994",
-    "#1565c0","#0d47a1","#0a2472","#051535"
-  ];
-  var interp=d3.interpolateRgbBasis(treemapPalette);
-  var sqrtMin=Math.sqrt(minVal), sqrtMax=Math.sqrt(maxVal);
-  function colorScale(val){
-    var t=(sqrtMax===sqrtMin)?1:(Math.sqrt(val)-sqrtMin)/(sqrtMax-sqrtMin);
-    return interp(Math.max(0,Math.min(1,t)));
+  var subtitleEl = document.getElementById("treemap-subtitle");
+  if (subtitleEl) {
+    var years = filteredData.map(function(d) { var y = d.fiscal_year_awarded; if (!y) return null; var s = String(y); return s.length === 4 ? parseInt(s) : new Date(y).getFullYear() || null; }).filter(Boolean);
+    subtitleEl.textContent = "% of " + totalProjects + " GBEP-funded projects that included each habitat type" + (years.length ? ", " + Math.min.apply(null, years) + "–" + Math.max.apply(null, years) : "") + ". Values are independent — one project counts toward each habitat it involved.";
   }
 
-  var root=d3.hierarchy({children:leaves}).sum(function(d){return d.value;}).sort(function(a,b){return b.value-a.value;});
-  var treemap=d3.treemap().size([width,height]).padding(2).round(true);
-  treemap(root);
+  if (!totalProjects) return;
 
-  d3.select("#treemap-chart").select("svg").remove();
-  var svg=d3.select("#treemap-chart").append("svg").attr("width",width).attr("height",height);
-  var gZoom=svg.append("g").attr("class","zoom-root");
+  var leaves = Object.keys(habitatCount).map(function(k) {
+    return { name: k, count: habitatCount[k], pct: Math.round(habitatCount[k] / totalProjects * 100) };
+  }).sort(function(a, b) { return b.count - a.count; });
 
-  var cell=gZoom.selectAll("g").data(root.leaves()).enter().append("g")
-    .attr("transform",function(d){return "translate("+d.x0+","+d.y0+")";});
+  var THRESHOLD = 5;
+  var main = [], otherN = 0, otherC = 0;
+  leaves.forEach(function(d) {
+    if (d.pct >= THRESHOLD) { main.push(d); }
+    else { otherN++; otherC += d.count; }
+  });
+  if (otherC > 0) main.push({ name: "Other (" + otherN + " types)", count: otherC, pct: Math.round(otherC / totalProjects * 100), isOther: true });
 
-  var cellW=function(d){return Math.max(18,d.x1-d.x0);};
-  var cellH=function(d){return Math.max(18,d.y1-d.y0);};
+  // ── ICON ASSIGNMENT ──────────────────────────────────────────────────────────
+  function assignIcon(name) {
+    var n = name.toLowerCase();
+    if (n.includes("estuarine wetland") || (n.includes("estuarine") && n.includes("wetland"))) return "shrimp";
+    if (n.includes("estuarine shoreline")) return "waves";
+    if (n.includes("coastal prairie") || n.includes("prairie")) return "grasses";
+    if (n.includes("open bay") || n.includes("water column") || n.includes("estuarine water")) return "fish";
+    if (n.includes("freshwater")) return "duckweed";
+    if (n.includes("riparian")) return "riparian";
+    if (n.includes("living shoreline")) return "oyster";
+    if (n.includes("forested wetland")) return "forestwet";
+    if (n.includes("urban") || n.includes("park")) return "park";
+    if (n.includes("forest") || n.includes("woodland")) return "woodland";
+    if (n.includes("agri") || n.includes("ranch") || n.includes("farm")) return "wheat";
+    if (n.includes("beach") || n.includes("dune")) return "beach";
+    if (n.includes("seagrass") || n.includes("sav") || n.includes("submerged")) return "seagrass";
+    if (n.includes("intertidal") || n.includes("reef")) return "reef";
+    return "generic";
+  }
+  main.forEach(function(d) { d.iconType = assignIcon(d.name); });
 
-  cell.append("rect").attr("width",cellW).attr("height",cellH)
-    .attr("fill",function(d){return colorScale(d.data.value);})
-    .attr("rx",4).attr("opacity",0.88)
-    .on("mousemove",function(event,d){
-      var title=d.data.name.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
-      showTooltip(event,"<strong>"+title+"</strong><br>"+Math.round(d.data.pct)+"% of projects<br>"+d.data.value+" project"+(d.data.value!==1?"s":""));
-}).on("mouseleave",hideTooltip);
+  // ── LAYOUT ───────────────────────────────────────────────────────────────────
+  var N       = main.length;
+  var LABEL_H = 36;
+  var PCT_H   = 18;
+  var BAR_H   = height - LABEL_H - PCT_H - 4;
+  var BASELINE= LABEL_H + PCT_H + BAR_H;
+  var Y_AX_W  = 28;
+  var GAP     = 5;
+  var COL_W   = Math.max(40, Math.min(72, Math.floor((width - Y_AX_W - GAP * (N - 1)) / N)));
+  var TOTAL_W = Y_AX_W + N * COL_W + (N - 1) * GAP;
+  var TOTAL_H = BASELINE + 2;
+  var ICON_SZ = 38;
 
-  cell.each(function(d){
-    var w=cellW(d),h=cellH(d);
-    if(w<36||h<28)return;
-    var g=d3.select(this);
-    var label=d.data.name.replace(/Submerged Aquatic Vegetation/i,"SAV");
+  var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#0277bd","#33691e","#37474f","#1b5e20","#827717","#bf360c","#00838f","#4a148c","#5d4037"];
 
-    var fontSize=Math.min(vfs(18),Math.max(8,Math.min(w/8,h/4)));
-    var words=label.split(" ");
-    var lines=[],cur="";
-    words.forEach(function(word){
-      var test=cur?cur+" "+word:word;
-      if(test.length*fontSize*0.52>w-8&&cur){lines.push(cur);cur=word;}
-      else{cur=test;}
-    });
-    if(cur)lines.push(cur);
+  var svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 " + TOTAL_W + " " + TOTAL_H);
+  svg.style.width = "100%"; svg.style.display = "block"; svg.style.overflow = "visible";
+  el.appendChild(svg);
 
-    var lineH=fontSize+3;
-    var maxLines=Math.max(1,Math.floor((h-8)/lineH));
-    lines=lines.slice(0,maxLines);
-    var totalTextH=lines.length*lineH;
-    var startY=(h-totalTextH)/2;
+  function se(tag) { return document.createElementNS(svg.namespaceURI, tag); }
+  function attr(el, obj) { Object.keys(obj).forEach(function(k) { el.setAttribute(k, obj[k]); }); return el; }
 
-    lines.forEach(function(line,li){
-      g.append("text").attr("x",w/2).attr("y",startY+li*lineH+lineH/2)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",fontSize).attr("font-family",FONT)
-        .attr("fill","white").attr("font-weight","600").text(line);
-    });
+  function svgTxt(x, y, str, size, fill, anchor, weight) {
+    var t = se("text");
+    attr(t, { x: x, y: y, "font-size": size, fill: fill, "text-anchor": anchor || "middle", "font-family": FONT || "Roboto,sans-serif" });
+    if (weight) t.setAttribute("font-weight", weight);
+    t.textContent = str; return t;
+  }
 
-    // Percentage label below name if there's room
-    if(h>totalTextH+lineH*2&&fontSize>=10){
-      g.append("text").attr("x",w/2).attr("y",startY+totalTextH+lineH)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",Math.max(9,fontSize-2)).attr("font-family",FONT)
-        .attr("fill","rgba(255,255,255,0.92)").attr("font-weight","700").text(Math.round(d.data.pct)+"%");
+  var GC = "rgba(0,0,0,0.07)", LC = "rgba(0,0,0,0.4)", NC = "#1a2332", BGC = "rgba(0,0,0,0.04)";
+
+  [0,25,50,75,100].forEach(function(v) {
+    var y = BASELINE - (v / 100) * BAR_H;
+    var ln = se("line");
+    attr(ln, { x1: Y_AX_W, x2: TOTAL_W, y1: y, y2: y, stroke: v === 0 ? "rgba(0,0,0,0.2)" : GC, "stroke-width": v === 0 ? 1.5 : 0.8 });
+    if (v > 0) ln.setAttribute("stroke-dasharray","3,4");
+    svg.appendChild(ln);
+    svg.appendChild(svgTxt(Y_AX_W - 4, y + 4, v + "%", 9, LC, "end"));
+  });
+
+  // ── ICON DRAWING ─────────────────────────────────────────────────────────────
+  function mkIcon(type, color) {
+    var g = se("g");
+    function p(d, w, op, fill) {
+      var el = se("path"); el.setAttribute("d", d); el.setAttribute("stroke-linecap","round"); el.setAttribute("stroke-linejoin","round");
+      if (fill) { el.setAttribute("fill", fill === true ? color : fill); el.setAttribute("stroke","none"); }
+      else { el.setAttribute("fill","none"); el.setAttribute("stroke", color); el.setAttribute("stroke-width", w || 2); }
+      if (op) el.setAttribute("opacity", op); g.appendChild(el); return el;
     }
-  });
+    function c(cx,cy,r,fill,op) { var el=se("circle"); attr(el,{cx:cx,cy:cy,r:r,fill:fill||color}); if(op)el.setAttribute("opacity",op); g.appendChild(el); return el; }
+    function e(cx,cy,rx,ry,fill,op,transform) { var el=se("ellipse"); attr(el,{cx:cx,cy:cy,rx:rx,ry:ry,fill:fill||color}); if(op)el.setAttribute("opacity",op); if(transform)el.setAttribute("transform",transform); g.appendChild(el); return el; }
+    function poly(pts,op) { var el=se("polygon"); el.setAttribute("points",pts); el.setAttribute("fill",color); if(op)el.setAttribute("opacity",op); g.appendChild(el); return el; }
+    function rect(x,y,w,h,op) { var el=se("rect"); attr(el,{x:x,y:y,width:w,height:h,fill:color}); if(op)el.setAttribute("opacity",op); g.appendChild(el); return el; }
+    function line(x1,y1,x2,y2,w,op) { var el=se("line"); attr(el,{x1:x1,y1:y1,x2:x2,y2:y2,stroke:color,"stroke-width":w||2,"stroke-linecap":"round"}); if(op)el.setAttribute("opacity",op); g.appendChild(el); return el; }
 
-  var zoom=d3.zoom().scaleExtent([0.6,8]).on("zoom",function(event){gZoom.attr("transform",event.transform);});
-  svg.call(zoom);
-  window._zoomBehaviors=window._zoomBehaviors||{};
-  window._zoomBehaviors['treemap-chart']={svg:svg,zoom:zoom};
+    if (type === "shrimp") {
+      p("M20 38 Q14 30 12 21 Q10 12 16 8 Q22 3 28 7 Q34 12 31 21 Q28 30 22 36", 2.5);
+      p("M20 38 L15 42 M20 38 L20 43 M20 38 L25 42", 2);
+      p("M16 8 Q10 4 6 2", 1.5, "0.65"); p("M22 5 Q20 1 18 0", 1.5, "0.65");
+      p("M14 16 L9 14 M13 20 L8 19 M13 24 L8 24", 1.5, "0.55");
+      p("M13 13 Q21 10 30 13 M12 18 Q21 15 30 18 M12 23 Q21 20 30 23 M13 28 Q21 25 29 28", 0.8, "0.25");
+      c(27, 9, 2.5); c(27.5, 8.5, 1, "white", "0.8");
+    }
+    if (type === "waves") {
+      p("M2 12 Q7 7 12 12 Q17 17 22 12 Q27 7 38 12", 2.5);
+      p("M2 22 Q7 17 12 22 Q17 27 22 22 Q27 17 38 22", 2.5);
+      p("M2 32 Q7 27 12 32 Q17 37 22 32 Q27 27 38 32", 2, "0.5");
+    }
+    if (type === "grasses") {
+      p("M8 40 Q7 29 9 19 Q10 12 8 6", 2.5); p("M8 6 Q5 2 4 0",2,"0.65"); p("M8 6 Q12 3 13 0",2,"0.65"); p("M8 17 Q5 14 4 11",1.5,"0.5"); p("M8 17 Q12 14 13 11",1.5,"0.5");
+      p("M19 40 Q18 30 20 21 Q21 14 19 8", 2.5); p("M19 8 Q16 4 15 1",2,"0.65"); p("M19 8 Q23 5 24 2",2,"0.65"); p("M19 21 Q16 18 15 14",1.5,"0.5"); p("M19 21 Q23 18 24 14",1.5,"0.5");
+      p("M30 40 Q29 31 31 23 Q32 17 30 11", 2.5); p("M30 11 Q27 7 26 4",2,"0.65"); p("M30 11 Q34 8 35 5",2,"0.65");
+      p("M2 40 L38 40", 2, "0.4");
+    }
+    if (type === "fish") {
+      p("M6 20 Q14 10 28 12 Q36 13 38 20 Q36 27 28 28 Q14 30 6 20Z", 2, null, "rgba(0,0,0,0)"); // use stroke version
+      var bd=se("path"); bd.setAttribute("d","M6 20 Q14 10 28 12 Q36 13 38 20 Q36 27 28 28 Q14 30 6 20Z"); bd.setAttribute("fill",color); bd.setAttribute("fill-opacity","0.3"); bd.setAttribute("stroke",color); bd.setAttribute("stroke-width","2"); g.appendChild(bd);
+      p("M6 20 L0 12 L2 20 L0 28 Z", 0, null, true);
+      p("M18 12 Q22 6 27 8", 1.8, "0.55");
+      c(32, 17, 2.5); c(32.5, 16.5, 1, "white","0.8");
+      p("M16 13 Q16 20 16 27 M23 12 Q23 20 23 28", 0.8, "0.2");
+    }
+    if (type === "duckweed") {
+      [[11,21,7,4.5,0.65],[24,19,8,5,0.8],[17,28,6,4,0.7],[31,27,5,3.5,0.75],[7,30,4.5,3,0.6]].forEach(function(r){ e(r[0],r[1],r[2],r[3],color,String(r[4])); });
+      line(11,25,11,33,1.5,"0.4"); line(24,24,24,33,1.5,"0.4"); line(17,32,17,39,1.5,"0.35");
+      p("M2 37 Q12 34 20 36 Q28 38 38 35", 2, "0.35");
+    }
+    if (type === "riparian") {
+      p("M3 35 Q10 29 19 31 Q27 33 37 27", 3); p("M3 39 Q10 33 19 35 Q27 37 37 31", 2, "0.35");
+      p("M10 29 Q8 21 10 13 Q12 6 9 2", 2.5, "0.8"); p("M9 2 Q6 0 4 0",2,"0.45"); p("M9 2 Q13 0 15 0",2,"0.45"); p("M9 14 Q6 11 5 8",1.5,"0.5"); p("M9 14 Q13 11 14 8",1.5,"0.5");
+      p("M28 25 Q30 17 28 9 Q26 2 29 0", 2.5, "0.8"); p("M29 0 Q26 0 24 0",2,"0.45"); p("M29 0 Q32 0 33 0",2,"0.45");
+    }
+    if (type === "oyster") {
+      var sh=se("path"); sh.setAttribute("d","M6 28 Q8 18 16 16 Q24 14 28 22 Q30 30 22 34 Q14 38 8 32 Q5 30 6 28Z"); sh.setAttribute("fill",color); sh.setAttribute("fill-opacity","0.25"); sh.setAttribute("stroke",color); sh.setAttribute("stroke-width","2"); g.appendChild(sh);
+      p("M6 28 Q12 22 18 26 Q22 28 24 34", 1.5, "0.5");
+      e(17, 26, 3, 2, color, "0.8");
+      p("M20 16 Q26 8 32 10 Q38 12 36 20 Q34 28 26 30", 2, "0.55");
+      line(2,39,38,39,2,"0.4");
+    }
+    if (type === "forestwet") {
+      poly("20,2 34,20 6,20","0.75"); poly("20,10 37,32 3,32","1"); rect(17,32,6,7,"0.65");
+      p("M2 37 Q8 34 14 36 Q20 38 26 35 Q32 32 38 35", 2.5, "0.5");
+    }
+    if (type === "park") {
+      c(11, 17, 9, color, "0.8"); line(11,26,11,38,3);
+      var bld=se("rect"); attr(bld,{x:22,y:10,width:16,height:24,rx:1,fill:"none",stroke:color,"stroke-width":2,opacity:0.6}); g.appendChild(bld);
+      [[24.5,13,3.5,3.5],[30,13,3.5,3.5],[24.5,19.5,3.5,3.5],[30,19.5,3.5,3.5]].forEach(function(r){ rect(r[0],r[1],r[2],r[3],"0.45"); });
+      rect(28,28,4,6,"0.5"); line(2,38,38,38,2,"0.45");
+    }
+    if (type === "woodland") {
+      poly("10,4 18,18 2,18","0.75"); rect(8,18,4,7,"0.55"); poly("24,2 35,18 13,18","0.9"); rect(22,18,4,8,"0.6"); poly("33,10 40,24 26,24","0.65"); line(2,34,38,34,2,"0.4");
+    }
+    if (type === "wheat") {
+      function stalk(x,h) {
+        line(x,40,x,h); e(x,h-2,3.5,2.2,color,"0.85");
+        e(x-4,h+6,4,2.2,color,"0.7","rotate(-30,"+(x-4)+","+(h+6)+")");
+        e(x+4,h+6,4,2.2,color,"0.7","rotate(30,"+(x+4)+","+(h+6)+")");
+        e(x-3,h+12,3.5,1.8,color,"0.6","rotate(-30,"+(x-3)+","+(h+12)+")");
+        e(x+3,h+12,3.5,1.8,color,"0.6","rotate(30,"+(x+3)+","+(h+12)+")");
+      }
+      stalk(11,6); stalk(23,4); stalk(33,10);
+    }
+    if (type === "beach") {
+      c(20,14,8,color,"0"); var sun=se("circle"); attr(sun,{cx:20,cy:14,r:8,fill:"none",stroke:color,"stroke-width":2,opacity:0.8}); g.appendChild(sun);
+      p("M20 6 L20 2 M20 22 L20 26 M12 14 L8 14 M28 14 L32 14 M14 8 L11 5 M26 20 L29 23 M26 8 L29 5 M14 20 L11 23",1.5,"0.55");
+      p("M2 30 Q7 26 12 30 Q17 34 22 30 Q27 26 38 30", 2.5); p("M2 36 Q7 32 12 36 Q17 40 22 36 Q27 32 38 36", 2, "0.5");
+    }
+    if (type === "seagrass") {
+      p("M10 40 Q8 30 12 20 Q13 12 10 6", 2.5); p("M10 6 Q7 2 6 0",2,"0.6"); p("M10 6 Q14 3 15 0",2,"0.6"); p("M10 22 Q7 18 6 14",1.5,"0.5");
+      p("M22 40 Q20 30 24 20 Q26 12 23 6", 2.5); p("M23 6 Q20 2 19 0",2,"0.6"); p("M23 6 Q27 3 28 0",2,"0.6");
+      p("M32 40 Q31 32 33 24 Q34 18 32 12", 2); p("M32 12 Q29 8 28 5",1.5,"0.55"); p("M32 12 Q35 9 36 6",1.5,"0.55");
+      p("M2 40 L38 40",2,"0.35");
+    }
+    if (type === "reef") {
+      p("M18 38 Q10 30 8 22 Q6 14 12 10 Q18 6 22 12 Q26 18 28 26 Q30 34 24 38 Z", 2, "0.6", "rgba(0,0,0,0)");
+      var rf=se("path"); rf.setAttribute("d","M18 38 Q10 30 8 22 Q6 14 12 10 Q18 6 22 12 Q26 18 28 26 Q30 34 24 38 Z"); rf.setAttribute("fill",color); rf.setAttribute("fill-opacity","0.25"); rf.setAttribute("stroke",color); rf.setAttribute("stroke-width","2"); g.appendChild(rf);
+      p("M12 10 Q16 8 22 12", 1.5, "0.5"); p("M8 22 Q12 20 18 22 Q22 22 28 26", 1.5, "0.5");
+      c(14,18,3,color,"0.7"); c(22,28,2.5,color,"0.6");
+    }
+    if (type === "generic") {
+      c(20,12,6,color,"0.7"); c(10,26,4.5,color,"0.55"); c(30,26,4.5,color,"0.55");
+      line(20,18,10,22,1.5,"0.4"); line(20,18,30,22,1.5,"0.4");
+    }
+    return g;
+  }
+
+  // ── DRAW BARS ─────────────────────────────────────────────────────────────────
+  main.forEach(function(d, i) {
+    var x     = Y_AX_W + i * (COL_W + GAP);
+    var cx    = x + COL_W / 2;
+    var color = d.isOther ? "#78909c" : COLORS[i % COLORS.length];
+    var fillH = Math.max(2, Math.round((d.pct / 100) * BAR_H));
+    var fillY = BASELINE - fillH;
+
+    // Background track
+    var bg = se("rect");
+    attr(bg, { x: x, y: LABEL_H + PCT_H, width: COL_W, height: BAR_H, fill: BGC, rx: 4 });
+    svg.appendChild(bg);
+
+    // Fill bar
+    var fill = se("rect");
+    attr(fill, { x: x, y: fillY, width: COL_W, height: fillH, fill: color, rx: 4 });
+    fill.style.cursor = "pointer";
+    (function(hab) {
+      fill.addEventListener("mousemove", function(evt) {
+        showTooltip(evt, "<strong>" + hab.name + "</strong><br>" + hab.pct + "% of projects<br>" + hab.count + " project" + (hab.count !== 1 ? "s" : ""));
+      });
+      fill.addEventListener("mouseleave", hideTooltip);
+    })(d);
+    svg.appendChild(fill);
+
+    // Icon
+    var iconEl = mkIcon(d.iconType, "white");
+    var scale  = ICON_SZ / 40;
+    var iCx    = cx - ICON_SZ / 2;
+    var iCy;
+    if (fillH >= ICON_SZ + 8) {
+      iCy = fillY + fillH - ICON_SZ - 5;
+    } else {
+      // Above fill in habitat color
+      iconEl = mkIcon(d.iconType, color);
+      iconEl.setAttribute("opacity", "0.65");
+      iCy = fillY - ICON_SZ - 3;
+    }
+    iconEl.setAttribute("transform", "translate(" + iCx + "," + iCy + ") scale(" + scale + ")");
+    svg.appendChild(iconEl);
+
+    // % label between name and bar
+    var pctSize = Math.max(9, Math.min(vfs ? vfs(13) : 12, Math.floor(COL_W / 4.5)));
+    svg.appendChild(svgTxt(cx, fillY - 3, d.pct + "%", pctSize, NC, "middle", "900"));
+
+    // Name — up to 2 lines in reserved area at top
+    var lines = d.name.replace(/\//g, " / ").split(/[\n]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    // Wrap long single lines
+    if (lines.length === 1 && lines[0].length > 10) {
+      var words = lines[0].split(" "), half = Math.ceil(words.length / 2);
+      lines = [words.slice(0, half).join(" "), words.slice(half).join(" ")].filter(Boolean);
+    }
+    lines = lines.slice(0, 2);
+    var nameSize = Math.max(8, Math.min(10, Math.floor(COL_W / 5.5)));
+    var lineH    = nameSize + 2;
+    var totalNameH = lines.length * lineH;
+    var nameStartY = LABEL_H - totalNameH - 2;
+    lines.forEach(function(line, li) {
+      svg.appendChild(svgTxt(cx, nameStartY + li * lineH + lineH, line, nameSize, NC, "middle", "600"));
+    });
+  });
 }
+
+// NOTE: In panel-6 HTML, also update:
+// 1. Nav button (tab 6): change text to "Habitat Types"
+// 2. chart-title: "Projects by Habitat Type"
+// 3. Remove the two stat card divs (physical-acres-val / research-acres-val blocks)
+//    OR update their label text:
+//    - "Physical Project Acres" label → "Projects with habitat data"
+//    - "Large Scale Project Acres" label → "Unique habitat types"
+// 4. Remove the Reset zoom button and the treemap zoom behavior (not needed for bar chart)
+  
   // ── FISCAL YEAR ──────────────────────────────────────────
   function drawFiscalYear(){
     var el=document.getElementById("fy-chart");
