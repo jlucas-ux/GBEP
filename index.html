@@ -405,24 +405,57 @@ function getPhosphorIcon(name) {
 }
 
 // ── REPLACEMENT drawTreemap() ──────────────────────────────────────────────
+// ── REPLACEMENT drawTreemap() — v2 ─────────────────────────────────────────
+// Fixes: larger icons, min 11px text, better responsive scaling,
+//        "Other" bar shows unique project count not additive sum
+
+var PHOSPHOR_ICONS = [
+  { match: ["estuarine wetland"],                    cls: "ph-shrimp"         },
+  { match: ["estuarine shoreline"],                  cls: "ph-waves"          },
+  { match: ["coastal prairie","prairie"],            cls: "ph-plant"          },
+  { match: ["open bay","water column","estuarine water"], cls: "ph-fish"      },
+  { match: ["freshwater"],                           cls: "ph-drop-half"      },
+  { match: ["riparian"],                             cls: "ph-tree"           },
+  { match: ["living shoreline"],                     cls: "ph-anchor-simple"  },
+  { match: ["forested wetland"],                     cls: "ph-tree-evergreen" },
+  { match: ["urban","park"],                         cls: "ph-buildings"      },
+  { match: ["forest","woodland"],                    cls: "ph-tree-structure" },
+  { match: ["agri","ranch","farm"],                  cls: "ph-wheat"          },
+  { match: ["beach","dune"],                         cls: "ph-sun-horizon"    },
+  { match: ["seagrass","sav","submerged"],           cls: "ph-leaf"           },
+  { match: ["intertidal","reef"],                    cls: "ph-anchor"         },
+  { match: ["research","none"],                      cls: "ph-flask"          },
+];
+
+function getPhosphorIcon(name) {
+  var n = name.toLowerCase();
+  for (var i = 0; i < PHOSPHOR_ICONS.length; i++) {
+    var entry = PHOSPHOR_ICONS[i];
+    for (var j = 0; j < entry.match.length; j++) {
+      if (n.indexOf(entry.match[j]) > -1) return entry.cls;
+    }
+  }
+  return "ph-question";
+}
+
 function drawTreemap() {
   var el = document.getElementById("treemap-chart");
   el.innerHTML = "";
 
-  // ── DATA ──────────────────────────────────────────────────────────────────
+  // ── DATA ────────────────────────────────────────────────────────────────
   var funded = filteredData.filter(function(d) {
-    return d.project_landscape_type && String(d.project_landscape_type).trim() !== "";
+    return d.project_landscape_type &&
+           String(d.project_landscape_type).trim() !== "";
   });
   var totalProjects = funded.length;
 
-  // Update stat cards
   var physEl = document.getElementById("physical-acres-val");
   var resEl  = document.getElementById("research-acres-val");
 
   function normHab(s) {
     return String(s).replace(/_/g, " ").replace(/\s+/g, " ").trim()
       .replace(/^[\s\-]+|[\s\-]+$/g, "")
-      .replace(/\bnone\s*[–\-]*\s*this project was research\b/i, "Research only")
+      .replace(/none\s*[-]*\s*this project was research/i, "Research only")
       .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
   }
 
@@ -443,115 +476,163 @@ function drawTreemap() {
   if (physEl) physEl.textContent = totalProjects + " projects";
   if (resEl)  resEl.textContent  = uniqueTypes + " types";
 
-  // Update subtitle
   var subtitleEl = document.getElementById("treemap-subtitle");
   if (subtitleEl) {
     var years = filteredData.map(function(d) {
       var y = d.fiscal_year_awarded; if (!y) return null;
-      var s = String(y); return s.length === 4 ? parseInt(s) : new Date(y).getFullYear() || null;
+      var s = String(y);
+      return s.length === 4 ? parseInt(s) : new Date(y).getFullYear() || null;
     }).filter(Boolean);
     subtitleEl.textContent =
       "% of " + totalProjects + " GBEP-funded projects that included each habitat type" +
-      (years.length ? ", " + Math.min.apply(null, years) + "–" + Math.max.apply(null, years) : "") +
+      (years.length ? ", " + Math.min.apply(null,years) + "–" + Math.max.apply(null,years) : "") +
       ". Values are independent — one project may count toward multiple habitats.";
   }
 
   if (!totalProjects) return;
 
-  // Sort, take top 6, group rest as Other
   var leaves = Object.keys(habitatCount).map(function(k) {
-    return { name: k, count: habitatCount[k], pct: Math.round(habitatCount[k] / totalProjects * 100) };
+    return { name: k, count: habitatCount[k],
+             pct: Math.round(habitatCount[k] / totalProjects * 100) };
   }).sort(function(a, b) { return b.count - a.count; });
 
+  // Top 6 + Other
+  // "Other" pct = distinct projects that touched ANY remaining habitat / total
+  // We can't compute this exactly without the raw rows, so show a count instead
   var TOP_N = 6;
   var main = leaves.slice(0, TOP_N);
   var otherLeaves = leaves.slice(TOP_N);
   if (otherLeaves.length > 0) {
-    var otherCount = otherLeaves.reduce(function(s, d) { return s + d.count; }, 0);
+    // Count distinct projects touching any other habitat
+    var otherProjectSet = {};
+    funded.forEach(function(row) {
+      var types = String(row.project_landscape_type).split(",").map(function(s){
+        return normHab(s.trim()).toLowerCase();
+      });
+      var topKeys = main.map(function(d){ return d.name.toLowerCase(); });
+      var hasOther = types.some(function(t){
+        return t && topKeys.indexOf(t) === -1;
+      });
+      if (hasOther) otherProjectSet[JSON.stringify(row)] = true;
+    });
+    var otherProjCount = Object.keys(otherProjectSet).length;
     main.push({
       name: "Other (" + otherLeaves.length + " types)",
-      count: otherCount,
-      pct: Math.round(otherCount / totalProjects * 100),
+      count: otherProjCount,
+      pct: Math.round(otherProjCount / totalProjects * 100),
       isOther: true
     });
   }
 
   var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#78909c"];
 
-  // ── BUILD HTML CHART ───────────────────────────────────────────────────────
-  // Pure HTML approach: bars are divs, icons are Phosphor <i> tags.
-  // This guarantees perfect baseline alignment with CSS flex.
+  // ── SIZING — measure available space ──────────────────────────────────────
+  var availW = el.clientWidth  || 600;
+  var availH = el.clientHeight || 280;
+  availH = Math.max(availH, 220);
 
-  var chartH = Math.max(200, el.clientHeight || 240);
+  var N   = main.length;
+  var GAP = Math.max(6, Math.round(availW * 0.006));
+  var colW = Math.floor((availW - GAP * (N - 1)) / N);
 
-  // Outer wrapper — flex row, items aligned to flex-end (baseline)
+  // Text sizes — scale with colW, hard floor at 11px, generous ceiling
+  var nameFontSize = Math.max(11, Math.min(Math.round(colW * 0.09), 16));
+  var pctFontSize  = Math.max(13, Math.min(Math.round(colW * 0.12), 22));
+
+  // Icon size scales with BOTH bar width and fill height — no cap at 32
+  // Will be set per-bar below
+
+  // ── BUILD CHART ───────────────────────────────────────────────────────────
   var chart = document.createElement("div");
   chart.style.cssText =
-    "display:flex;align-items:flex-end;gap:8px;height:" + chartH + "px;" +
-    "border-bottom:2px solid rgba(0,0,0,0.15);position:relative;padding:0 4px;";
+    "display:flex;align-items:flex-end;gap:" + GAP + "px;" +
+    "height:" + availH + "px;" +
+    "border-bottom:2px solid rgba(0,0,0,0.15);" +
+    "position:relative;width:100%;box-sizing:border-box;";
 
-  // Gridlines at 25 / 50 / 75%
+  // Gridlines
   [25, 50, 75].forEach(function(v) {
     var gl = document.createElement("div");
     gl.style.cssText =
-      "position:absolute;left:0;right:0;bottom:" + (v / 100 * chartH) + "px;" +
-      "border-top:1px dashed rgba(0,0,0,0.1);pointer-events:none;";
+      "position:absolute;left:0;right:0;bottom:" + (v / 100 * availH) + "px;" +
+      "border-top:1px dashed rgba(0,0,0,0.1);pointer-events:none;z-index:0;";
     chart.appendChild(gl);
   });
 
+  // Y-axis labels
+  [0, 25, 50, 75, 100].forEach(function(v) {
+    var lbl = document.createElement("div");
+    lbl.style.cssText =
+      "position:absolute;left:0;bottom:" + (v / 100 * availH - 7) + "px;" +
+      "font-size:11px;color:rgba(0,0,0,0.35);font-family:'Roboto',sans-serif;" +
+      "pointer-events:none;z-index:0;width:22px;text-align:right;";
+    lbl.textContent = v + "%";
+    chart.appendChild(lbl);
+  });
+  // Shift chart content right to make room for y-labels
+  chart.style.paddingLeft = "28px";
+
   main.forEach(function(d, i) {
-    var color   = d.isOther ? "#78909c" : COLORS[i % COLORS.length];
-    var fillH   = Math.max(2, Math.round((d.pct / 100) * chartH));
-    var emptyH  = chartH - fillH;
-    var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
-    var iconSz  = Math.min(32, Math.max(20, Math.floor(fillH * 0.45)));
+    var color  = d.isOther ? "#78909c" : COLORS[i % COLORS.length];
+    var fillH  = Math.max(4, Math.round((d.pct / 100) * availH));
+    var emptyH = availH - fillH;
 
-    // Column wrapper — full height, flex column
+    // Icon size: 55% of bar width, but also not taller than 60% of fill
+    var iconSz = Math.round(Math.min(colW * 0.55, fillH * 0.55));
+    iconSz = Math.max(16, iconSz); // never tiny
+
     var col = document.createElement("div");
-    col.style.cssText = "flex:1;min-width:0;height:" + chartH + "px;display:flex;flex-direction:column;";
+    col.style.cssText =
+      "flex:1;min-width:0;height:" + availH + "px;" +
+      "display:flex;flex-direction:column;position:relative;z-index:1;";
 
-    // Empty track top — contains name + % label, centred vertically
+    // ── Empty area — name + pct label ────────────────────────────────────
     var emptyArea = document.createElement("div");
     emptyArea.style.cssText =
-      "height:" + emptyH + "px;display:flex;flex-direction:column;" +
-      "align-items:center;justify-content:center;padding:4px 2px 2px;";
+      "height:" + emptyH + "px;min-height:0;" +
+      "display:flex;flex-direction:column;" +
+      "align-items:center;justify-content:center;" +
+      "padding:4px 2px 4px;box-sizing:border-box;overflow:hidden;";
 
     var nameEl = document.createElement("div");
     nameEl.style.cssText =
-      "font-size:clamp(8px,0.75vw,10px);font-weight:700;color:" + color + ";" +
-      "text-align:center;line-height:1.2;font-family:'Roboto',sans-serif;word-break:normal;";
+      "font-size:" + nameFontSize + "px;font-weight:700;color:" + color + ";" +
+      "text-align:center;line-height:1.25;font-family:'Roboto',sans-serif;" +
+      "word-break:break-word;hyphens:auto;";
     nameEl.textContent = d.name;
 
     var pctEl = document.createElement("div");
     pctEl.style.cssText =
-      "font-size:clamp(11px,1.1vw,15px);font-weight:900;color:" + color + ";" +
-      "letter-spacing:-0.5px;font-family:'Roboto',sans-serif;line-height:1;margin-top:2px;";
+      "font-size:" + pctFontSize + "px;font-weight:900;color:" + color + ";" +
+      "letter-spacing:-0.5px;font-family:'Roboto',sans-serif;" +
+      "line-height:1;margin-top:3px;";
     pctEl.textContent = d.pct + "%";
 
     emptyArea.appendChild(nameEl);
     emptyArea.appendChild(pctEl);
 
-    // Filled bar — rounded top, icon anchored to bottom
+    // ── Filled bar ────────────────────────────────────────────────────────
     var fill = document.createElement("div");
     fill.style.cssText =
-      "flex:1;background:" + color + ";border-radius:5px 5px 0 0;" +
+      "flex:0 0 " + fillH + "px;" +
+      "background:" + color + ";" +
+      "border-radius:6px 6px 0 0;" +
       "display:flex;align-items:flex-end;justify-content:center;" +
-      "padding-bottom:" + Math.max(4, Math.round(fillH * 0.08)) + "px;" +
-      "cursor:pointer;position:relative;overflow:hidden;";
+      "padding-bottom:" + Math.max(6, Math.round(fillH * 0.06)) + "px;" +
+      "cursor:pointer;overflow:hidden;box-sizing:border-box;";
 
-    // Tooltip on hover
-    fill.title = d.name + " — " + d.pct + "% of projects (" + d.count + ")";
-
-    // Phosphor icon (only if fill is tall enough)
-    if (fillH >= 36) {
+    // Icon
+    if (iconSz >= 16 && fillH >= iconSz + 8) {
+      var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
       var icon = document.createElement("i");
       icon.className = "ph-fill " + iconCls;
       icon.style.cssText =
-        "font-size:" + iconSz + "px;color:white;opacity:0.88;line-height:1;";
+        "font-size:" + iconSz + "px;" +
+        "color:rgba(255,255,255,0.88);line-height:1;display:block;";
       fill.appendChild(icon);
     }
 
-    // Tooltip via mousemove
+    // Tooltip
     (function(hab) {
       fill.addEventListener("mousemove", function(evt) {
         showTooltip(evt,
@@ -570,13 +651,271 @@ function drawTreemap() {
 
   el.appendChild(chart);
 
-  // Subtitle note below chart
+  // Footer note
   var note = document.createElement("div");
   note.style.cssText =
-    "font-size:clamp(9px,0.7vw,11px);color:#888;margin-top:6px;" +
+    "font-size:11px;color:#888;margin-top:6px;" +
     "font-family:'Roboto',sans-serif;line-height:1.4;";
   note.textContent =
-    "Top 6 habitat types shown. Values are independent — one project counts toward each habitat it involved.";
+    "Top 6 habitat types shown individually. 'Other' counts distinct projects " +
+    "that involved any of the remaining " +
+    (otherLeaves ? otherLeaves.length : "") + " habitat types.";
+  el.appendChild(note);
+}// ── REPLACEMENT drawTreemap() — v2 ─────────────────────────────────────────
+// Fixes: larger icons, min 11px text, better responsive scaling,
+//        "Other" bar shows unique project count not additive sum
+
+var PHOSPHOR_ICONS = [
+  { match: ["estuarine wetland"],                    cls: "ph-shrimp"         },
+  { match: ["estuarine shoreline"],                  cls: "ph-waves"          },
+  { match: ["coastal prairie","prairie"],            cls: "ph-plant"          },
+  { match: ["open bay","water column","estuarine water"], cls: "ph-fish"      },
+  { match: ["freshwater"],                           cls: "ph-drop-half"      },
+  { match: ["riparian"],                             cls: "ph-tree"           },
+  { match: ["living shoreline"],                     cls: "ph-anchor-simple"  },
+  { match: ["forested wetland"],                     cls: "ph-tree-evergreen" },
+  { match: ["urban","park"],                         cls: "ph-buildings"      },
+  { match: ["forest","woodland"],                    cls: "ph-tree-structure" },
+  { match: ["agri","ranch","farm"],                  cls: "ph-wheat"          },
+  { match: ["beach","dune"],                         cls: "ph-sun-horizon"    },
+  { match: ["seagrass","sav","submerged"],           cls: "ph-leaf"           },
+  { match: ["intertidal","reef"],                    cls: "ph-anchor"         },
+  { match: ["research","none"],                      cls: "ph-flask"          },
+];
+
+function getPhosphorIcon(name) {
+  var n = name.toLowerCase();
+  for (var i = 0; i < PHOSPHOR_ICONS.length; i++) {
+    var entry = PHOSPHOR_ICONS[i];
+    for (var j = 0; j < entry.match.length; j++) {
+      if (n.indexOf(entry.match[j]) > -1) return entry.cls;
+    }
+  }
+  return "ph-question";
+}
+
+function drawTreemap() {
+  var el = document.getElementById("treemap-chart");
+  el.innerHTML = "";
+
+  // ── DATA ────────────────────────────────────────────────────────────────
+  var funded = filteredData.filter(function(d) {
+    return d.project_landscape_type &&
+           String(d.project_landscape_type).trim() !== "";
+  });
+  var totalProjects = funded.length;
+
+  var physEl = document.getElementById("physical-acres-val");
+  var resEl  = document.getElementById("research-acres-val");
+
+  function normHab(s) {
+    return String(s).replace(/_/g, " ").replace(/\s+/g, " ").trim()
+      .replace(/^[\s\-]+|[\s\-]+$/g, "")
+      .replace(/none\s*[-]*\s*this project was research/i, "Research only")
+      .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
+
+  var habitatCount = {}, canonMap = {};
+  funded.forEach(function(row) {
+    var seen = {};
+    String(row.project_landscape_type).split(",").forEach(function(s) {
+      var norm = normHab(s.trim());
+      var key  = norm.toLowerCase();
+      if (!norm || seen[key]) return;
+      seen[key] = true;
+      if (!canonMap[key]) canonMap[key] = norm;
+      habitatCount[canonMap[key]] = (habitatCount[canonMap[key]] || 0) + 1;
+    });
+  });
+
+  var uniqueTypes = Object.keys(habitatCount).length;
+  if (physEl) physEl.textContent = totalProjects + " projects";
+  if (resEl)  resEl.textContent  = uniqueTypes + " types";
+
+  var subtitleEl = document.getElementById("treemap-subtitle");
+  if (subtitleEl) {
+    var years = filteredData.map(function(d) {
+      var y = d.fiscal_year_awarded; if (!y) return null;
+      var s = String(y);
+      return s.length === 4 ? parseInt(s) : new Date(y).getFullYear() || null;
+    }).filter(Boolean);
+    subtitleEl.textContent =
+      "% of " + totalProjects + " GBEP-funded projects that included each habitat type" +
+      (years.length ? ", " + Math.min.apply(null,years) + "–" + Math.max.apply(null,years) : "") +
+      ". Values are independent — one project may count toward multiple habitats.";
+  }
+
+  if (!totalProjects) return;
+
+  var leaves = Object.keys(habitatCount).map(function(k) {
+    return { name: k, count: habitatCount[k],
+             pct: Math.round(habitatCount[k] / totalProjects * 100) };
+  }).sort(function(a, b) { return b.count - a.count; });
+
+  // Top 6 + Other
+  // "Other" pct = distinct projects that touched ANY remaining habitat / total
+  // We can't compute this exactly without the raw rows, so show a count instead
+  var TOP_N = 6;
+  var main = leaves.slice(0, TOP_N);
+  var otherLeaves = leaves.slice(TOP_N);
+  if (otherLeaves.length > 0) {
+    // Count distinct projects touching any other habitat
+    var otherProjectSet = {};
+    funded.forEach(function(row) {
+      var types = String(row.project_landscape_type).split(",").map(function(s){
+        return normHab(s.trim()).toLowerCase();
+      });
+      var topKeys = main.map(function(d){ return d.name.toLowerCase(); });
+      var hasOther = types.some(function(t){
+        return t && topKeys.indexOf(t) === -1;
+      });
+      if (hasOther) otherProjectSet[JSON.stringify(row)] = true;
+    });
+    var otherProjCount = Object.keys(otherProjectSet).length;
+    main.push({
+      name: "Other (" + otherLeaves.length + " types)",
+      count: otherProjCount,
+      pct: Math.round(otherProjCount / totalProjects * 100),
+      isOther: true
+    });
+  }
+
+  var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#78909c"];
+
+  // ── SIZING — measure available space ──────────────────────────────────────
+  var availW = el.clientWidth  || 600;
+  var availH = el.clientHeight || 280;
+  availH = Math.max(availH, 220);
+
+  var N   = main.length;
+  var GAP = Math.max(6, Math.round(availW * 0.006));
+  var colW = Math.floor((availW - GAP * (N - 1)) / N);
+
+  // Text sizes — scale with colW, hard floor at 11px, generous ceiling
+  var nameFontSize = Math.max(11, Math.min(Math.round(colW * 0.09), 16));
+  var pctFontSize  = Math.max(13, Math.min(Math.round(colW * 0.12), 22));
+
+  // Icon size scales with BOTH bar width and fill height — no cap at 32
+  // Will be set per-bar below
+
+  // ── BUILD CHART ───────────────────────────────────────────────────────────
+  var chart = document.createElement("div");
+  chart.style.cssText =
+    "display:flex;align-items:flex-end;gap:" + GAP + "px;" +
+    "height:" + availH + "px;" +
+    "border-bottom:2px solid rgba(0,0,0,0.15);" +
+    "position:relative;width:100%;box-sizing:border-box;";
+
+  // Gridlines
+  [25, 50, 75].forEach(function(v) {
+    var gl = document.createElement("div");
+    gl.style.cssText =
+      "position:absolute;left:0;right:0;bottom:" + (v / 100 * availH) + "px;" +
+      "border-top:1px dashed rgba(0,0,0,0.1);pointer-events:none;z-index:0;";
+    chart.appendChild(gl);
+  });
+
+  // Y-axis labels
+  [0, 25, 50, 75, 100].forEach(function(v) {
+    var lbl = document.createElement("div");
+    lbl.style.cssText =
+      "position:absolute;left:0;bottom:" + (v / 100 * availH - 7) + "px;" +
+      "font-size:11px;color:rgba(0,0,0,0.35);font-family:'Roboto',sans-serif;" +
+      "pointer-events:none;z-index:0;width:22px;text-align:right;";
+    lbl.textContent = v + "%";
+    chart.appendChild(lbl);
+  });
+  // Shift chart content right to make room for y-labels
+  chart.style.paddingLeft = "28px";
+
+  main.forEach(function(d, i) {
+    var color  = d.isOther ? "#78909c" : COLORS[i % COLORS.length];
+    var fillH  = Math.max(4, Math.round((d.pct / 100) * availH));
+    var emptyH = availH - fillH;
+
+    // Icon size: 55% of bar width, but also not taller than 60% of fill
+    var iconSz = Math.round(Math.min(colW * 0.55, fillH * 0.55));
+    iconSz = Math.max(16, iconSz); // never tiny
+
+    var col = document.createElement("div");
+    col.style.cssText =
+      "flex:1;min-width:0;height:" + availH + "px;" +
+      "display:flex;flex-direction:column;position:relative;z-index:1;";
+
+    // ── Empty area — name + pct label ────────────────────────────────────
+    var emptyArea = document.createElement("div");
+    emptyArea.style.cssText =
+      "height:" + emptyH + "px;min-height:0;" +
+      "display:flex;flex-direction:column;" +
+      "align-items:center;justify-content:center;" +
+      "padding:4px 2px 4px;box-sizing:border-box;overflow:hidden;";
+
+    var nameEl = document.createElement("div");
+    nameEl.style.cssText =
+      "font-size:" + nameFontSize + "px;font-weight:700;color:" + color + ";" +
+      "text-align:center;line-height:1.25;font-family:'Roboto',sans-serif;" +
+      "word-break:break-word;hyphens:auto;";
+    nameEl.textContent = d.name;
+
+    var pctEl = document.createElement("div");
+    pctEl.style.cssText =
+      "font-size:" + pctFontSize + "px;font-weight:900;color:" + color + ";" +
+      "letter-spacing:-0.5px;font-family:'Roboto',sans-serif;" +
+      "line-height:1;margin-top:3px;";
+    pctEl.textContent = d.pct + "%";
+
+    emptyArea.appendChild(nameEl);
+    emptyArea.appendChild(pctEl);
+
+    // ── Filled bar ────────────────────────────────────────────────────────
+    var fill = document.createElement("div");
+    fill.style.cssText =
+      "flex:0 0 " + fillH + "px;" +
+      "background:" + color + ";" +
+      "border-radius:6px 6px 0 0;" +
+      "display:flex;align-items:flex-end;justify-content:center;" +
+      "padding-bottom:" + Math.max(6, Math.round(fillH * 0.06)) + "px;" +
+      "cursor:pointer;overflow:hidden;box-sizing:border-box;";
+
+    // Icon
+    if (iconSz >= 16 && fillH >= iconSz + 8) {
+      var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
+      var icon = document.createElement("i");
+      icon.className = "ph-fill " + iconCls;
+      icon.style.cssText =
+        "font-size:" + iconSz + "px;" +
+        "color:rgba(255,255,255,0.88);line-height:1;display:block;";
+      fill.appendChild(icon);
+    }
+
+    // Tooltip
+    (function(hab) {
+      fill.addEventListener("mousemove", function(evt) {
+        showTooltip(evt,
+          "<strong>" + hab.name + "</strong><br>" +
+          hab.pct + "% of projects<br>" +
+          hab.count + " project" + (hab.count !== 1 ? "s" : "")
+        );
+      });
+      fill.addEventListener("mouseleave", hideTooltip);
+    })(d);
+
+    col.appendChild(emptyArea);
+    col.appendChild(fill);
+    chart.appendChild(col);
+  });
+
+  el.appendChild(chart);
+
+  // Footer note
+  var note = document.createElement("div");
+  note.style.cssText =
+    "font-size:11px;color:#888;margin-top:6px;" +
+    "font-family:'Roboto',sans-serif;line-height:1.4;";
+  note.textContent =
+    "Top 6 habitat types shown individually. 'Other' counts distinct projects " +
+    "that involved any of the remaining " +
+    (otherLeaves ? otherLeaves.length : "") + " habitat types.";
   el.appendChild(note);
 }
   
