@@ -124,6 +124,16 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#1677bc;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 #no-results{display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:13px;}
+#legend-bar{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:5px 14px;background:#f8fafc;
+  border-bottom:1px solid #e2e8f0;flex-shrink:0;
+  font-size:11px;color:#64748b;
+}
+.leg-item{display:flex;align-items:center;gap:5px;}
+.leg-pill-sample{font-size:9px;padding:1px 6px;border-radius:8px;font-weight:500;}
+.leg-divider{width:1px;height:14px;background:#e2e8f0;}
+.leg-accent{width:4px;height:14px;border-radius:2px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -132,13 +142,30 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 
 <div id="app" style="display:none;height:100%;">
   <div id="filter-bar">
-    <input id="search-input" type="text" placeholder="Search projects…" oninput="applyFilters()">
-    <select id="f-org" onchange="applyFilters()"><option value="">All organizations</option></select>
-    <select id="f-hab" onchange="applyFilters()"><option value="">All habitat types</option></select>
-    <select id="f-fy"  onchange="applyFilters()"><option value="">All fiscal years</option></select>
-    <select id="f-scale" onchange="applyFilters()"><option value="">All scales</option></select>
-    <button id="clear-btn" onclick="clearFilters()">Clear</button>
+    <input id="search-input" type="text" placeholder="Search by name or organization…" oninput="applyFilters()">
+    <select id="f-org"     onchange="applyFilters()"><option value="">All organizations</option></select>
+    <select id="f-hab"     onchange="applyFilters()"><option value="">All habitat types</option></select>
+    <select id="f-fy"      onchange="applyFilters()"><option value="">All fiscal years</option></select>
+    <select id="f-scale"   onchange="applyFilters()"><option value="">All scales</option></select>
+    <select id="f-species" onchange="applyFilters()"><option value="">All focal species</option></select>
+    <select id="f-goals"   onchange="applyFilters()"><option value="">All project goals</option></select>
+    <select id="f-stage"   onchange="applyFilters()"><option value="">All stages</option></select>
+    <select id="f-impl"    onchange="applyFilters()"><option value="">All implementer types</option></select>
+    <button id="clear-btn" onclick="clearFilters()">Clear all</button>
     <span id="result-count"></span>
+  </div>
+
+  <div id="legend-bar">
+    <span style="font-weight:600;color:#475569;">Key:</span>
+    <div class="leg-item"><div class="leg-accent" style="background:#2e7d32;"></div> Marsh</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#1677bc;"></div> Oyster reef</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#00695c;"></div> Wetland / freshwater</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#6a1b9a;"></div> Upland</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#e65100;"></div> Shoreline / coastal</div>
+    <div class="leg-divider"></div>
+    <div class="leg-item"><span class="leg-pill-sample" style="background:#dbeafe;color:#1e40af;">Marsh</span> Habitat type</div>
+    <div class="leg-item"><span class="leg-pill-sample" style="background:#dcfce7;color:#166534;">HC-1</span> Action plan item</div>
+    <div class="leg-item"><span class="leg-pill-sample" style="background:#f3e8ff;color:#6b21a8;">Physical</span> Project scale</div>
   </div>
 
   <div id="main">
@@ -285,20 +312,36 @@ function getActionPlanTags(row){
 
 function populateFilters(){
   var orgs=Array.from(new Set(allData.map(function(d){return clean(d.lead_organization_name);}).filter(Boolean))).sort();
+
   var habs=Array.from(new Set(allData.flatMap(function(d){
     return d.project_landscape_type?String(d.project_landscape_type).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
   }))).sort();
+
   var fys=Array.from(new Set(allData.map(function(d){
     var v=d.fiscal_year_awarded;if(!v)return null;
     var s=String(v);return s.length===4?s:String(new Date(v).getFullYear()||s.slice(0,4));
   }).filter(Boolean))).sort(function(a,b){return b-a;});
+
   var scales=Array.from(new Set(allData.map(function(d){return clean(d.project_scale);}).filter(Boolean))).sort();
+
+  var species=Array.from(new Set(allData.flatMap(function(d){
+    return d.targeted_focal_species?String(d.targeted_focal_species).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
+  }))).sort();
+
+  var goals=Array.from(new Set(allData.flatMap(function(d){
+    return d.broad_project_goals?String(d.broad_project_goals).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
+  }))).sort();
+
+  var stages=Array.from(new Set(allData.map(function(d){return clean(d.current_project_stage);}).filter(Boolean))).sort();
+
+  var impls=Array.from(new Set(allData.map(function(d){return clean(d.lead_implementer_type);}).filter(Boolean))).sort();
 
   function fill(id,items){
     var sel=document.getElementById(id);
     items.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;sel.appendChild(o);});
   }
   fill("f-org",orgs); fill("f-hab",habs); fill("f-fy",fys); fill("f-scale",scales);
+  fill("f-species",species); fill("f-goals",goals); fill("f-stage",stages); fill("f-impl",impls);
 }
 
 function applyFilters(){
@@ -307,14 +350,27 @@ function applyFilters(){
   var hab=document.getElementById("f-hab").value;
   var fy=document.getElementById("f-fy").value;
   var scale=document.getElementById("f-scale").value;
+  var species=document.getElementById("f-species").value;
+  var goals=document.getElementById("f-goals").value;
+  var stage=document.getElementById("f-stage").value;
+  var impl=document.getElementById("f-impl").value;
   var sort=document.getElementById("sort-sel").value;
 
   filtered=allData.filter(function(d){
-    if(search){var t=(clean(d.nru_project_title)||"").toLowerCase();var o=(clean(d.lead_organization_name)||"").toLowerCase();if(t.indexOf(search)<0&&o.indexOf(search)<0)return false;}
+    if(search){
+      var t=(clean(d.nru_project_title)||"").toLowerCase();
+      var o=(clean(d.lead_organization_name)||"").toLowerCase();
+      var loc=(clean(d.general_project_location)||"").toLowerCase();
+      if(t.indexOf(search)<0&&o.indexOf(search)<0&&loc.indexOf(search)<0)return false;
+    }
     if(org&&clean(d.lead_organization_name)!==org)return false;
     if(hab){var lt=clean(d.project_landscape_type)||"";if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
     if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
     if(scale&&clean(d.project_scale)!==scale)return false;
+    if(species){var sp=clean(d.targeted_focal_species)||"";if(sp.toLowerCase().indexOf(species.toLowerCase())<0)return false;}
+    if(goals){var g=clean(d.broad_project_goals)||"";if(g.toLowerCase().indexOf(goals.toLowerCase())<0)return false;}
+    if(stage&&clean(d.current_project_stage)!==stage)return false;
+    if(impl&&clean(d.lead_implementer_type)!==impl)return false;
     return true;
   });
 
@@ -331,7 +387,9 @@ function applyFilters(){
 
 function clearFilters(){
   document.getElementById("search-input").value="";
-  ["f-org","f-hab","f-fy","f-scale"].forEach(function(id){document.getElementById(id).selectedIndex=0;});
+  ["f-org","f-hab","f-fy","f-scale","f-species","f-goals","f-stage","f-impl"].forEach(function(id){
+    document.getElementById(id).selectedIndex=0;
+  });
   applyFilters();
 }
 
