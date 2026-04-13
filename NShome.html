@@ -517,6 +517,37 @@ function drawGoalChart(data){
   el.style.position="relative";
   var W=el.clientWidth||400, H=el.clientHeight||200;
 
+  // ── Full display labels (Survey123 stores truncated coded values) ──────────
+  // Normalize both sides: strip parens, slashes, extra spaces, lowercase
+  function normKey(s){
+    return s.toLowerCase()
+      .replace(/[()\/\\]/g," ")
+      .replace(/_/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+  var GOAL_LABELS=[
+    // [normalized-key-fragment, full display label]
+    // Match by checking if the stored value STARTS WITH or CONTAINS the key
+    ["land acquisition",                         "Land Acquisition"],
+    ["restore enhance habitat",                  "Restore/Enhance Habitat"],
+    ["restore historical",                       "Restore Historical (That Become Unusable)"],
+    ["create new habitat",                       "Create New Habitat (Where None Was Previously)"],
+    ["restore sustain water quality",            "Restore/Sustain Water Quality"],
+    ["research monitoring",                      "Research/Monitoring"],
+    ["education outreach publications",          "Education/Outreach/Publications"],
+  ];
+
+  function resolveLabel(raw){
+    var n=normKey(raw);
+    for(var i=0;i<GOAL_LABELS.length;i++){
+      // Match if stored value contains the key fragment
+      if(n.indexOf(GOAL_LABELS[i][0])>-1) return GOAL_LABELS[i][1];
+    }
+    // fallback: title-case the raw value
+    return raw.replace(/\b\w/g,function(c){return c.toUpperCase();});
+  }
+
   // ── Data ──────────────────────────────────────────────────────────────────
   var funded=data.filter(function(d){
     return d.broad_project_goals && d.numeric_approximate_project_siz>0
@@ -524,68 +555,48 @@ function drawGoalChart(data){
   });
   var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
 
-  // Full display labels — Survey123 stores coded short values, not full text
-  var GOAL_LABELS={
-    "land acquisition":                          "Land Acquisition",
-    "restore enhance habitat":                   "Restore/Enhance Habitat",
-    "restore historical that become":            "Restore Historical (That Become Unusable)",
-    "restore historical  that become":           "Restore Historical (That Become Unusable)",
-    "create new habitat where none":             "Create New Habitat (Where None Was Previously)",
-    "create new habitat  where none":            "Create New Habitat (Where None Was Previously)",
-    "restore sustain water quality":             "Restore/Sustain Water Quality",
-    "restore  sustain water quality":            "Restore/Sustain Water Quality",
-    "research monitoring":                       "Research/Monitoring",
-    "education outreach publications":           "Education/Outreach/Publications",
-    "restore/enhance habitat":                   "Restore/Enhance Habitat",
-    "restore/ sustain water quality":            "Restore/Sustain Water Quality",
-    "research/monitoring":                       "Research/Monitoring",
-    "education/outreach/publications":           "Education/Outreach/Publications"
-  };
-
   var goalAcres={};
   funded.forEach(function(d){
     String(d.broad_project_goals).split(/[,;]/)
-      .map(function(s){ return s.trim().replace(/_/g," ").replace(/\s+/g," "); })
+      .map(function(s){return s.trim().replace(/_/g," ").replace(/\s+/g," ");})
       .filter(Boolean)
       .forEach(function(g){
-        var key=g.toLowerCase().trim();
+        var key=normKey(g);
         var label;
-        if(key==="other"||key==="other goal"||key.indexOf("other_broad")===0){
-          var desc=(d.broad_project_goals_other||"").trim()
-                    .replace(/_/g," ").replace(/\s+/g," ");
+        if(key==="other"||key==="other goal"||key.indexOf("other broad")===0||key.indexOf("other_broad")===0){
+          var desc=(d.broad_project_goals_other||"").trim().replace(/_/g," ").replace(/\s+/g," ");
           label = desc ? "Other: "+desc : "Other";
         } else {
-          // Look up full display label; fall back to title-casing the raw value
-          label = GOAL_LABELS[key] || g.replace(/\b\w/g,function(c){return c.toUpperCase();});
+          label = resolveLabel(g);
         }
         goalAcres[label]=(goalAcres[label]||0)+(d.numeric_approximate_project_siz||0);
       });
   });
 
   var grouped=Object.keys(goalAcres)
-    .map(function(k){ return{name:k,value:goalAcres[k]}; })
+    .map(function(k){return{name:k,value:goalAcres[k]};})
     .filter(function(d){return d.value>0;})
     .sort(function(a,b){return b.value-a.value;})
-    .map(function(d,i){ return{name:d.name,value:d.value,color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]}; });
+    .map(function(d,i){return{name:d.name,value:d.value,color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};});
 
   if(!grouped.length)return;
   var attrSum=d3.sum(grouped,function(d){return d.value;});
-
-  // Only show items that round to ≥1%
   var visible=grouped.filter(function(d){return Math.round(d.value/attrSum*100)>0;});
 
-  // ── Layout: donut left, legend right as a true flex row ───────────────────
-  var LEGEND_W = Math.min(Math.round(W*0.48), 240);
-  var donutAreaW = W - LEGEND_W;
-  var r = Math.max(28, Math.min(donutAreaW/2 - 10, H/2 - 14));
-  var innerR = r * 0.52;
+  // ── Layout ────────────────────────────────────────────────────────────────
+  // Legend takes right portion; donut takes left
+  var LEGEND_W=Math.min(Math.round(W*0.50),260);
+  var donutAreaW=W-LEGEND_W;
+  var r=Math.max(28,Math.min(donutAreaW/2-10,H/2-14));
+  var innerR=r*0.52;
+  var cx=donutAreaW/2, cy=H/2;
 
-  // Outer flex container
+  // Flex container
   var flex=document.createElement("div");
-  flex.style.cssText="display:flex;flex-direction:row;width:"+W+"px;height:"+H+"px;overflow:hidden;";
+  flex.style.cssText="display:flex;flex-direction:row;width:"+W+"px;height:"+H+"px;";
   el.appendChild(flex);
 
-  // ── Donut (left) ──────────────────────────────────────────────────────────
+  // ── Donut ─────────────────────────────────────────────────────────────────
   var donutWrap=document.createElement("div");
   donutWrap.style.cssText="flex:0 0 "+donutAreaW+"px;height:"+H+"px;overflow:hidden;";
   flex.appendChild(donutWrap);
@@ -594,7 +605,6 @@ function drawGoalChart(data){
     .attr("width",donutAreaW).attr("height",H)
     .style("display","block").style("font-family",FONT);
 
-  var cx=donutAreaW/2, cy=H/2;
   var pie=d3.pie().value(function(d){return d.value;}).sort(null);
   var arc=d3.arc().innerRadius(innerR).outerRadius(r);
   var arcHov=d3.arc().innerRadius(innerR).outerRadius(r+5);
@@ -618,7 +628,8 @@ function drawGoalChart(data){
     g.append("text").attr("x",c[0]).attr("y",c[1])
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
       .attr("font-size",pctFs).attr("font-weight",700).attr("fill","white")
-      .style("pointer-events","none").text(Math.round(d.data.value/attrSum*100)+"%");
+      .style("pointer-events","none")
+      .text(Math.round(d.data.value/attrSum*100)+"%");
   });
 
   var cFs=Math.min(Math.floor(innerR*0.52),vfs(28));
@@ -629,48 +640,55 @@ function drawGoalChart(data){
     .attr("font-size",Math.max(8,Math.floor(cFs*0.38))).attr("fill","#888")
     .text("physical acres");
 
-  // ── Legend (right) — plain block layout, no flex on rows ─────────────────
-  // Key insight: use a block <div> per row with explicit pixel width on the
-  // name span. No flex, no min-width tricks — just hard pixel widths.
+  // ── Legend — fills the full right column, items auto-size ─────────────────
+  // Font sizes scale with available height per item
+  var itemCount=visible.length||1;
+  var targetItemH=Math.floor((H-8)/itemCount);      // ideal height per item
+  var nameFs=Math.max(10,Math.min(13,Math.floor(targetItemH*0.38)));
+  var pctLFs=Math.max(12,Math.min(16,Math.floor(targetItemH*0.48)));
+  var swSz=Math.max(8,Math.min(11,Math.floor(nameFs*0.85)));
 
-  var SWATCH   = 9;   // px
-  var GAP      = 5;   // px between elements
-  var PCT_W    = 34;  // px for "33%" (3 chars max at 12px ≈ 33px)
-  var NAME_W   = LEGEND_W - SWATCH - GAP - PCT_W - GAP - 10; // remaining, minus padding
-  var nameFs   = Math.max(10, Math.min(12, Math.floor(H / visible.length * 0.4)));
-  var pctLFs   = Math.max(11, Math.min(15, Math.floor(H / visible.length * 0.48)));
+  // Fixed-width columns inside legend so name always gets remaining space
+  var PAD=8;                                          // left padding
+  var GAP=5;                                          // gap between cols
+  var PCT_COL=Math.round(pctLFs*2.4);                // wide enough for "33%"
+  var SW_COL=swSz+GAP;
+  var NAME_COL=LEGEND_W-PAD-SW_COL-PCT_COL-GAP-6;   // everything remaining
 
   var legend=document.createElement("div");
   legend.style.cssText=
     "flex:0 0 "+LEGEND_W+"px;height:"+H+"px;"+
-    "overflow-y:auto;overflow-x:hidden;"+
-    "box-sizing:border-box;padding:6px 4px 6px 8px;"+
-    "border-left:1px solid rgba(0,0,0,0.06);";
+    "overflow-y:auto;overflow-x:hidden;box-sizing:border-box;"+
+    "padding:4px 4px 4px "+PAD+"px;"+
+    "border-left:1px solid rgba(0,0,0,0.08);"+
+    "display:flex;flex-direction:column;justify-content:space-evenly;";
 
   visible.forEach(function(d){
     var pct=Math.round(d.value/attrSum*100);
-
     var row=document.createElement("div");
-    row.style.cssText="display:flex;align-items:flex-start;gap:"+GAP+"px;"+
-      "margin-bottom:4px;box-sizing:border-box;width:"+(LEGEND_W-12)+"px;";
+    row.style.cssText=
+      "display:flex;align-items:flex-start;gap:"+GAP+"px;"+
+      "flex-shrink:0;box-sizing:border-box;padding:1px 0;";
 
     var sw=document.createElement("div");
-    sw.style.cssText="width:"+SWATCH+"px;height:"+SWATCH+"px;border-radius:50%;"+
-      "background:"+d.color+";flex-shrink:0;margin-top:"+Math.ceil(nameFs*0.18)+"px;";
+    sw.style.cssText=
+      "width:"+swSz+"px;height:"+swSz+"px;border-radius:50%;"+
+      "background:"+d.color+";flex-shrink:0;margin-top:"+Math.ceil(nameFs*0.2)+"px;";
 
     var pctEl=document.createElement("div");
-    pctEl.style.cssText="width:"+PCT_W+"px;flex-shrink:0;font-size:"+pctLFs+"px;"+
-      "font-weight:900;color:"+d.color+";line-height:1;";
+    pctEl.style.cssText=
+      "width:"+PCT_COL+"px;flex-shrink:0;"+
+      "font-size:"+pctLFs+"px;font-weight:900;color:"+d.color+";line-height:1;";
     pctEl.textContent=pct+"%";
 
     var nameEl=document.createElement("div");
-    // Explicit pixel width — the ONLY reliable way to force wrapping in all browsers
+    // Explicit pixel width = the ONLY reliable way to force wrapping in all browsers
     nameEl.style.cssText=
-      "width:"+NAME_W+"px;font-size:"+nameFs+"px;font-weight:600;color:#334155;"+
-      "line-height:1.3;word-break:break-word;overflow-wrap:break-word;white-space:normal;";
-    // Add zero-width spaces after / so "Education/Outreach" breaks AT the slash
-    // word-break:break-word handles anything still too long as last resort
-    nameEl.textContent=d.name.replace(/\//g,"/​").replace(/[-]/g,"-​");
+      "width:"+NAME_COL+"px;flex-shrink:0;"+
+      "font-size:"+nameFs+"px;font-weight:600;color:#334155;"+
+      "line-height:1.3;word-break:break-word;overflow-wrap:break-word;";
+    // ZWS after / so "Education/Outreach/Publications" breaks AT slashes
+    nameEl.textContent=d.name.replace(/\//g,"/\u200b");
 
     row.appendChild(sw);
     row.appendChild(pctEl);
