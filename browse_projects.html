@@ -526,6 +526,32 @@ function showDetail(d){
   function val(v){return cleanDisplay(v);}
   function valList(v){return dedupList(v).join(", ")||null;}
 
+  // Expands "other" tokens in a field using its companion description field
+  // e.g. valWithOther(d.broad_project_goals, d.broad_project_goals_other)
+  function valWithOther(mainField, otherField){
+    var list = dedupList(mainField);
+    if(!list.length) return null;
+    var desc = clean(otherField);
+    var expanded = list.map(function(item){
+      var k = item.toLowerCase().replace(/_/g," ").trim();
+      if((k==="other"||k.indexOf("other")===0) && desc){
+        return "Other: "+normalizeVal(desc);
+      }
+      return normalizeVal(item);
+    });
+    return expanded.join(", ");
+  }
+
+  // Same as valWithOther but for single-value fields
+  function valOrOther(mainField, otherField){
+    var v = cleanDisplay(mainField);
+    if(!v) return null;
+    if(v.toLowerCase().indexOf("other")===0 && clean(otherField)){
+      return "Other: "+normalizeVal(clean(otherField));
+    }
+    return v;
+  }
+
   function section(title,rows){
     var anyVal=rows.some(function(r){return r[1];});
     if(!anyVal)return;
@@ -561,7 +587,7 @@ function showDetail(d){
     ["Lead implementer type",     val(d.lead_implementer_type)],
     ["PI contact",                val(d.project_pi_contact_information)],
     ["Organization link",         val(d.pi_organization_link),"link"],
-    ["Current stage",             val(d.current_project_stage)],
+    ["Current stage",             valOrOther(d.current_project_stage, d.project_current_stage_other)],
     ["Date status updated",       val(d.date_that_this_current_status_wa)],
     ["Part of larger project",    val(d.is_this_a_phase_part_of_a_larger)],
     ["Related projects",          val(d.if_project_is_part_of_a_phase_p)],
@@ -576,7 +602,7 @@ function showDetail(d){
     ["Year 1 amount",             d.year_1_amount?fmtDollars(d.year_1_amount):null],
     ["Year 2 amount",             d.year_2_amount?fmtDollars(d.year_2_amount):null],
     ["Year 3 amount",             d.year_3_amount?fmtDollars(d.year_3_amount):null],
-    ["Additional funding types",  valList(d.what_were_your_additional_fundi)||valList(d.were_there_any_additional_fundin)],
+    ["Additional funding types",  valWithOther(d.what_were_your_additional_fundi, d.additional_funding_types_other)||valWithOther(d.were_there_any_additional_fundin, d.additional_funding_types_other)],
     ["In-kind leveraging",        val(d.in_kind_leveraging_amount)],
     ["Cash leveraging",           val(d.cash_leveraging_amount)],
     ["Leveraging notes",          val(d.leveraging_in_kind_and_cash_)||val(d.other_additional_leveraging_non)],
@@ -590,13 +616,13 @@ function showDetail(d){
   ]);
 
   section("Conservation focus",[
-    ["Broad project goals",       valList(d.broad_project_goals)],
-    ["Main physical goals",       valList(d.what_were_the_main_physical_goa)||valList(d.what_were_the_main_physical_goal)],
+    ["Broad project goals",       valWithOther(d.broad_project_goals, d.broad_project_goals_other)],
+    ["Main physical goals",       valWithOther(d.what_were_the_main_physical_goa, d.if_main_physical_goal_was_other)||valWithOther(d.what_were_the_main_physical_goal, d.if_main_physical_goal_was_other)],
     ["Long-term goals",           valList(d.what_were_the_long_term_goals_o)||valList(d.what_were_the_long_term_goals_of)],
-    ["Landscape / habitat type",  valList(d.project_landscape_type)],
+    ["Landscape / habitat type",  valWithOther(d.project_landscape_type, d.project_landscape_other)],
     ["Project scale",             val(d.project_scale)],
     ["Approx. project size",      d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
-    ["Focal species targeted",    valList(d.targeted_focal_species)||valList(d.what_focal_species_were_targeted)],
+    ["Focal species targeted",    valWithOther(d.targeted_focal_species, d.targeted_focal_species_other)||valWithOther(d.what_focal_species_were_targeted, d.targeted_focal_species_other)],
     ["Other benefiting species",  valList(d.what_other_species_were_identif)||valList(d.what_other_species_were_identifi)],
   ]);
 
