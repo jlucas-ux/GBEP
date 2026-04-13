@@ -357,9 +357,20 @@ function getActionPlanTags(row){
 function populateFilters(){
   var orgs=Array.from(new Set(allData.map(function(d){return clean(d.lead_organization_name);}).filter(Boolean))).sort();
 
-  var habs=Array.from(new Set(allData.flatMap(function(d){
-    return d.project_landscape_type?String(d.project_landscape_type).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
-  }))).sort();
+  // Normalize underscores→spaces, deduplicate case-insensitively
+  var habs=(function(){
+    var seen={},out=[];
+    allData.forEach(function(d){
+      if(!d.project_landscape_type)return;
+      String(d.project_landscape_type).split(",").forEach(function(s){
+        var norm=normalizeVal(s.trim());
+        if(!norm)return;
+        var key=norm.toLowerCase();
+        if(!seen[key]){seen[key]=true;out.push(norm);}
+      });
+    });
+    return out.sort();
+  })();
 
   var fys=Array.from(new Set(allData.map(function(d){
     var v=d.fiscal_year_awarded;if(!v)return null;
@@ -368,13 +379,33 @@ function populateFilters(){
 
   var scales=Array.from(new Set(allData.map(function(d){return clean(d.project_scale);}).filter(Boolean))).sort();
 
-  var species=Array.from(new Set(allData.flatMap(function(d){
-    return d.targeted_focal_species?String(d.targeted_focal_species).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
-  }))).sort();
+  var species=(function(){
+    var seen={},out=[];
+    allData.forEach(function(d){
+      if(!d.targeted_focal_species)return;
+      String(d.targeted_focal_species).split(",").forEach(function(s){
+        var norm=normalizeVal(s.trim());
+        if(!norm)return;
+        var key=norm.toLowerCase();
+        if(!seen[key]){seen[key]=true;out.push(norm);}
+      });
+    });
+    return out.sort();
+  })();
 
-  var goals=Array.from(new Set(allData.flatMap(function(d){
-    return d.broad_project_goals?String(d.broad_project_goals).split(",").map(function(s){return s.trim();}).filter(Boolean):[];
-  }))).sort();
+  var goals=(function(){
+    var seen={},out=[];
+    allData.forEach(function(d){
+      if(!d.broad_project_goals)return;
+      String(d.broad_project_goals).split(",").forEach(function(s){
+        var norm=normalizeVal(s.trim());
+        if(!norm)return;
+        var key=norm.toLowerCase();
+        if(!seen[key]){seen[key]=true;out.push(norm);}
+      });
+    });
+    return out.sort();
+  })();
 
   var stages=Array.from(new Set(allData.map(function(d){return clean(d.current_project_stage);}).filter(Boolean))).sort();
 
@@ -408,11 +439,11 @@ function applyFilters(){
       if(t.indexOf(search)<0&&o.indexOf(search)<0&&loc.indexOf(search)<0)return false;
     }
     if(org&&clean(d.lead_organization_name)!==org)return false;
-    if(hab){var lt=clean(d.project_landscape_type)||"";if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
+    if(hab){var lt=normalizeVal(clean(d.project_landscape_type)||"");if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
     if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
     if(scale&&clean(d.project_scale)!==scale)return false;
-    if(species){var sp=clean(d.targeted_focal_species)||"";if(sp.toLowerCase().indexOf(species.toLowerCase())<0)return false;}
-    if(goals){var g=clean(d.broad_project_goals)||"";if(g.toLowerCase().indexOf(goals.toLowerCase())<0)return false;}
+    if(species){var sp=normalizeVal(clean(d.targeted_focal_species)||"");if(sp.toLowerCase().indexOf(species.toLowerCase())<0)return false;}
+    if(goals){var g=normalizeVal(clean(d.broad_project_goals)||"");if(g.toLowerCase().indexOf(goals.toLowerCase())<0)return false;}
     if(stage&&clean(d.current_project_stage)!==stage)return false;
     if(impl&&clean(d.lead_implementer_type)!==impl)return false;
     return true;
