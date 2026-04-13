@@ -390,7 +390,8 @@ function drawTreemap() {
         "flex:0 0 "+fillH+"px;border-radius:6px 6px 0 0;"+
         "display:flex;flex-direction:column-reverse;overflow:hidden;"+
         "cursor:pointer;box-sizing:border-box;position:relative;";
-      var STACK_COLORS=["#546e7a","#607d8b","#78909c","#90a4ae","#b0bec5","#455a64","#37474f","#4a6572","#5c7a7a","#6a8580","#7a9090","#8a9a9a","#9aacac"];
+      // Coordinated with main COLORS palette — muted blues/teals/greens
+      var STACK_COLORS=["#1a6b8a","#1e7d6b","#2d6a8f","#3a7d5c","#0d5c80","#2e6b5e","#1f5f7a","#306b70","#1b7055","#2a5f8a","#3d7a68","#1e6875","#2b7060"];
       var totalStackPct = d.stackedSegments.reduce(function(s,seg){return s+seg.pct;},0) || 1;
       d.stackedSegments.forEach(function(seg,si){
         var segH = Math.max(1, Math.round((seg.pct / totalStackPct) * fillH));
