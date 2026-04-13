@@ -524,6 +524,24 @@ function drawGoalChart(data){
   });
   var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
 
+  // Full display labels — Survey123 stores coded short values, not full text
+  var GOAL_LABELS={
+    "land acquisition":                          "Land Acquisition",
+    "restore enhance habitat":                   "Restore/Enhance Habitat",
+    "restore historical that become":            "Restore Historical (That Become Unusable)",
+    "restore historical  that become":           "Restore Historical (That Become Unusable)",
+    "create new habitat where none":             "Create New Habitat (Where None Was Previously)",
+    "create new habitat  where none":            "Create New Habitat (Where None Was Previously)",
+    "restore sustain water quality":             "Restore/Sustain Water Quality",
+    "restore  sustain water quality":            "Restore/Sustain Water Quality",
+    "research monitoring":                       "Research/Monitoring",
+    "education outreach publications":           "Education/Outreach/Publications",
+    "restore/enhance habitat":                   "Restore/Enhance Habitat",
+    "restore/ sustain water quality":            "Restore/Sustain Water Quality",
+    "research/monitoring":                       "Research/Monitoring",
+    "education/outreach/publications":           "Education/Outreach/Publications"
+  };
+
   var goalAcres={};
   funded.forEach(function(d){
     String(d.broad_project_goals).split(/[,;]/)
@@ -537,7 +555,8 @@ function drawGoalChart(data){
                     .replace(/_/g," ").replace(/\s+/g," ");
           label = desc ? "Other: "+desc : "Other";
         } else {
-          label = g.replace(/\b\w/g,function(c){return c.toUpperCase();});
+          // Look up full display label; fall back to title-casing the raw value
+          label = GOAL_LABELS[key] || g.replace(/\b\w/g,function(c){return c.toUpperCase();});
         }
         goalAcres[label]=(goalAcres[label]||0)+(d.numeric_approximate_project_siz||0);
       });
