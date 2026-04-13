@@ -535,6 +535,7 @@ function drawSpeciesChart(data) {
         if(key==="other"||key==="other goal"||key.indexOf("other_broad")===0){
           var desc=(d.broad_project_goals_other||"").trim()
                     .replace(/_/g," ").replace(/\s+/g," ");
+          // Future-proof: each unique "other" description becomes its own slice
           label = desc ? "Other: "+desc : "Other";
         } else {
           label = g.replace(/\b\w/g,function(c){return c.toUpperCase();});
@@ -544,7 +545,7 @@ function drawSpeciesChart(data) {
   });
 
   var grouped=Object.keys(goalAcres)
-    .map(function(k){ return{name:k,value:goalAcres[k]}; })
+    .map(function(k,i){ return{name:k,value:goalAcres[k]}; })
     .filter(function(d){return d.value>0;})
     .sort(function(a,b){return b.value-a.value;})
     .map(function(d,i){ return{name:d.name,value:d.value,color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]}; });
@@ -552,20 +553,18 @@ function drawSpeciesChart(data) {
   if(!grouped.length)return;
   var attrSum=d3.sum(grouped,function(d){return d.value;});
 
-  // ── Geometry ──────────────────────────────────────────────────────────────
-  var CALLOUT_W = Math.max(90, Math.round(W * 0.26)); // label box width each side
-  var CALLOUT_PAD = CALLOUT_W + 14;                   // space reserved each side
-  var r = Math.max(30, Math.min(
-    (W - CALLOUT_PAD*2) / 2 - 6,
-    H / 2 - 14
-  ));
+  // ── Layout: donut center, legend right ─────────────────────────────────────
+  // Give legend enough room for full label text — no truncation ever
+  var LEGEND_W = Math.min(Math.round(W*0.46), 220);
+  var donutAreaW = W - LEGEND_W - 4;
+  var r = Math.max(28, Math.min(donutAreaW/2 - 10, H/2 - 14));
   var innerR = r * 0.52;
-  var cx = W / 2;
-  var cy = H / 2;
+  var cx = donutAreaW/2;
+  var cy = H/2;
 
-  // ── SVG ───────────────────────────────────────────────────────────────────
+  // ── SVG donut ─────────────────────────────────────────────────────────────
   var svg=d3.select("#goal-chart").append("svg")
-    .attr("width",W).attr("height",H)
+    .attr("width",donutAreaW).attr("height",H)
     .style("position","absolute").style("left","0").style("top","0")
     .style("overflow","visible")
     .style("font-family",FONT);
@@ -576,9 +575,6 @@ function drawSpeciesChart(data) {
   var g=svg.append("g").attr("transform","translate("+cx+","+cy+")");
   var slices=pie(grouped);
 
-  // Top 5 get callouts; the rest hover-only
-  var TOP_N = 5;
-
   g.selectAll("path").data(slices).enter().append("path")
     .attr("d",arc)
     .attr("fill",function(d){return d.data.color;})
@@ -588,13 +584,13 @@ function drawSpeciesChart(data) {
       var pct=Math.round(d.data.value/attrSum*100);
       showTooltip(event,
         "<strong>"+d.data.name+"</strong><br>"+
-        fmtAcres(d.data.value)+" · "+pct+"% of attributed acres");
+        fmtAcres(d.data.value)+"<br>"+pct+"% of attributed acres");
     })
     .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
 
-  // % inside slices (only if big enough)
+  // % inside slices
   var pctFs=Math.max(9,Math.min(13,Math.floor(r*0.15)));
-  slices.forEach(function(d,i){
+  slices.forEach(function(d){
     var pct=d.data.value/attrSum*100;
     if(pct<5)return;
     var c=arc.centroid(d);
@@ -607,7 +603,7 @@ function drawSpeciesChart(data) {
   });
 
   // Center label
-  var cFs=Math.min(Math.floor(innerR*0.52),vfs(26));
+  var cFs=Math.min(Math.floor(innerR*0.52),vfs(28));
   var cSubFs=Math.max(8,Math.floor(cFs*0.38));
   g.append("text").attr("text-anchor","middle").attr("y",cFs*0.1)
     .attr("font-size",cFs).attr("font-weight",900).attr("fill","#1a2332")
@@ -616,108 +612,56 @@ function drawSpeciesChart(data) {
     .attr("font-size",cSubFs).attr("fill","#888")
     .text("physical acres");
 
-  // ── Callouts for top 5 only ───────────────────────────────────────────────
-  var calloutFs = Math.max(9, Math.min(11, vfs(11)));
-  var lineH = calloutFs * 1.35;
+  // ── HTML Legend — right side, full word wrap, no truncation ───────────────
+  var legend=document.createElement("div");
+  legend.style.cssText=
+    "position:absolute;right:0;top:0;"+
+    "width:"+LEGEND_W+"px;height:"+H+"px;"+
+    "display:flex;flex-direction:column;justify-content:flex-start;"+
+    "align-items:stretch;gap:0;overflow-y:auto;overflow-x:hidden;"+
+    "box-sizing:border-box;padding:4px 4px 4px 6px;";
 
-  // Collect labeled slices (top N by value)
-  var labeled = [];
-  slices.forEach(function(d,i){
-    if(i>=TOP_N)return; // only top 5 get callout labels
-    var midAngle=(d.startAngle+d.endAngle)/2;
-    var sinA=Math.sin(midAngle), cosA=-Math.cos(midAngle);
-    labeled.push({
-      name: d.data.name,
-      color: d.data.color,
-      pct: Math.round(d.data.value/attrSum*100),
-      side: sinA>=0 ? 1 : -1,
-      startX: sinA*r,
-      startY: cosA*r
-    });
+  // Distribute height evenly but let items grow if label wraps
+  var baseItemH=Math.max(20,Math.floor((H-8)/grouped.length));
+  var nameFs=Math.max(9,Math.min(12,Math.floor(baseItemH*0.44)));
+  var pctLFs=Math.max(11,Math.min(15,Math.floor(baseItemH*0.54)));
+  var swSz=Math.max(7,Math.min(11,Math.floor(baseItemH*0.38)));
+
+  grouped.forEach(function(d){
+    var pct=Math.round(d.value/attrSum*100);
+    var row=document.createElement("div");
+    row.style.cssText=
+      "display:flex;align-items:flex-start;gap:5px;"+
+      "min-height:"+baseItemH+"px;flex-shrink:0;flex-grow:1;"+
+      "box-sizing:border-box;padding:2px 0;"+
+      "border-bottom:1px solid rgba(0,0,0,0.05);";
+
+    var sw=document.createElement("div");
+    sw.style.cssText=
+      "width:"+swSz+"px;height:"+swSz+"px;border-radius:50%;"+
+      "background:"+d.color+";flex-shrink:0;margin-top:"+Math.round(nameFs*0.15)+"px;";
+
+    var pctEl=document.createElement("div");
+    pctEl.style.cssText=
+      "font-size:"+pctLFs+"px;font-weight:900;color:"+d.color+";"+
+      "line-height:1;flex-shrink:0;letter-spacing:-0.3px;white-space:nowrap;";
+    pctEl.textContent=pct+"%";
+
+    var nameEl=document.createElement("div");
+    nameEl.style.cssText=
+      // KEY: no overflow:hidden, no white-space:nowrap — full wrapping
+      "font-size:"+nameFs+"px;font-weight:600;color:#334155;"+
+      "line-height:1.3;word-break:break-word;overflow-wrap:anywhere;"+
+      "hyphens:none;min-width:0;flex:1;";
+    nameEl.textContent=d.name;
+
+    row.appendChild(sw);
+    row.appendChild(pctEl);
+    row.appendChild(nameEl);
+    legend.appendChild(row);
   });
 
-  var leftList  = labeled.filter(function(c){return c.side<0;}).sort(function(a,b){return a.startY-b.startY;});
-  var rightList = labeled.filter(function(c){return c.side>0;}).sort(function(a,b){return a.startY-b.startY;});
-
-  function distribute(list, xSign){
-    if(!list.length)return;
-    var n=list.length;
-    var usable=H-20;
-    var step=Math.min(usable/Math.max(n,1), 52);
-    var totalH=step*(n-1);
-    var startY=-totalH/2;
-    list.forEach(function(c,i){
-      c.labelY=startY+i*step;
-      c.labelX=xSign*(r+18);
-    });
-  }
-  distribute(leftList,-1);
-  distribute(rightList,1);
-
-  // Draw SVG elbow connectors
-  [leftList,rightList].forEach(function(list){
-    list.forEach(function(c){
-      var xSign=c.side;
-      var elbowX=c.startX+xSign*10;
-      g.append("polyline")
-        .attr("points",
-          c.startX+","+c.startY+" "+
-          elbowX+","+c.startY+" "+
-          c.labelX+","+c.labelY)
-        .attr("fill","none")
-        .attr("stroke","#ccc")
-        .attr("stroke-width",1);
-      // Small dot at slice edge
-      g.append("circle")
-        .attr("cx",c.startX).attr("cy",c.startY)
-        .attr("r",2).attr("fill",c.color);
-    });
-  });
-
-  // Draw HTML label divs — positioned absolutely, full word wrap
-  [leftList,rightList].forEach(function(list){
-    list.forEach(function(c){
-      var xSign=c.side;
-      var isRight=(xSign>0);
-
-      // Absolute position in card coordinates
-      var absX = cx + c.labelX;
-      var absY = cy + c.labelY;
-
-      var div=document.createElement("div");
-      div.style.cssText=
-        "position:absolute;"+
-        "width:"+CALLOUT_W+"px;"+
-        // Anchor left or right edge to the elbow end
-        (isRight
-          ? "left:"+Math.round(absX)+"px;"
-          : "right:"+Math.round(W-absX)+"px;")+
-        "top:"+Math.round(absY - lineH*1.2)+"px;"+
-        "font-family:"+FONT+";"+
-        "font-size:"+calloutFs+"px;"+
-        "font-weight:700;"+
-        "color:"+c.color+";"+
-        "line-height:1.3;"+
-        "word-break:break-word;"+   // wrap at spaces
-        "overflow-wrap:break-word;"+ // break long words only if necessary
-        "hyphens:none;"+             // never hyphenate mid-word
-        "text-align:"+(isRight?"left":"right")+";"+
-        "pointer-events:none;";
-      div.textContent=c.name;
-      el.appendChild(div);
-    });
-  });
-
-  // "Hover for more" hint if there are slices beyond top 5
-  if(grouped.length>TOP_N){
-    var hint=document.createElement("div");
-    hint.style.cssText=
-      "position:absolute;bottom:3px;right:6px;"+
-      "font-size:9px;color:#aaa;font-family:"+FONT+";"+
-      "pointer-events:none;";
-    hint.textContent="Hover slices for all "+(grouped.length)+" categories";
-    el.appendChild(hint);
-  }
+  el.appendChild(legend);
 }
   function redrawCharts(){
     if(!_data)return;
