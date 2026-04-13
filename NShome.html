@@ -347,7 +347,7 @@ function drawSpeciesChart(data) {
     var layerTop = curBottom - layerH;
     var midY   = layerTop + layerH / 2;
     if (layerH >= 16) {
-      var fs = Math.max(9, Math.min(vfs(14), Math.floor(layerH * 0.38)));
+      var fs = Math.max(10, Math.min(vfs(16), Math.floor(layerH * 0.44)));
       svg.append("text")
         .attr("x", cx).attr("y", midY)
         .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
@@ -393,8 +393,8 @@ function drawSpeciesChart(data) {
     "box-sizing:border-box;padding:4px 4px 4px 6px;";
 
   var rowH   = chartH / counts.length;
-  var pctFS  = Math.max(10, Math.min(vfs(20), Math.floor(rowH * 0.45)));
-  var nameFS = Math.max(9,  Math.min(vfs(13), Math.floor(pctFS * 0.70)));
+  var pctFS  = Math.max(12, Math.min(vfs(26), Math.floor(rowH * 0.52)));
+  var nameFS = Math.max(12, Math.min(vfs(15), Math.floor(pctFS * 0.72)));
   var swatch = Math.max(7,  Math.floor(pctFS * 0.50));
 
   // Legend is reversed: largest at bottom matches raindrop base
@@ -555,7 +555,7 @@ function drawGoalChart(data){
 
   // ── Layout: donut center, legend right ─────────────────────────────────────
   // Give legend enough room for full label text — no truncation ever
-  var LEGEND_W = Math.min(Math.round(W*0.46), 220);
+  var LEGEND_W = Math.min(Math.round(W*0.52), 260);
   var donutAreaW = W - LEGEND_W - 4;
   var r = Math.max(28, Math.min(donutAreaW/2 - 10, H/2 - 14));
   var innerR = r * 0.52;
@@ -627,7 +627,7 @@ function drawGoalChart(data){
   var pctLFs=Math.max(11,Math.min(15,Math.floor(baseItemH*0.54)));
   var swSz=Math.max(7,Math.min(11,Math.floor(baseItemH*0.38)));
 
-  grouped.forEach(function(d){
+  grouped.filter(function(d){return Math.round(d.value/attrSum*100)>0;}).forEach(function(d){
     var pct=Math.round(d.value/attrSum*100);
     var row=document.createElement("div");
     row.style.cssText=
