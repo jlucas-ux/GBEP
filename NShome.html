@@ -178,9 +178,9 @@
   }
 
   async function fetchMain(){
-    var fields=["gbep_award_amount","fiscal_year_of_award","numeric_approximate_project_siz",
+    var fields=["gbep_award_amount","fiscal_year_awarded","numeric_approximate_project_siz",
                 "lead_organization_name","broad_project_goals","targeted_focal_species","project_scale"];
-    var url=LAYER_URL+"?where=1%3D1&outFields="+fields.join(",")+"&f=json&resultRecordCount=2000";
+    var url=LAYER_URL+"?where=1%3D1&outFields=*&f=json&resultRecordCount=2000";
     var res=await fetch(url);
     var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
@@ -395,11 +395,11 @@ function drawSpeciesChart(data) {
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
     var width=el.clientWidth||500,height=el.clientHeight||200;
-    var funded=data.filter(function(d){return d.fiscal_year_of_award;});
+    var funded=data.filter(function(d){return d.fiscal_year_awarded;});
     var byYear=d3.rollups(funded,
       function(v){return{dollars:d3.sum(v,function(d){return d.gbep_award_amount;}),count:v.length};},
       function(d){
-        var fy=d.fiscal_year_of_award;
+        var fy=d.fiscal_year_awarded;
         if(!fy)return null;
         if(String(fy).length===4)return parseInt(fy);
         var p=new Date(fy);if(!isNaN(p))return p.getFullYear();
