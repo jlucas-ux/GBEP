@@ -535,7 +535,6 @@ function drawGoalChart(data){
         if(key==="other"||key==="other goal"||key.indexOf("other_broad")===0){
           var desc=(d.broad_project_goals_other||"").trim()
                     .replace(/_/g," ").replace(/\s+/g," ");
-          // Future-proof: each unique "other" description becomes its own slice
           label = desc ? "Other: "+desc : "Other";
         } else {
           label = g.replace(/\b\w/g,function(c){return c.toUpperCase();});
@@ -545,7 +544,7 @@ function drawGoalChart(data){
   });
 
   var grouped=Object.keys(goalAcres)
-    .map(function(k,i){ return{name:k,value:goalAcres[k]}; })
+    .map(function(k){ return{name:k,value:goalAcres[k]}; })
     .filter(function(d){return d.value>0;})
     .sort(function(a,b){return b.value-a.value;})
     .map(function(d,i){ return{name:d.name,value:d.value,color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]}; });
@@ -553,22 +552,30 @@ function drawGoalChart(data){
   if(!grouped.length)return;
   var attrSum=d3.sum(grouped,function(d){return d.value;});
 
-  // ── Layout: donut center, legend right ─────────────────────────────────────
-  // Give legend enough room for full label text — no truncation ever
-  var LEGEND_W = Math.min(Math.round(W*0.52), 260);
-  var donutAreaW = W - LEGEND_W - 4;
+  // Only show items that round to ≥1%
+  var visible=grouped.filter(function(d){return Math.round(d.value/attrSum*100)>0;});
+
+  // ── Layout: donut left, legend right as a true flex row ───────────────────
+  var LEGEND_W = Math.min(Math.round(W*0.48), 240);
+  var donutAreaW = W - LEGEND_W;
   var r = Math.max(28, Math.min(donutAreaW/2 - 10, H/2 - 14));
   var innerR = r * 0.52;
-  var cx = donutAreaW/2;
-  var cy = H/2;
 
-  // ── SVG donut ─────────────────────────────────────────────────────────────
-  var svg=d3.select("#goal-chart").append("svg")
+  // Outer flex container
+  var flex=document.createElement("div");
+  flex.style.cssText="display:flex;flex-direction:row;width:"+W+"px;height:"+H+"px;overflow:hidden;";
+  el.appendChild(flex);
+
+  // ── Donut (left) ──────────────────────────────────────────────────────────
+  var donutWrap=document.createElement("div");
+  donutWrap.style.cssText="flex:0 0 "+donutAreaW+"px;height:"+H+"px;overflow:hidden;";
+  flex.appendChild(donutWrap);
+
+  var svg=d3.select(donutWrap).append("svg")
     .attr("width",donutAreaW).attr("height",H)
-    .style("position","absolute").style("left","0").style("top","0")
-    .style("overflow","visible")
-    .style("font-family",FONT);
+    .style("display","block").style("font-family",FONT);
 
+  var cx=donutAreaW/2, cy=H/2;
   var pie=d3.pie().value(function(d){return d.value;}).sort(null);
   var arc=d3.arc().innerRadius(innerR).outerRadius(r);
   var arcHov=d3.arc().innerRadius(innerR).outerRadius(r+5);
@@ -576,86 +583,75 @@ function drawGoalChart(data){
   var slices=pie(grouped);
 
   g.selectAll("path").data(slices).enter().append("path")
-    .attr("d",arc)
-    .attr("fill",function(d){return d.data.color;})
+    .attr("d",arc).attr("fill",function(d){return d.data.color;})
     .attr("stroke","white").attr("stroke-width",1.5)
     .on("mousemove",function(event,d){
       d3.select(this).attr("d",arcHov);
-      var pct=Math.round(d.data.value/attrSum*100);
-      showTooltip(event,
-        "<strong>"+d.data.name+"</strong><br>"+
-        fmtAcres(d.data.value)+"<br>"+pct+"% of attributed acres");
+      showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+
+        fmtAcres(d.data.value)+" · "+Math.round(d.data.value/attrSum*100)+"% of attributed acres");
     })
     .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
 
-  // % inside slices
   var pctFs=Math.max(9,Math.min(13,Math.floor(r*0.15)));
   slices.forEach(function(d){
-    var pct=d.data.value/attrSum*100;
-    if(pct<5)return;
+    if(d.data.value/attrSum*100<5)return;
     var c=arc.centroid(d);
-    g.append("text")
-      .attr("x",c[0]).attr("y",c[1])
+    g.append("text").attr("x",c[0]).attr("y",c[1])
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
       .attr("font-size",pctFs).attr("font-weight",700).attr("fill","white")
-      .style("pointer-events","none")
-      .text(Math.round(pct)+"%");
+      .style("pointer-events","none").text(Math.round(d.data.value/attrSum*100)+"%");
   });
 
-  // Center label
   var cFs=Math.min(Math.floor(innerR*0.52),vfs(28));
-  var cSubFs=Math.max(8,Math.floor(cFs*0.38));
   g.append("text").attr("text-anchor","middle").attr("y",cFs*0.1)
     .attr("font-size",cFs).attr("font-weight",900).attr("fill","#1a2332")
     .text(fmtAcres(totalAcres));
   g.append("text").attr("text-anchor","middle").attr("y",cFs*0.1+cFs*0.65)
-    .attr("font-size",cSubFs).attr("fill","#888")
+    .attr("font-size",Math.max(8,Math.floor(cFs*0.38))).attr("fill","#888")
     .text("physical acres");
 
-  // ── HTML Legend — right side, full word wrap, no truncation ───────────────
+  // ── Legend (right) — plain block layout, no flex on rows ─────────────────
+  // Key insight: use a block <div> per row with explicit pixel width on the
+  // name span. No flex, no min-width tricks — just hard pixel widths.
+
+  var SWATCH   = 9;   // px
+  var GAP      = 5;   // px between elements
+  var PCT_W    = 34;  // px for "33%" (3 chars max at 12px ≈ 33px)
+  var NAME_W   = LEGEND_W - SWATCH - GAP - PCT_W - GAP - 10; // remaining, minus padding
+  var nameFs   = Math.max(10, Math.min(12, Math.floor(H / visible.length * 0.4)));
+  var pctLFs   = Math.max(11, Math.min(15, Math.floor(H / visible.length * 0.48)));
+
   var legend=document.createElement("div");
   legend.style.cssText=
-    "position:absolute;right:0;top:0;"+
-    "width:"+LEGEND_W+"px;height:"+H+"px;"+
-    "display:flex;flex-direction:column;justify-content:flex-start;"+
-    "align-items:stretch;gap:0;overflow-y:auto;overflow-x:visible;"+
-    "box-sizing:border-box;padding:4px 4px 4px 6px;";
+    "flex:0 0 "+LEGEND_W+"px;height:"+H+"px;"+
+    "overflow-y:auto;overflow-x:hidden;"+
+    "box-sizing:border-box;padding:6px 4px 6px 8px;"+
+    "border-left:1px solid rgba(0,0,0,0.06);";
 
-  // Distribute height evenly but let items grow if label wraps
-  var baseItemH=Math.max(20,Math.floor((H-8)/grouped.length));
-  var nameFs=Math.max(9,Math.min(12,Math.floor(baseItemH*0.44)));
-  var pctLFs=Math.max(11,Math.min(15,Math.floor(baseItemH*0.54)));
-  var swSz=Math.max(7,Math.min(11,Math.floor(baseItemH*0.38)));
-
-  grouped.filter(function(d){return Math.round(d.value/attrSum*100)>0;}).forEach(function(d){
+  visible.forEach(function(d){
     var pct=Math.round(d.value/attrSum*100);
+
     var row=document.createElement("div");
-    row.style.cssText=
-      "display:flex;align-items:flex-start;gap:5px;"+
-      "min-height:"+baseItemH+"px;flex-shrink:0;flex-grow:1;"+
-      "box-sizing:border-box;padding:2px 0;"+
-      "border-bottom:1px solid rgba(0,0,0,0.05);";
+    row.style.cssText="display:flex;align-items:flex-start;gap:"+GAP+"px;"+
+      "margin-bottom:4px;box-sizing:border-box;width:"+(LEGEND_W-12)+"px;";
 
     var sw=document.createElement("div");
-    sw.style.cssText=
-      "width:"+swSz+"px;height:"+swSz+"px;border-radius:50%;"+
-      "background:"+d.color+";flex-shrink:0;margin-top:"+Math.round(nameFs*0.15)+"px;";
+    sw.style.cssText="width:"+SWATCH+"px;height:"+SWATCH+"px;border-radius:50%;"+
+      "background:"+d.color+";flex-shrink:0;margin-top:"+Math.ceil(nameFs*0.18)+"px;";
 
     var pctEl=document.createElement("div");
-    pctEl.style.cssText=
-      "font-size:"+pctLFs+"px;font-weight:900;color:"+d.color+";"+
-      "line-height:1;flex-shrink:0;letter-spacing:-0.3px;white-space:nowrap;";
+    pctEl.style.cssText="width:"+PCT_W+"px;flex-shrink:0;font-size:"+pctLFs+"px;"+
+      "font-weight:900;color:"+d.color+";line-height:1;";
     pctEl.textContent=pct+"%";
 
     var nameEl=document.createElement("div");
+    // Explicit pixel width — the ONLY reliable way to force wrapping in all browsers
     nameEl.style.cssText=
-      // KEY: no overflow:hidden, no white-space:nowrap — full wrapping
-      "font-size:"+nameFs+"px;font-weight:600;color:#334155;"+
-      "line-height:1.3;word-break:break-word;overflow-wrap:break-word;"+
-      "hyphens:auto;min-width:0;flex:1;";
-    // Insert soft break hints after slashes so words break AT slash not mid-word
-    var breakable=d.name.replace(/\//g,"/​").replace(/-/g,"-​");
-    nameEl.textContent=breakable;
+      "width:"+NAME_W+"px;font-size:"+nameFs+"px;font-weight:600;color:#334155;"+
+      "line-height:1.3;word-break:break-word;overflow-wrap:break-word;white-space:normal;";
+    // Add zero-width spaces after / so "Education/Outreach" breaks AT the slash
+    // word-break:break-word handles anything still too long as last resort
+    nameEl.textContent=d.name.replace(/\//g,"/​").replace(/[-]/g,"-​");
 
     row.appendChild(sw);
     row.appendChild(pctEl);
@@ -663,7 +659,7 @@ function drawGoalChart(data){
     legend.appendChild(row);
   });
 
-  el.appendChild(legend);
+  flex.appendChild(legend);
 }
   function redrawCharts(){
     if(!_data)return;
