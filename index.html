@@ -230,11 +230,37 @@ function drawTreemap() {
   el.style.position = "relative"; // needed for absolute children
 
   // ── NORMALIZE & COUNT ────────────────────────────────────────────────────
+  // Lookup map for truncated Survey123 habitat type coded values
+  var HAB_LABELS={
+    "submerged aquatic vegetation": "Submerged Aquatic Vegetation (SAV)",
+    "submerged aquatic veg":        "Submerged Aquatic Vegetation (SAV)",
+    "estuarine water column":       "Estuarine Water Column/Open Bay",
+    "estuarine water column open":  "Estuarine Water Column/Open Bay",
+    "living shoreline":             "Living Shoreline",
+    "forested wetland":             "Forested Wetland",
+    "estuarine wetland":            "Estuarine Wetland",
+    "estuarine shoreline":          "Estuarine Shoreline",
+    "coastal prairie":              "Coastal Prairie",
+    "freshwater marsh":             "Freshwater Marsh",
+    "riparian":                     "Riparian",
+    "urban suburban":               "Urban/Suburban",
+    "forest woodland":              "Forest/Woodland",
+    "intertidal reef":              "Intertidal/Reef",
+    "rookery island":               "Rookery Island",
+    "agriculture ranch":            "Agriculture/Ranch",
+    "beach dune":                   "Beach/Dune",
+  };
   function normHab(s) {
-    return String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
+    var cleaned = String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
       .replace(/^[\s\-]+|[\s\-]+$/g,"")
-      .replace(/none\s*[-]*\s*this project was research/i,"Research only")
-      .replace(/\b\w/g,function(c){return c.toUpperCase();});
+      .replace(/none\s*[-]*\s*this project was research/i,"Research only");
+    // Normalize slashes for key lookup
+    var key = cleaned.toLowerCase().replace(/[/\\]/g," ").replace(/\s+/g," ").trim();
+    // Prefix match for truncated names
+    for(var k in HAB_LABELS){
+      if(key===k||key.indexOf(k)===0)return HAB_LABELS[k];
+    }
+    return cleaned.replace(/\b\w/g,function(c){return c.toUpperCase();});
   }
 
   var funded = filteredData.filter(function(d){
