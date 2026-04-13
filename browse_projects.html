@@ -12,7 +12,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 
 #filter-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;flex-wrap:wrap;}
 #filter-bar input{height:34px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:13px;color:#334155;background:white;outline:none;cursor:pointer;min-width:160px;flex:1;max-width:280px;}
-#filter-bar select{height:34px;border:1px solid #cbd5e1;border-radius:6px;padding:0 28px 0 10px;font-family:'Roboto',sans-serif;font-size:13px;color:#334155;background:white;outline:none;cursor:pointer;width:max-content;min-width:140px;max-width:300px;}
+#filter-bar select{height:34px;border:1px solid #cbd5e1;border-radius:6px;padding:0 28px 0 10px;font-family:'Roboto',sans-serif;font-size:13px;color:#334155;background:white;outline:none;cursor:pointer;min-width:180px;max-width:300px;}
 #filter-bar select:focus,#filter-bar input:focus{border-color:#1677bc;}
 #search-input{flex:1;min-width:140px;}
 #filter-drawer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -418,9 +418,14 @@ function populateFilters(){
       var o=document.createElement("option");
       o.value=v;
       o.textContent=v;
-      o.title=v;  // full text shown on hover
+      o.title=v;
       sel.appendChild(o);
     });
+    // width:auto lets browser calculate intrinsic width from its options.
+    // Read offsetWidth immediately while auto, then lock it in.
+    sel.style.width="auto";
+    var w=sel.offsetWidth;
+    sel.style.width=Math.min(Math.max(w,180),300)+"px";
   }
   fill("f-org",orgs); fill("f-hab",habs); fill("f-fy",fys); fill("f-scale",scales);
   fill("f-species",species); fill("f-goals",goals); fill("f-stage",stages); fill("f-impl",impls);
