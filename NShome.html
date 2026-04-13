@@ -230,12 +230,28 @@ function drawSpeciesChart(data) {
            d.targeted_focal_species &&
            d.targeted_focal_species.trim() !== "";
   });
+
+  // Build species counts, expanding "other" with its companion field
   var sMap = {};
   funded.forEach(function(row) {
     row.targeted_focal_species.split(",")
-      .map(function(s) { return normalizeSpecies(s.trim()); })
+      .map(function(s) { return s.trim(); })
       .filter(function(s) { return s; })
-      .forEach(function(s) { sMap[s] = (sMap[s] || 0) + 1; });
+      .forEach(function(raw) {
+        var norm = normalizeSpecies(raw);
+        var key = norm.toLowerCase().trim();
+
+        // Expand "other" using targeted_focal_species_other
+        if (key === "other" || key === "other focal species" ||
+            key.indexOf("other_targeted") === 0) {
+          var desc = (row.targeted_focal_species_other || "").trim()
+                       .replace(/_/g, " ").replace(/\s+/g, " ");
+          var label = desc ? "Other: " + desc : "Other";
+          sMap[label] = (sMap[label] || 0) + 1;
+        } else {
+          sMap[norm] = (sMap[norm] || 0) + 1;
+        }
+      });
   });
 
   var counts = Object.keys(sMap)
@@ -244,39 +260,58 @@ function drawSpeciesChart(data) {
   if (!counts.length) return;
   var total = d3.sum(counts, function(d) { return d.count; });
 
-  // ── Layout: legend left, raindrop right ───────────────────────────────────
-  var leftW = Math.max(130, width * 0.42);
+  // Collect "other species benefited" notes
+  var otherBenefited = [];
+  funded.forEach(function(row) {
+    var val = row.what_other_species_were_identif ||
+              row.what_other_species_were_identifi || "";
+    val = val.trim().replace(/_/g, " ").replace(/\s+/g, " ");
+    if (val && val.toLowerCase() !== "none" && val.toLowerCase() !== "n/a" &&
+        val.toLowerCase() !== "null") {
+      otherBenefited.push(val);
+    }
+  });
+  // Deduplicate
+  var uniqueBenefited = otherBenefited.filter(function(v, i, a) {
+    return a.indexOf(v) === i;
+  });
 
+  // ── Layout ────────────────────────────────────────────────────────────────
+  // If there are benefited species notes, reserve bottom strip
+  var noteH = uniqueBenefited.length > 0 ? Math.min(38, Math.round(height * 0.18)) : 0;
+  var chartH = height - noteH;
+
+  var leftW = Math.max(120, width * 0.42);
+
+  // ── SVG (raindrop only) ───────────────────────────────────────────────────
   var svg = d3.select("#species-chart").append("svg")
-    .attr("width", width).attr("height", height)
+    .attr("width", width).attr("height", chartH)
     .style("font-family", FONT);
 
-  // ── Raindrop geometry ─────────────────────────────────────────────────────
-  var dropW   = width - leftW - 10;
-  var dropH   = height - 16;
-  var r       = Math.min(dropW * 0.50, dropH * 0.35);
-  var cx      = leftW + dropW / 2;
-  var topY    = 8;
-  var bottomCy = topY + dropH - r - 4;
+  // Raindrop geometry
+  var dropAreaW = width - leftW - 10;
+  var dropH     = chartH - 16;
+  var r         = Math.min(dropAreaW * 0.50, dropH * 0.35);
+  var cx        = leftW + dropAreaW / 2;
+  var topY      = 8;
+  var bottomCy  = topY + dropH - r - 4;
   var dropBottom = bottomCy + r;
   var dropTotalH = dropBottom - topY;
 
-  // Classic teardrop: pointed tip at top, semicircle at bottom
   var dropPath =
     "M " + cx + "," + topY +
     " L " + (cx + r) + "," + bottomCy +
     " A " + r + "," + r + " 0 0 1 " + (cx - r) + "," + bottomCy +
     " Z";
 
-  // Clip path — all fill rects are clipped to the drop silhouette
   var clipId = "spe-drop-clip";
   svg.append("defs").append("clipPath").attr("id", clipId)
     .append("path").attr("d", dropPath);
 
-  // ── Stacked layers (largest % at the base, smallest at the tip) ───────────
+  // ── Stacked layers — largest at base, smallest at tip ─────────────────────
   var curBottom = dropBottom;
 
-  // Pass 1: fill rects + dividers
+  // Pass 1: fills + dividers
   counts.forEach(function(c, i) {
     var pct    = c.count / total;
     var layerH = pct * dropTotalH;
@@ -284,11 +319,10 @@ function drawSpeciesChart(data) {
 
     svg.append("rect")
       .attr("x", cx - r - 4).attr("y", layerTop)
-      .attr("width", (r + 4) * 2).attr("height", layerH + 1) // +1 closes seam
+      .attr("width", (r + 4) * 2).attr("height", layerH + 1)
       .attr("fill", SPE_PALETTE[i % SPE_PALETTE.length])
       .attr("clip-path", "url(#" + clipId + ")");
 
-    // White divider between layers (skip after the last one)
     if (i < counts.length - 1) {
       svg.append("line")
         .attr("x1", cx - r - 4).attr("x2", cx + r + 4)
@@ -296,24 +330,22 @@ function drawSpeciesChart(data) {
         .attr("stroke", "white").attr("stroke-width", 2)
         .attr("clip-path", "url(#" + clipId + ")");
     }
-
     curBottom = layerTop;
   });
 
-  // Raindrop outline on top of fills
+  // Outline
   svg.append("path").attr("d", dropPath)
     .attr("fill", "none")
     .attr("stroke", "rgba(255,255,255,0.35)")
     .attr("stroke-width", 2);
 
-  // Pass 2: percentage labels inside each layer
+  // Pass 2: % labels inside layers
   curBottom = dropBottom;
   counts.forEach(function(c, i) {
     var pct    = c.count / total;
     var layerH = pct * dropTotalH;
     var layerTop = curBottom - layerH;
     var midY   = layerTop + layerH / 2;
-
     if (layerH >= 16) {
       var fs = Math.max(9, Math.min(vfs(14), Math.floor(layerH * 0.38)));
       svg.append("text")
@@ -325,17 +357,15 @@ function drawSpeciesChart(data) {
         .style("pointer-events", "none")
         .text(Math.round(pct * 100) + "%");
     }
-
     curBottom = layerTop;
   });
 
-  // Pass 3: invisible hover rects for tooltips
+  // Pass 3: invisible hover rects
   curBottom = dropBottom;
   counts.forEach(function(c, i) {
     var pct    = c.count / total;
     var layerH = pct * dropTotalH;
     var layerTop = curBottom - layerH;
-
     svg.append("rect")
       .attr("x", cx - r - 4).attr("y", layerTop)
       .attr("width", (r + 4) * 2).attr("height", layerH)
@@ -350,47 +380,71 @@ function drawSpeciesChart(data) {
         );
       })
       .on("mouseleave", hideTooltip);
-
     curBottom = layerTop;
   });
 
-  // ── Legend list (left side) ───────────────────────────────────────────────
+  // ── Legend (left side, HTML) ───────────────────────────────────────────────
   var list = document.createElement("div");
   list.style.cssText =
-    "position:absolute;left:10px;top:8px;" +
-    "width:" + (leftW - 18) + "px;height:" + (height - 16) + "px;" +
-    "display:flex;flex-direction:column;justify-content:flex-start;" +
-    "font-family:" + FONT + ";overflow:hidden;pointer-events:none;box-sizing:border-box;";
+    "position:absolute;left:0;top:0;" +
+    "width:" + (leftW - 8) + "px;height:" + chartH + "px;" +
+    "display:flex;flex-direction:column;justify-content:center;" +
+    "font-family:" + FONT + ";overflow:hidden;pointer-events:none;" +
+    "box-sizing:border-box;padding:4px 4px 4px 6px;";
 
-  var rowH   = (height - 16) / counts.length;
-  var pctFS  = Math.max(vfs(11), Math.min(vfs(22), Math.floor(rowH * 0.48)));
-  var nameFS = Math.max(vfs(10), Math.min(vfs(14), Math.floor(pctFS * 0.72)));
-  var swatch = Math.max(7, Math.floor(pctFS * 0.55));
+  var rowH   = chartH / counts.length;
+  var pctFS  = Math.max(10, Math.min(vfs(20), Math.floor(rowH * 0.45)));
+  var nameFS = Math.max(9,  Math.min(vfs(13), Math.floor(pctFS * 0.70)));
+  var swatch = Math.max(7,  Math.floor(pctFS * 0.50));
 
-  counts.slice().reverse().forEach(function(c, i) {
-    var pct   = Math.round(c.count / total * 100);
+  // Legend is reversed: largest at bottom matches raindrop base
+  counts.slice().reverse().forEach(function(c, revIdx) {
+    // Original index (for color matching)
+    var i = counts.length - 1 - revIdx;
     var color = SPE_PALETTE[i % SPE_PALETTE.length];
-    var row   = document.createElement("div");
-    var topPad = Math.max(1, Math.floor((rowH - nameFS * 1.25) / 2));
+    var pct   = Math.round(c.count / total * 100);
 
+    var topPad = Math.max(1, Math.floor((rowH - nameFS * 1.3) / 2));
+    var row    = document.createElement("div");
     row.style.cssText =
-      "display:flex;align-items:flex-start;gap:6px;" +
+      "display:flex;align-items:flex-start;gap:5px;" +
       "height:" + Math.floor(rowH) + "px;overflow:hidden;flex-shrink:0;" +
       "box-sizing:border-box;padding-top:" + topPad + "px;";
 
+    // Color swatch
     row.innerHTML =
       '<div style="width:' + swatch + 'px;height:' + swatch + 'px;background:' + color +
-        ';border-radius:50%;flex-shrink:0;margin-top:' + Math.round(nameFS * 0.05) + 'px;"></div>' +
+        ';border-radius:50%;flex-shrink:0;margin-top:' + Math.round(nameFS * 0.08) + 'px;"></div>' +
+      // % in matching color
       '<div style="font-size:' + pctFS + 'px;font-weight:900;color:' + color +
         ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">' + pct + '%</div>' +
-      '<div style="font-size:' + nameFS + 'px;font-weight:600;color:#333;' +
-        'overflow-wrap:break-word;word-break:normal;min-width:0;flex:1;line-height:1.2;">' +
+      // Name
+      '<div style="font-size:' + nameFS + 'px;font-weight:600;color:#334155;' +
+        'overflow-wrap:break-word;word-break:break-word;min-width:0;flex:1;line-height:1.25;">' +
         c.label + '</div>';
 
     list.appendChild(row);
   });
 
   el.appendChild(list);
+
+  // ── "Other species benefited" note strip ──────────────────────────────────
+  if (noteH > 0 && uniqueBenefited.length > 0) {
+    var note = document.createElement("div");
+    var noteFS = Math.max(9, Math.min(11, Math.floor(noteH * 0.30)));
+    note.style.cssText =
+      "position:absolute;left:0;bottom:0;width:100%;height:" + noteH + "px;" +
+      "background:rgba(22,119,188,0.06);border-top:1px solid rgba(22,119,188,0.15);" +
+      "padding:3px 8px;box-sizing:border-box;overflow:hidden;" +
+      "font-family:" + FONT + ";font-size:" + noteFS + "px;color:#555;line-height:1.35;";
+
+    var preview = uniqueBenefited.slice(0, 3).join("; ");
+    if (uniqueBenefited.length > 3) preview += " (+" + (uniqueBenefited.length - 3) + " more)";
+    note.innerHTML =
+      '<span style="font-weight:700;color:#1677bc;">Also benefiting:</span> ' + preview;
+    note.title = uniqueBenefited.join("\n");
+    el.appendChild(note);
+  }
 }
   function drawFiscalYear(data){
     var el=document.getElementById("fy-chart");
