@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;}
+
+    #banner{
+      width:100%;height:100%;
+      background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
+      display:flex;align-items:center;padding:0 40px;
+      gap:32px;
+    }
+
+    .divider{
+      width:3px;height:65%;
+      background:rgba(255,255,255,0.3);
+      flex-shrink:0;border-radius:2px;
+    }
+
+    .title-block{flex-shrink:0;}
+    .page-title{
+      font-size:28px;font-weight:900;color:white;
+      letter-spacing:-0.5px;line-height:1.1;
+    }
+    .page-title span{color:#b2ebf2;}
+
+    .blurb-block{flex:1;}
+    .page-blurb{
+      font-size:14px;font-weight:300;color:rgba(255,255,255,0.82);
+      line-height:1.65;max-width:700px;
+    }
+  </style>
+</head>
+<body>
+<div id="banner">
+  <div class="title-block">
+    <div class="page-title" id="page-title">Frequently Asked Questions (FAQ)</div>
+  </div>
+  <div class="divider"></div>
+  <div class="blurb-block">
+    <div class="page-blurb" id="page-blurb">Answers to common questions about Galveston Bay Estuary Program projects, funding, and how to use this site.</div>
+  </div>
+</div>
+
+<script>
+  var params=new URLSearchParams(window.location.search);
+  if(params.get("title")) document.getElementById("page-title").innerHTML=params.get("title");
+  if(params.get("blurb")) document.getElementById("page-blurb").textContent=params.get("blurb");
+</script>
+</body>
+</html>
