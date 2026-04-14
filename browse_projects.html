@@ -284,8 +284,61 @@ function fmtFY(v){
 function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?String(v).trim():null;}
 
   // Normalize Survey123 values: underscores→spaces, collapse whitespace, trim dashes
+  // ── Label correction maps — fixes Survey123 truncated coded values ──────
+  // Keys are lowercased, underscores→spaces, slashes→spaces for fuzzy match
+  var LABEL_FIXES={
+    // Broad project goals
+    "restore historical that become":           "Restore Historical (That Became Unusable)",
+    "restore historical  that become":          "Restore Historical (That Became Unusable)",
+    "create new habitat where none":            "Create New Habitat (Where None Was Previously)",
+    "restore enhance habitat":                  "Restore/Enhance Habitat",
+    "restore sustain water quality":            "Restore/Sustain Water Quality",
+    "research monitoring":                      "Research/Monitoring",
+    "education outreach publications":          "Education/Outreach/Publications",
+    "land acquisition":                         "Land Acquisition",
+    // Focal species
+    "invasive species control eradic":          "Invasive Species Control/Eradication",
+    "invasive species control eradication":     "Invasive Species Control/Eradication",
+    "state listed species species of":          "State Listed Species/Species of Greatest Conservation Need",
+    "state listed species species of greatest": "State Listed Species/Species of Greatest Conservation Need",
+    "endangered threatened species":            "Endangered/Threatened Species",
+    "nongame wildlife":                         "Nongame Wildlife",
+    "no focal species during planning":         "No Focal Species During Planning",
+    // Habitat types
+    "submerged aquatic veg":                    "Submerged Aquatic Vegetation (SAV)",
+    "submerged aquatic vegetation":             "Submerged Aquatic Vegetation (SAV)",
+    "estuarine water column open":              "Estuarine Water Column/Open Bay",
+    "estuarine water column":                   "Estuarine Water Column/Open Bay",
+    "urban suburban":                           "Urban/Suburban",
+    "forest woodland":                          "Forest/Woodland",
+    "intertidal reef":                          "Intertidal/Reef",
+    "agriculture ranch":                        "Agriculture/Ranch",
+    // Project scale
+    "large scale representative":               "Large Scale Representative Project",
+    "large scale":                              "Large Scale Representative Project",
+    // Implementer types
+    "federal state or local government":        "Federal, State, or Local Government",
+    "federal  state  or local government":      "Federal, State, or Local Government",
+    "federal state local government":           "Federal, State, or Local Government",
+  };
+
+  function applyLabelFix(raw){
+    if(!raw)return raw;
+    var cleaned=String(raw).replace(/_/g," ").replace(/\s+/g," ").trim();
+    // Normalize for key lookup: lowercase + slashes/parens → space
+    var key=cleaned.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
+    // Exact match first
+    if(LABEL_FIXES[key])return LABEL_FIXES[key];
+    // Prefix match for truncated values
+    for(var k in LABEL_FIXES){
+      if(key.indexOf(k)===0||k.indexOf(key)===0)return LABEL_FIXES[k];
+    }
+    return cleaned;
+  }
+
   function normalizeVal(s){
-    return String(s).replace(/_/g," ").replace(/\s+/g," ").replace(/^[\s\-]+|[\s\-]+$/g,"").trim();
+    var base=String(s).replace(/_/g," ").replace(/\s+/g," ").replace(/^[\s\-]+|[\s\-]+$/g,"").trim();
+    return applyLabelFix(base);
   }
 
   // Split comma-separated field, normalize each part, deduplicate case-insensitively
@@ -661,13 +714,13 @@ function showDetail(d){
   ]);
 
   section("Conservation focus",[
-    ["Broad project goals",       valWithOther(d.broad_project_goals, d.broad_project_goals_other)],
+    ["Broad project goals",       valWithOther(d.edited_broad_project_goals||d.broad_project_goals, d.broad_project_goals_other)],
     ["Main physical goals",       valWithOther(d.what_were_the_main_physical_goa, d.if_main_physical_goal_was_other)||valWithOther(d.what_were_the_main_physical_goal, d.if_main_physical_goal_was_other)],
     ["Long-term goals",           valList(d.what_were_the_long_term_goals_o)||valList(d.what_were_the_long_term_goals_of)],
     ["Landscape / habitat type",  valWithOther(d.project_landscape_type, d.project_landscape_other)],
     ["Project scale",             val(d.project_scale)],
     ["Approx. project size",      d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
-    ["Focal species targeted",    valWithOther(d.targeted_focal_species, d.targeted_focal_species_other)||valWithOther(d.what_focal_species_were_targeted, d.targeted_focal_species_other)],
+    ["Focal species targeted",    valWithOther(d.edited_focal_species||d.targeted_focal_species, d.targeted_focal_species_other)||valWithOther(d.what_focal_species_were_targeted, d.targeted_focal_species_other)],
     ["Other benefiting species",  valList(d.what_other_species_were_identif)||valList(d.what_other_species_were_identifi)],
   ]);
 
