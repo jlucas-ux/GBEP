@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>GBEP Hero Stats</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Roboto',sans-serif;background:transparent;}
+#stats{display:flex;gap:0;width:100%;height:100vh;min-height:80px;max-height:140px;}
+.stat{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:12px 8px;background:#0C3547;border-right:1px solid rgba(255,255,255,0.12);text-align:center;}
+.stat:last-child{border-right:none;}
+.stat-val{font-size:clamp(18px,3vw,32px);font-weight:900;color:#1D9E75;line-height:1;letter-spacing:-0.5px;}
+.stat-lbl{font-size:clamp(9px,1vw,12px);color:#9FE1CB;margin-top:4px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
+.stat-sub{font-size:clamp(8px,.8vw,10px);color:rgba(159,225,203,0.6);margin-top:2px;}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:#9FE1CB;font-family:'Roboto',sans-serif;}
+</style>
+</head>
+<body>
+<div id="loading">Loading…</div>
+<div id="stats" style="display:none;">
+  <div class="stat"><div class="stat-val" id="s-projects">—</div><div class="stat-lbl">Projects Funded</div><div class="stat-sub">GBEP award</div></div>
+  <div class="stat"><div class="stat-val" id="s-award">—</div><div class="stat-lbl">Total GBEP Awarded</div><div class="stat-sub">All funded projects</div></div>
+  <div class="stat"><div class="stat-val" id="s-acres">—</div><div class="stat-lbl">Acres Impacted</div><div class="stat-sub">Approximate project size</div></div>
+  <div class="stat"><div class="stat-val" id="s-orgs">—</div><div class="stat-lbl">Lead Organizations</div><div class="stat-sub">Distinct funded orgs</div></div>
+</div>
+<script>
+var URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+function fmt$(v){if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return"$"+Math.round(v/1e3)+"K";return"$"+Math.round(v);}
+function fmtAc(v){if(v>=1e6)return(v/1e6).toFixed(1)+"M ac";if(v>=1e3)return(v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
+async function init(){
+  var res=await fetch(URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=gbep_award_amount,numeric_approximate_project_siz,lead_organization_name&f=json&resultRecordCount=2000");
+  var d=await res.json();
+  var rows=d.features.map(function(f){return f.attributes;});
+  var totalAward=rows.reduce(function(s,r){return s+(r.gbep_award_amount||0);},0);
+  var totalAcres=rows.filter(function(r){return r.numeric_approximate_project_siz>0;}).reduce(function(s,r){return s+(r.numeric_approximate_project_siz||0);},0);
+  var orgs=new Set(rows.map(function(r){return(r.lead_organization_name||"").trim();}).filter(Boolean)).size;
+  document.getElementById("s-projects").textContent=rows.length;
+  document.getElementById("s-award").textContent=fmt$(totalAward);
+  document.getElementById("s-acres").textContent=fmtAc(totalAcres);
+  document.getElementById("s-orgs").textContent=orgs;
+  document.getElementById("loading").style.display="none";
+  document.getElementById("stats").style.display="flex";
+}
+init();
+</script>
+</body>
+</html>
