@@ -50,7 +50,7 @@ function drawChart(data){
   if(!byYear.length)return;
   var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;
   document.getElementById("fy-subtitle").textContent="Award dollars (bars) and project count (line) per fiscal year, "+minY+"–"+maxY+".";
-  var minBarW=28,mL=Math.round(vfs(55)),mR=30,mT=20,mB=Math.round(vfs(85));
+  var minBarW=28,mL=Math.max(58,Math.round(vfs(60))),mR=30,mT=20,mB=Math.max(80,Math.round(vfs(90)));
   var chartW=Math.max(width,byYear.length*minBarW+mL+mR),w=chartW-mL-mR,h=height-mT-mB;
   var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
   var yMax=d3.max(byYear,function(d){return d.award;})||1;
@@ -63,9 +63,9 @@ function drawChart(data){
   var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
   var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
   g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(function(v){return fmt$(v);}))
-    .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",Math.max(11,vfs(11))).attr("fill","#666");});
+    .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",Math.max(12,vfs(12))).attr("fill","#666");});
   g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(32,mL-12))
-    .attr("text-anchor","middle").attr("font-size",Math.max(11,vfs(11))).attr("fill","#888").text("GBEP Award ($)");
+    .attr("text-anchor","middle").attr("font-size",Math.max(12,vfs(12))).attr("fill","#888").text("GBEP Award ($)");
   g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
     .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.award);})
     .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.award);})
@@ -81,7 +81,7 @@ function drawChart(data){
     .on("mouseleave",hideTooltip);
   g.append("g").attr("transform","translate(0,"+h+")")
     .call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
-    .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",Math.max(11,vfs(11))).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
+    .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",Math.max(12,vfs(12))).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
 }
 
 async function init(){
