@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<title>GBEP Acres by Project Goal</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:transparent;font-family:'Roboto',sans-serif;}
+#wrap{width:100%;height:100%;display:flex;flex-direction:column;padding:12px 14px 8px;}
+.chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;}
+.chart-subtitle{font-size:12px;color:#64748b;margin-bottom:8px;}
+#goal-chart{flex:1;min-height:0;position:relative;overflow:hidden;}
+#tooltip{position:fixed;background:rgba(26,35,50,.92);color:white;padding:7px 10px;border-radius:6px;
+  font-size:12px;font-family:'Roboto',sans-serif;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="chart-title">Acres by Project Goal</div>
+  <div class="chart-subtitle">Physical project acres by broad goal. Projects with multiple goals counted in each.</div>
+  <div id="goal-chart"></div>
+</div>
+<div id="tooltip"></div>
+<script>
+var FONT="'Roboto',sans-serif";
+var WAFFLE_PALETTE=["#1677bc","#0C6E56","#1D9E75","#006994","#00695c","#0d47a1","#1b5e20","#006064","#01579b","#00838f"];
+var URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+var tip=document.getElementById("tooltip");
+function showTooltip(e,html){tip.innerHTML=html;tip.style.display="block";tip.style.left=(e.clientX+12)+"px";tip.style.top=(e.clientY-8)+"px";}
+function hideTooltip(){tip.style.display="none";}
+function vfs(b){return Math.min(1,Math.max(0.6,window.innerWidth/1600))*b;}
+function fmtAcres(v){if(!v||v<=0)return"—";if(v>=1e3)return(v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
+
+function drawGoalChart(data){
+  var el=document.getElementById("goal-chart");
+  el.innerHTML="";
+  el.style.position="relative";
+  var W=el.clientWidth||400, H=el.clientHeight||200;
+
+  // ── Full display labels (Survey123 stores truncated coded values) ──────────
+  // Normalize both sides: strip parens, slashes, extra spaces, lowercase
+  function normKey(s){
+    return s.toLowerCase()
+      .replace(/[()\/\\]/g," ")
+      .replace(/_/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+  var GOAL_LABELS=[
+    // [normalized-key-fragment, full display label]
+    // Match by checking if the stored value STARTS WITH or CONTAINS the key
+    ["land acquisition",                         "Land Acquisition"],
+    ["restore enhance habitat",                  "Restore/Enhance Habitat"],
+    ["restore historical",                       "Restore Historical (That Become Unusable)"],
+    ["create new habitat",                       "Create New Habitat (Where None Was Previously)"],
+    ["restore sustain water quality",            "Restore/Sustain Water Quality"],
+    ["research monitoring",                      "Research/Monitoring"],
+    ["education outreach publications",          "Education/Outreach/Publications"],
+  ];
+
+  function resolveLabel(raw){
+    var n=normKey(raw);
+    for(var i=0;i<GOAL_LABELS.length;i++){
+      // Match if stored value contains the key fragment
+      if(n.indexOf(GOAL_LABELS[i][0])>-1) return GOAL_LABELS[i][1];
+    }
+    // fallback: title-case the raw value
+    return raw.replace(/\b\w/g,function(c){return c.toUpperCase();});
+  }
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  var funded=data.filter(function(d){
+    return d.broad_project_goals && d.numeric_approximate_project_siz>0
+           && d.project_scale==="Physical project";
+  });
+  var totalAcres=d3.sum(funded,function(d){return d.numeric_approximate_project_siz||0;});
+
+  var goalAcres={};
+  funded.forEach(function(d){
+    String(d.broad_project_goals).split(/[,;]/)
+      .map(function(s){return s.trim().replace(/_/g," ").replace(/\s+/g," ");})
+      .filter(Boolean)
+      .forEach(function(g){
+        var key=normKey(g);
+        var label;
+        if(key==="other"||key==="other goal"||key.indexOf("other broad")===0||key.indexOf("other_broad")===0){
+          var desc=(d.broad_project_goals_other||"").trim().replace(/_/g," ").replace(/\s+/g," ");
+          label = desc ? "Other: "+desc : "Other";
+        } else {
+          label = resolveLabel(g);
+        }
+        goalAcres[label]=(goalAcres[label]||0)+(d.numeric_approximate_project_siz||0);
+      });
+  });
+
+  var grouped=Object.keys(goalAcres)
+    .map(function(k){return{name:k,value:goalAcres[k]};})
+    .filter(function(d){return d.value>0;})
+    .sort(function(a,b){return b.value-a.value;})
+    .map(function(d,i){return{name:d.name,value:d.value,color:WAFFLE_PALETTE[i%WAFFLE_PALETTE.length]};});
+
+  if(!grouped.length)return;
+  var attrSum=d3.sum(grouped,function(d){return d.value;});
+  var visible=grouped.filter(function(d){return Math.round(d.value/attrSum*100)>0;});
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+  // Legend takes right portion; donut takes left
+  var LEGEND_W=Math.min(Math.round(W*0.50),260);
+  var donutAreaW=W-LEGEND_W;
+  var r=Math.max(28,Math.min(donutAreaW/2-10,H/2-14));
+  var innerR=r*0.52;
+  var cx=donutAreaW/2, cy=H/2;
+
+  // Flex container
+  var flex=document.createElement("div");
+  flex.style.cssText="display:flex;flex-direction:row;width:"+W+"px;height:"+H+"px;";
+  el.appendChild(flex);
+
+  // ── Donut ─────────────────────────────────────────────────────────────────
+  var donutWrap=document.createElement("div");
+  donutWrap.style.cssText="flex:0 0 "+donutAreaW+"px;height:"+H+"px;overflow:hidden;";
+  flex.appendChild(donutWrap);
+
+  var svg=d3.select(donutWrap).append("svg")
+    .attr("width",donutAreaW).attr("height",H)
+    .style("display","block").style("font-family",FONT);
+
+  var pie=d3.pie().value(function(d){return d.value;}).sort(null);
+  var arc=d3.arc().innerRadius(innerR).outerRadius(r);
+  var arcHov=d3.arc().innerRadius(innerR).outerRadius(r+5);
+  var g=svg.append("g").attr("transform","translate("+cx+","+cy+")");
+  var slices=pie(grouped);
+
+  g.selectAll("path").data(slices).enter().append("path")
+    .attr("d",arc).attr("fill",function(d){return d.data.color;})
+    .attr("stroke","white").attr("stroke-width",1.5)
+    .on("mousemove",function(event,d){
+      d3.select(this).attr("d",arcHov);
+      showTooltip(event,"<strong>"+d.data.name+"</strong><br>"+
+        fmtAcres(d.data.value)+" · "+Math.round(d.data.value/attrSum*100)+"% of attributed acres");
+    })
+    .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
+
+  var pctFs=Math.max(9,Math.min(13,Math.floor(r*0.15)));
+  slices.forEach(function(d){
+    if(d.data.value/attrSum*100<5)return;
+    var c=arc.centroid(d);
+    g.append("text").attr("x",c[0]).attr("y",c[1])
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size",pctFs).attr("font-weight",700).attr("fill","white")
+      .style("pointer-events","none")
+      .text(Math.round(d.data.value/attrSum*100)+"%");
+  });
+
+  var cFs=Math.min(Math.floor(innerR*0.52),vfs(28));
+  g.append("text").attr("text-anchor","middle").attr("y",cFs*0.1)
+    .attr("font-size",cFs).attr("font-weight",900).attr("fill","#1a2332")
+    .text(fmtAcres(totalAcres));
+  g.append("text").attr("text-anchor","middle").attr("y",cFs*0.1+cFs*0.65)
+    .attr("font-size",Math.max(8,Math.floor(cFs*0.38))).attr("fill","#888")
+    .text("physical acres");
+
+  // ── Legend — fills the full right column, items auto-size ─────────────────
+  // Font sizes scale with available height per item
+  var itemCount=visible.length||1;
+  var targetItemH=Math.floor((H-8)/itemCount);      // ideal height per item
+  var nameFs=Math.max(10,Math.min(13,Math.floor(targetItemH*0.38)));
+  var pctLFs=Math.max(12,Math.min(16,Math.floor(targetItemH*0.48)));
+  var swSz=Math.max(8,Math.min(11,Math.floor(nameFs*0.85)));
+
+  // Fixed-width columns inside legend so name always gets remaining space
+  var PAD=8;                                          // left padding
+  var GAP=5;                                          // gap between cols
+  var PCT_COL=Math.round(pctLFs*2.4);                // wide enough for "33%"
+  var SW_COL=swSz+GAP;
+  var NAME_COL=LEGEND_W-PAD-SW_COL-PCT_COL-GAP-6;   // everything remaining
+
+  var legend=document.createElement("div");
+  legend.style.cssText=
+    "flex:0 0 "+LEGEND_W+"px;height:"+H+"px;"+
+    "overflow-y:auto;overflow-x:hidden;box-sizing:border-box;"+
+    "padding:4px 4px 4px "+PAD+"px;"+
+    "border-left:1px solid rgba(0,0,0,0.08);"+
+    "display:flex;flex-direction:column;justify-content:space-evenly;";
+
+  visible.forEach(function(d){
+    var pct=Math.round(d.value/attrSum*100);
+    var row=document.createElement("div");
+    row.style.cssText=
+      "display:flex;align-items:flex-start;gap:"+GAP+"px;"+
+      "flex-shrink:0;box-sizing:border-box;padding:1px 0;";
+
+    var sw=document.createElement("div");
+    sw.style.cssText=
+      "width:"+swSz+"px;height:"+swSz+"px;border-radius:50%;"+
+      "background:"+d.color+";flex-shrink:0;margin-top:"+Math.ceil(nameFs*0.2)+"px;";
+
+    var pctEl=document.createElement("div");
+    pctEl.style.cssText=
+      "width:"+PCT_COL+"px;flex-shrink:0;"+
+      "font-size:"+pctLFs+"px;font-weight:900;color:"+d.color+";line-height:1;";
+    pctEl.textContent=pct+"%";
+
+    var nameEl=document.createElement("div");
+    // Explicit pixel width = the ONLY reliable way to force wrapping in all browsers
+    nameEl.style.cssText=
+      "width:"+NAME_COL+"px;flex-shrink:0;"+
+      "font-size:"+nameFs+"px;font-weight:600;color:#334155;"+
+      "line-height:1.3;word-break:break-word;overflow-wrap:break-word;";
+    // ZWS after / so "Education/Outreach/Publications" breaks AT slashes
+    nameEl.textContent=d.name.replace(/\//g,"/\u200b");
+
+    row.appendChild(sw);
+    row.appendChild(pctEl);
+    row.appendChild(nameEl);
+    legend.appendChild(row);
+  });
+
+  flex.appendChild(legend);
+}
+
+async function init(){
+  var res=await fetch(URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=broad_project_goals,broad_project_goals_other,numeric_approximate_project_siz,project_scale&f=json&resultRecordCount=2000");
+  var d=await res.json();
+  window._data=d.features.map(function(f){return f.attributes;});
+  drawGoalChart(window._data);
+}
+init();
+window.addEventListener("resize",function(){if(window._data)drawGoalChart(window._data);});
+</script>
+</body>
+</html>
