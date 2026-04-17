@@ -106,7 +106,7 @@ function drawSpeciesChart(data) {
   // ── Layout constants (matching goal chart font scale) ─────────────────────
   var N = counts.length;
   // Legend on left, drop on right — sizes are responsive
-  var leftW  = Math.max(110, Math.min(width * 0.50, 220));
+  var leftW  = Math.max(140, Math.min(width * 0.58, 280));
   var dropAreaW = width - leftW - 12;
   var dropH     = height - 8;
 
@@ -126,9 +126,9 @@ function drawSpeciesChart(data) {
 
   // Legend font sizing — matching goal chart
   var rowH    = height / N;
-  var nameFs  = Math.max(10, Math.min(13, Math.floor(rowH * 0.38)));
+  var nameFs  = Math.max(12, Math.min(13, Math.floor(rowH * 0.38)));
   var pctLFs  = Math.max(12, Math.min(16, Math.floor(rowH * 0.48)));
-  var swSz    = Math.max(8, Math.min(11, Math.floor(nameFs * 0.85)));
+  var swSz    = Math.max(12, Math.min(13, Math.floor(nameFs * 0.85)));
 
   // ── SVG ───────────────────────────────────────────────────────────────────
   var svg = d3.select("#species-chart").append("svg")
@@ -207,7 +207,7 @@ function drawSpeciesChart(data) {
     "position:absolute;left:0;top:0;" +
     "width:" + (leftW - 6) + "px;height:" + height + "px;" +
     "display:flex;flex-direction:column;justify-content:center;" +
-    "font-family:" + FONT + ";overflow:hidden;pointer-events:none;" +
+    "font-family:" + FONT + ";overflow:visible;pointer-events:none;" +
     "box-sizing:border-box;padding:4px 6px 4px 4px;";
 
   // Legend reversed so largest is at bottom matching raindrop
@@ -221,7 +221,7 @@ function drawSpeciesChart(data) {
     var row    = document.createElement("div");
     row.style.cssText =
       "display:flex;align-items:flex-start;gap:5px;" +
-      "height:" + Math.floor(rowH) + "px;overflow:hidden;flex-shrink:0;" +
+      "min-height:" + Math.floor(rowH) + "px;flex-shrink:0;" +
       "box-sizing:border-box;padding-top:" + topPad + "px;";
 
     row.innerHTML =
@@ -252,9 +252,9 @@ function drawSpeciesChart(data) {
       .attr("x1", startX).attr("y1", legendY)
       .attr("x2", endX).attr("y2", dropY)
       .attr("stroke", color)
-      .attr("stroke-width", 1)
-      .attr("opacity", 0.45)
-      .attr("stroke-dasharray", "3,3");
+      .attr("stroke-width", 1.5)
+      .attr("opacity", 0.75)
+      .attr("stroke-dasharray", "3,2");
   });
 }
 
