@@ -37,7 +37,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .pcard{background:white;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;transition:box-shadow .15s,border-color .15s;overflow:hidden;}
 .pcard:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(22,119,188,.12);}
 .pcard.active{border-color:#1677bc;border-width:1.5px;box-shadow:0 2px 12px rgba(22,119,188,.2);}
-.pcard-accent{width:8px;flex-shrink:0;border-radius:2px 0 0 2px;}
+.pcard-accent{width:16px;flex-shrink:0;border-radius:4px 0 0 4px;}
 .pcard-body{flex:1;padding:9px 10px 8px;min-width:0;}
 .pcard-title{font-size:17px;font-weight:700;color:#1a2332;line-height:1.3;margin-bottom:2px;}
 .pcard-org{font-size:14px;color:#64748b;margin-bottom:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
@@ -78,10 +78,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 #detail-tags-row{display:flex;gap:6px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid #e2e8f0;flex-shrink:0;}
 
 #legend-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:5px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0;font-size:14px;color:#64748b;}
-.leg-item{display:flex;align-items:center;gap:5px;}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;}
 .leg-pill-sample{font-size:13px;padding:2px 7px;border-radius:8px;font-weight:500;}
 .leg-divider{width:1px;height:14px;background:#e2e8f0;}
-.leg-accent{width:4px;height:14px;border-radius:2px;flex-shrink:0;}
+.leg-accent{width:16px;height:22px;border-radius:4px;flex-shrink:0;}
 
 #download-btn{height:28px;padding:0 12px;border-radius:5px;border:1px solid #1677bc;background:white;font-size:14px;color:#1677bc;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;}
 #download-btn:hover{background:#eff6ff;}
@@ -124,6 +124,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
   .dfield-label{width:110px;font-size:13px;}
   .dfield-value{font-size:13px;}
 }
+
+.pcard-ap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px 6px 6px;flex-shrink:0;min-width:52px;border-left:1px solid #e2e8f0;background:#f8fafc;}
+.ap-tag{font-size:12px;font-weight:700;padding:3px 6px;border-radius:4px;background:#dcfce7;color:#166534;white-space:nowrap;text-align:center;line-height:1.3;width:100%;}
 </style>
 </head>
 <body>
@@ -149,16 +152,23 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
   </div>
 
   <div id="legend-bar">
-    <span style="font-weight:600;color:#475569;">Key:</span>
-    <div class="leg-item"><div class="leg-accent" style="background:#2e7d32;"></div> Marsh</div>
-    <div class="leg-item"><div class="leg-accent" style="background:#1677bc;"></div> Oyster reef</div>
-    <div class="leg-item"><div class="leg-accent" style="background:#00695c;"></div> Wetland / freshwater</div>
-    <div class="leg-item"><div class="leg-accent" style="background:#6a1b9a;"></div> Upland</div>
-    <div class="leg-item"><div class="leg-accent" style="background:#e65100;"></div> Shoreline / coastal</div>
+    <span style="font-weight:700;color:#475569;font-size:14px;flex-shrink:0;">Habitat type:</span>
+    <div class="leg-item"><div class="leg-accent" style="background:#2e7d32;"></div>Estuarine Wetland</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#e65100;"></div>Estuarine Shoreline</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#827717;"></div>Coastal Prairie</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#0277bd;"></div>Open Bay/Water Column</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#006994;"></div>Freshwater Marsh</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#00838f;"></div>Riparian</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#00897b;"></div>Living Shoreline</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#33691e;"></div>Forested Wetland</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#1b5e20;"></div>Forest/Woodland</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#5d4037;"></div>Agriculture/Ranch</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#f9a825;"></div>Beach/Dune</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#1565c0;"></div>SAV</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#4527a0;"></div>Intertidal/Reef</div>
+    <div class="leg-item"><div class="leg-accent" style="background:#546e7a;"></div>Urban/Suburban</div>
     <div class="leg-divider"></div>
-    <div class="leg-item"><span class="leg-pill-sample" style="background:#dbeafe;color:#1e40af;">Marsh</span> Habitat type</div>
-    <div class="leg-item"><span class="leg-pill-sample" style="background:#dcfce7;color:#166534;">HC-1</span> Action plan item</div>
-    <div class="leg-item"><span class="leg-pill-sample" style="background:#f3e8ff;color:#6b21a8;">Physical</span> Project scale</div>
+    <div class="leg-item"><span class="leg-pill-sample" style="background:#dcfce7;color:#166534;">HC-1</span>Action plan</div>
   </div>
 
   <div id="main">
@@ -242,36 +252,32 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 <script>
 var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 
-var HAB_COLORS={
-  "marsh":       "#2e7d32",
-  "oyster":      "#1677bc",
-  "seagrass":    "#1b5e20",
-  "freshwater":  "#006994",
-  "wetland":     "#00695c",
-  "upland":      "#6a1b9a",
-  "shoreline":   "#e65100",
-  "coastal":     "#c62828",
-  "aquatic":     "#0277bd",
-  "prairie":     "#827717",
-  "riparian":    "#00838f",
-  "living":      "#00897b",
-  "forested":    "#33691e",
-  "urban":       "#546e7a",
-  "forest":      "#1b5e20",
-  "beach":       "#f9a825",
-  "dune":        "#f9a825",
-  "intertidal":  "#4527a0",
-  "reef":        "#4527a0",
-  "rookery":     "#ad1457",
-  "research":    "#455a64",
-  "default":     "#1677bc"
+var HAB_TYPE_COLORS={
+  "estuarine wetland":                   "#2e7d32",
+  "estuarine shoreline":                 "#e65100",
+  "coastal prairie":                     "#827717",
+  "estuarine water column/open bay":     "#0277bd",
+  "freshwater marsh":                    "#006994",
+  "riparian":                            "#00838f",
+  "living shoreline":                    "#00897b",
+  "forested wetland":                    "#33691e",
+  "urban/suburban":                      "#546e7a",
+  "forest/woodland":                     "#1b5e20",
+  "agriculture/ranch":                   "#5d4037",
+  "beach/dune":                          "#f9a825",
+  "submerged aquatic vegetation (sav)":  "#1565c0",
+  "intertidal/reef":                     "#4527a0",
+  "rookery island":                      "#ad1457",
+  "research only":                       "#455a64",
 };
 
 function habitatColor(val){
-  if(!val)return HAB_COLORS.default;
-  var v=val.toLowerCase();
-  for(var k in HAB_COLORS){if(k!=="default"&&v.indexOf(k)>-1)return HAB_COLORS[k];}
-  return HAB_COLORS.default;
+  if(!val)return "#1677bc";
+  var key=val.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
+  if(HAB_TYPE_COLORS[key])return HAB_TYPE_COLORS[key];
+  // prefix match for truncated values
+  for(var k in HAB_TYPE_COLORS){if(key.indexOf(k)===0||k.indexOf(key)===0)return HAB_TYPE_COLORS[k];}
+  return "#1677bc";
 }
 
 function fmtDollars(v){
@@ -619,13 +625,14 @@ function renderCards(){
     var fy=fmtFY(d.fiscal_year_awarded);
     var acres=fmtAcres(d.numeric_approximate_project_siz);
     var hab=clean(d.project_landscape_type)||"";
-    var habFirst=dedupList(d.project_landscape_type)[0]||"";
+    var habList=dedupList(d.project_landscape_type);
+    var habFirst=habList[0]||"";
     var color=habitatColor(habFirst);
-    var apTags=getActionPlanTags(d).slice(0,3);
 
     var card=document.createElement("div");
     card.className="pcard"+(activeId===d._id?" active":"");
     card.dataset.id=d._id;
+    var allApTags=getActionPlanTags(d);
     card.innerHTML=
       '<div class="pcard-accent" style="background:'+color+'"></div>'+
       '<div class="pcard-body">'+
@@ -637,11 +644,15 @@ function renderCards(){
           (acres!=="—"?'<div><div class="pcard-stat-val">'+acres+'</div><div class="pcard-stat-lbl">area</div></div>':'')+
         '</div>'+
         '<div class="pcard-tags">'+
-          (habFirst?'<span class="ptag ptag-hab">'+habFirst+'</span>':'')+
-          apTags.map(function(t){return '<span class="ptag ptag-plan">'+t+'</span>';}).join("")+
-          (clean(d.project_scale)?'<span class="ptag ptag-scale">'+clean(d.project_scale)+'</span>':'')+
+          habList.slice(0,3).map(function(h){return '<span class="ptag ptag-hab">'+h+'</span>';}).join('')+
+          (normalizeVal(clean(d.project_scale))?'<span class="ptag ptag-scale">'+normalizeVal(clean(d.project_scale))+'</span>':'')+
         '</div>'+
-      '</div>';
+      '</div>'+
+      (allApTags.length?
+        '<div class="pcard-ap">'+
+          allApTags.map(function(t){return '<div class="ap-tag">'+t+'</div>';}).join('')+
+        '</div>'
+      :'');
 
     card.addEventListener("click",function(){selectCard(d);});
     scroll.appendChild(card);
