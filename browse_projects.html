@@ -37,7 +37,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .pcard{background:white;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;transition:box-shadow .15s,border-color .15s;overflow:hidden;}
 .pcard:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(22,119,188,.12);}
 .pcard.active{border-color:#1677bc;border-width:1.5px;box-shadow:0 2px 12px rgba(22,119,188,.2);}
-.pcard-accent{width:4px;flex-shrink:0;}
+.pcard-accent{width:8px;flex-shrink:0;border-radius:2px 0 0 2px;}
 .pcard-body{flex:1;padding:9px 10px 8px;min-width:0;}
 .pcard-title{font-size:17px;font-weight:700;color:#1a2332;line-height:1.3;margin-bottom:2px;}
 .pcard-org{font-size:14px;color:#64748b;margin-bottom:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
@@ -250,10 +250,20 @@ var HAB_COLORS={
   "wetland":     "#00695c",
   "upland":      "#6a1b9a",
   "shoreline":   "#e65100",
-  "coastal":     "#bf360c",
+  "coastal":     "#c62828",
   "aquatic":     "#0277bd",
   "prairie":     "#827717",
   "riparian":    "#00838f",
+  "living":      "#00897b",
+  "forested":    "#33691e",
+  "urban":       "#546e7a",
+  "forest":      "#1b5e20",
+  "beach":       "#f9a825",
+  "dune":        "#f9a825",
+  "intertidal":  "#4527a0",
+  "reef":        "#4527a0",
+  "rookery":     "#ad1457",
+  "research":    "#455a64",
   "default":     "#1677bc"
 };
 
@@ -282,6 +292,13 @@ function fmtFY(v){
   return "FY "+s.slice(0,4);
 }
 function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?String(v).trim():null;}
+  function normalizeOrg(s){
+    if(!s)return s;
+    return s
+      .replace(/^County of Galveston$/i,'Galveston County')
+      .replace(/^County of Harris$/i,'Harris County')
+      .replace(/^County of ([A-Za-z ]+)$/i,function(m,n){return n.trim()+' County';});
+  }
 
   // Normalize Survey123 values: underscores→spaces, collapse whitespace, trim dashes
   // ── Label correction maps — fixes Survey123 truncated coded values ──────
@@ -318,10 +335,28 @@ function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?Stri
     // Project scale
     "large scale representative":               "Large Scale Representative Project",
     "large scale":                              "Large Scale Representative Project",
+    "landscape scale":                          "Landscape Scale",
+    "local site scale":                         "Local/Site Scale",
+    "local scale":                              "Local/Site Scale",
+    "site scale":                               "Local/Site Scale",
+    "physical project":                         "Physical Project",
+    "demonstration project":                    "Demonstration Project",
     // Implementer types
     "federal state or local government":        "Federal, State, or Local Government",
     "federal  state  or local government":      "Federal, State, or Local Government",
     "federal state local government":           "Federal, State, or Local Government",
+    "non profit organization":                  "Non-profit Organization",
+    "non-profit organization":                  "Non-profit Organization",
+    "nonprofit organization":                   "Non-profit Organization",
+    "university academic institution":          "University/Academic Institution",
+    "university academic":                      "University/Academic Institution",
+    "private landowner":                        "Private Landowner",
+    "federal agency":                           "Federal Agency",
+    "state agency":                             "State Agency",
+    "local government":                         "Local Government",
+    "land trust":                               "Land Trust",
+    "water district":                           "Water District",
+    "port authority":                           "Port Authority",
   };
 
   function applyLabelFix(raw){
@@ -411,14 +446,14 @@ function getActionPlanTags(row){
 }
 
 function populateFilters(){
-  var orgs=Array.from(new Set(allData.map(function(d){return clean(d.lead_organization_name);}).filter(Boolean))).sort();
+  var orgs=Array.from(new Set(allData.map(function(d){return normalizeOrg(clean(d.lead_organization_name));}).filter(Boolean))).sort();
 
   // Normalize underscores→spaces, deduplicate case-insensitively
   var habs=(function(){
     var seen={},out=[];
     allData.forEach(function(d){
       if(!d.project_landscape_type)return;
-      String(d.project_landscape_type).split(",").forEach(function(s){
+      String(d.project_landscape_type).split(/[,;]/).forEach(function(s){
         var norm=normalizeVal(s.trim());
         if(!norm)return;
         var key=norm.toLowerCase();
