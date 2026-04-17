@@ -246,6 +246,17 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 
 // Action plan category colors
+  // Scale tag colors — only two types tagged
+  function scaleStyle(scale){
+    if(!scale)return null;
+    var s=scale.toLowerCase();
+    if(s.indexOf("large scale")>-1||s.indexOf("large-scale")>-1)
+      return "background:#e8eaf6;color:#283593;border:1px solid #9fa8da;";
+    if(s.indexOf("physical")>-1)
+      return "background:#e0f7fa;color:#006064;border:1px solid #80deea;";
+    return null;
+  }
+
   // 4 AP color groups
   var AP_GROUPS=[
     {color:"#2e7d32", prefixes:["HC","SC","FWI"]},
@@ -658,7 +669,7 @@ function renderCards(){
         '</div>'+
         '<div class="pcard-tags">'+
           habList.map(function(h){return '<span class="ptag ptag-hab">'+h+'</span>';}).join('')+
-          (normalizeVal(clean(d.project_scale))?'<span class="ptag ptag-scale">'+normalizeVal(clean(d.project_scale))+'</span>':'')+
+          (function(){var sc=normalizeVal(clean(d.project_scale));var st=sc?scaleStyle(sc):null;return st?'<span class="ptag" style="'+st+'">'+sc+'</span>':'';})()+
         '</div>'+
       '</div>';
 
@@ -697,7 +708,8 @@ function showDetail(d){
   tagsRow.innerHTML="";
   var hab=clean(d.project_landscape_type)||"";
   if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=normalizeVal(h);tagsRow.appendChild(sp);}});}
-  if(clean(d.project_scale)){var sp=document.createElement("span");sp.className="ptag ptag-scale";sp.textContent=normalizeVal(clean(d.project_scale));tagsRow.appendChild(sp);}
+  if(clean(d.project_scale)){var sp=document.createElement("span");var _sc=normalizeVal(clean(d.project_scale));var _st=_sc?scaleStyle(_sc):null;
+    if(_st){sp.style.cssText="border-radius:10px;padding:2px 7px;font-size:13px;font-weight:500;line-height:1.4;"+_st;sp.textContent=_sc;}tagsRow.appendChild(sp);}
   if(clean(d.current_project_stage)){var sp=document.createElement("span");sp.className="ptag";sp.style.cssText="background:#fef3c7;color:#92400e;";sp.textContent=clean(d.current_project_stage);tagsRow.appendChild(sp);}
   // AP grouped bubbles in detail panel
   var apTags=getActionPlanTags(d);
