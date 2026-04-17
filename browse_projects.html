@@ -125,8 +125,18 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
   .dfield-value{font-size:13px;}
 }
 
-.pcard-ap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px 6px 6px;flex-shrink:0;min-width:52px;border-left:1px solid #e2e8f0;background:#f8fafc;}
-.ap-tag{font-size:12px;font-weight:700;padding:3px 6px;border-radius:4px;background:#dcfce7;color:#166534;white-space:nowrap;text-align:center;line-height:1.3;width:100%;}
+.pcard-ap{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:6px 8px;flex-shrink:0;min-width:48px;
+  border-left:1px solid #e2e8f0;background:#f8fafc;
+}
+.ap-bubble{
+  width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:900;color:white;
+  text-align:center;line-height:1.1;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,0.2);
+};text-align:center;line-height:1.3;width:100%;}
 </style>
 </head>
 <body>
@@ -252,7 +262,19 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 <script>
 var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 
-var HAB_TYPE_COLORS={
+// Action plan category colors
+  var AP_COLORS={
+    "HC":"#1565c0","SC":"#2e7d32","FWI":"#00838f","NPS":"#6a1b9a",
+    "PS":"#e65100","PHA":"#c62828","SPO":"#5d4037",
+    "PEA":"#f9a825","RES":"#455a64","ACS":"#00695c"
+  };
+  function apColor(tag){
+    var prefix=tag.split("-")[0];
+    return AP_COLORS[prefix]||"#64748b";
+  }
+
+  // Exact normalized habitat name → color
+  var HAB_TYPE_COLORS={
   "estuarine wetland":                   "#2e7d32",
   "estuarine shoreline":                 "#e65100",
   "coastal prairie":                     "#827717",
@@ -446,7 +468,7 @@ function getActionPlanTags(row){
   var tags=[];
   Object.keys(pp).forEach(function(label){
     var v=row[pp[label]];
-    if(v===1||v===true||v==="1"||v==="true"||v==="yes")tags.push(label);
+    if(v && v!==0 && v!=="0" && v!==false && v!=="false" && v!=="no" && v!=="null" && v!==null)tags.push(label);
   });
   return tags;
 }
@@ -633,8 +655,22 @@ function renderCards(){
     card.className="pcard"+(activeId===d._id?" active":"");
     card.dataset.id=d._id;
     var allApTags=getActionPlanTags(d);
+    // Build multi-stripe gradient for all habitat types
+    var habColors=habList.slice(0,5).map(habitatColor);
+    var accentBg;
+    if(habColors.length<=1){
+      accentBg=habColors[0]||'#1677bc';
+    } else {
+      var stops=[],pct=100/habColors.length;
+      habColors.forEach(function(c,i){
+        var s=Math.round(pct*i),e=Math.round(pct*(i+1));
+        stops.push(c+' '+s+'% '+e+'%');
+      });
+      accentBg='linear-gradient(to bottom,'+stops.join(',')+')';
+    }
+
     card.innerHTML=
-      '<div class="pcard-accent" style="background:'+color+'"></div>'+
+      '<div class="pcard-accent" style="background:'+accentBg+'"></div>'+
       '<div class="pcard-body">'+
         '<div class="pcard-title">'+title+'</div>'+
         '<div class="pcard-org">'+org+'</div>'+
@@ -650,7 +686,10 @@ function renderCards(){
       '</div>'+
       (allApTags.length?
         '<div class="pcard-ap">'+
-          allApTags.map(function(t){return '<div class="ap-tag">'+t+'</div>';}).join('')+
+          allApTags.slice(0,6).map(function(t){
+            return '<div class="ap-bubble" style="background:'+apColor(t)+'" title="'+t+'">'+
+              t.replace('-','\n')+'</div>';
+          }).join('')+
         '</div>'
       :'');
 
