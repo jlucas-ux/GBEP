@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>GBEP Watershed Legend</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;}
+#box{
+  position:absolute;inset:0;
+  font-family:'Roboto',sans-serif;
+  padding:clamp(12px,1.8vw,24px);
+  background:white;
+  border-radius:8px;
+  border:1px solid #e2e8f0;
+  display:flex;flex-direction:column;justify-content:center;
+  gap:clamp(8px,1vh,14px);
+}
+.title{font-size:clamp(13px,1.1vw,18px);font-weight:700;color:#1a2332;}
+.subtitle{font-size:clamp(12px,0.85vw,14px);color:#64748b;line-height:1.5;}
+.swatches{display:flex;gap:clamp(6px,0.8vw,12px);}
+.swatch{flex:1;border-radius:6px;padding:clamp(8px,1vw,14px) clamp(10px,1.2vw,16px);text-align:center;}
+.swatch-label{font-size:clamp(14px,1.4vw,22px);font-weight:900;}
+.swatch-sub{font-size:clamp(12px,0.8vw,13px);margin-top:2px;}
+.note{
+  font-size:clamp(12px,0.8vw,13px);
+  color:#2e4f6b;line-height:1.5;
+  background:#E8F5E9;
+  border-left:3px solid #48799D;
+  border-radius:0 6px 6px 0;
+  padding:clamp(8px,1vw,12px) clamp(10px,1.2vw,14px);
+}
+</style>
+</head>
+<body>
+<div id="box">
+  <div class="title">GBEP Projects by Watershed</div>
+  <div class="subtitle">HUC12 watershed boundaries colored by number of funded projects within each catchment area.</div>
+  <div class="swatches">
+    <div class="swatch" style="background:#217c31;">
+      <div class="swatch-label" style="color:white;">darker</div>
+      <div class="swatch-sub" style="color:rgba(255,255,255,0.85);">= more projects</div>
+    </div>
+    <div class="swatch" style="background:#C4D2C4;">
+      <div class="swatch-label" style="color:#282828;">lighter</div>
+      <div class="swatch-sub" style="color:#48799D;">= fewer projects</div>
+    </div>
+  </div>
+  <div class="note">Watersheds are HUC12 subwatersheds — the smallest unit in the USGS hydrologic unit classification. Each represents a distinct drainage catchment flowing into Galveston Bay.</div>
+</div>
+</body>
+</html>
