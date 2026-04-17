@@ -8,8 +8,8 @@
 <title>GBEP Funding by Fiscal Year</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;background:transparent;font-family:'Roboto',sans-serif;}
-#wrap{width:100%;height:100%;display:flex;flex-direction:column;padding:12px 14px 8px;}
+html,body{width:100%;height:100%;background:white;font-family:'Roboto',sans-serif;}
+#wrap{width:100%;height:100%;display:flex;flex-direction:column;padding:12px 14px 8px;overflow:auto;}
 .chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;}
 .chart-subtitle{font-size:12px;color:#64748b;margin-bottom:8px;}
 #fy-chart{flex:1;min-height:0;position:relative;overflow:hidden;}
@@ -59,7 +59,7 @@ function drawChart(data){
   var yScaleC=d3.scaleLinear().domain([0,yMaxC*1.15]).range([h,0]);
   var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
   d3.select("#fy-chart").select("svg").remove();
-  el.style.overflowX="auto";el.style.overflowY="hidden";
+  el.style.overflow="auto";
   var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
   var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
   g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(function(v){return fmt$(v);}))
@@ -79,6 +79,9 @@ function drawChart(data){
     .attr("r",4).attr("fill","white").attr("stroke","#1D9E75").attr("stroke-width",2)
     .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":"")+"<br>"+fmt$(d.award));})
     .on("mouseleave",hideTooltip);
+  g.append("text").attr("x",w/2).attr("y",h+mB-4)
+    .attr("text-anchor","middle").attr("font-size",Math.max(12,vfs(12)))
+    .attr("fill","#888").attr("font-family",FONT).text("Fiscal Year");
   g.append("g").attr("transform","translate(0,"+h+")")
     .call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
     .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",Math.max(12,vfs(12))).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
