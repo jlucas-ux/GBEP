@@ -470,8 +470,9 @@ function getActionPlanTags(row){
   var tags=[];
   Object.keys(pp).forEach(function(label){
     var v=row[pp[label]];
-    if(v && v!==0 && v!=="0" && v!==false && v!=="false" && v!=="no" && v!=="null" && v!==null)tags.push(label);
+    if(v===1||v===true||v==="1"||v==="true"||v==="yes"||v==="Yes")tags.push(label);
   });
+  console.log("Project AP tags:", tags.length, JSON.stringify(tags.slice(0,4)));
   return tags;
 }
 
