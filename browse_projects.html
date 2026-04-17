@@ -46,7 +46,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .pcard-stat-lbl{font-size:13px;color:#94a3b8;margin-top:1px;line-height:1;}
 .pcard-tags{display:flex;gap:4px;flex-wrap:wrap;}
 .ptag{font-size:13px;padding:2px 7px;border-radius:10px;font-weight:500;line-height:1.4;}
-.ptag-hab{background:#dbeafe;color:#1e40af;}
+.ptag-hab{background:#e0f2f1;color:#00695c;}
 .ptag-plan{background:#dcfce7;color:#166534;}
 .ptag-scale{background:#f3e8ff;color:#6b21a8;}
 
@@ -657,22 +657,10 @@ function renderCards(){
           (acres!=="—"?'<div><div class="pcard-stat-val">'+acres+'</div><div class="pcard-stat-lbl">area</div></div>':'')+
         '</div>'+
         '<div class="pcard-tags">'+
+          habList.map(function(h){return '<span class="ptag ptag-hab">'+h+'</span>';}).join('')+
           (normalizeVal(clean(d.project_scale))?'<span class="ptag ptag-scale">'+normalizeVal(clean(d.project_scale))+'</span>':'')+
         '</div>'+
-      '</div>'+
-      (function(){
-        var groups=groupApTags(allApTags);
-        if(!groups.length)return '';
-        return '<div class="pcard-ap">'+
-          groups.map(function(g){
-            var label=g.tags.map(function(t){return t.replace('-','\u2011');}).join(', ');
-            var short=g.tags.map(function(t){
-              var p=t.split('-');return p[0].charAt(0)+p[1];
-            }).join(' ');
-            return '<div class="ap-bubble" style="background:'+g.color+'" title="'+label+'">'+short+'</div>';
-          }).join('')+
-        '</div>';
-      })();
+      '</div>';
 
     card.addEventListener("click",function(){selectCard(d);});
     scroll.appendChild(card);
@@ -708,10 +696,29 @@ function showDetail(d){
   var tagsRow=document.getElementById("detail-tags-row");
   tagsRow.innerHTML="";
   var hab=clean(d.project_landscape_type)||"";
-  if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=h;tagsRow.appendChild(sp);}});}
-  getActionPlanTags(d).forEach(function(t){var sp=document.createElement("span");sp.className="ptag ptag-plan";sp.textContent=t;tagsRow.appendChild(sp);});
-  if(clean(d.project_scale)){var sp=document.createElement("span");sp.className="ptag ptag-scale";sp.textContent=clean(d.project_scale);tagsRow.appendChild(sp);}
+  if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=normalizeVal(h);tagsRow.appendChild(sp);}});}
+  if(clean(d.project_scale)){var sp=document.createElement("span");sp.className="ptag ptag-scale";sp.textContent=normalizeVal(clean(d.project_scale));tagsRow.appendChild(sp);}
   if(clean(d.current_project_stage)){var sp=document.createElement("span");sp.className="ptag";sp.style.cssText="background:#fef3c7;color:#92400e;";sp.textContent=clean(d.current_project_stage);tagsRow.appendChild(sp);}
+  // AP grouped bubbles in detail panel
+  var apTags=getActionPlanTags(d);
+  var apGroups=groupApTags(apTags);
+  if(apGroups.length){
+    var apRow=document.createElement("div");
+    apRow.style.cssText="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;";
+    var apLabel=document.createElement("span");
+    apLabel.style.cssText="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;";
+    apLabel.textContent="Action Plans:";
+    apRow.appendChild(apLabel);
+    apGroups.forEach(function(g){
+      var bubble=document.createElement("div");
+      bubble.className="ap-bubble";
+      bubble.style.cssText="background:"+g.color+";font-size:11px;padding:4px 10px;height:auto;border-radius:12px;";
+      bubble.title=g.tags.join(", ");
+      bubble.textContent=g.tags.join(" · ");
+      apRow.appendChild(bubble);
+    });
+    tagsRow.appendChild(apRow);
+  }
 
   var body=document.getElementById("detail-body");
   body.innerHTML="";
