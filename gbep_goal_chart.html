@@ -43,6 +43,7 @@ function drawGoalChart(data){
   el.innerHTML="";
   el.style.position="relative";
   var W=el.clientWidth||400, H=el.clientHeight||200;
+  if(W<10||H<10)return;
 
   // ── Full display labels (Survey123 stores truncated coded values) ──────────
   // Normalize both sides: strip parens, slashes, extra spaces, lowercase
@@ -230,10 +231,20 @@ async function init(){
   var res=await fetch(URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=broad_project_goals,broad_project_goals_other,numeric_approximate_project_siz,project_scale&f=json&resultRecordCount=2000");
   var d=await res.json();
   window._data=d.features.map(function(f){return f.attributes;});
-  drawGoalChart(window._data);
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      drawGoalChart(window._data);
+    });
+  });
 }
 init();
-window.addEventListener("resize",function(){if(window._data)drawGoalChart(window._data);});
+window.addEventListener("resize",function(){
+  if(window._data){
+    requestAnimationFrame(function(){
+      drawGoalChart(window._data);
+    });
+  }
+});
 </script>
 </body>
 </html>
