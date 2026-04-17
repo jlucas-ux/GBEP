@@ -1,51 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-<title>GBEP Title Bar</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;}
-#bar{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;
-  justify-content:center;
-  padding:clamp(8px,1.5vh,20px) clamp(14px,2vw,32px);
-  background:white;
-  border-bottom:3px solid #1677bc;
-}
-#title{
-  font-size:clamp(14px,1.6vw,26px);
-  font-weight:900;
-  color:#1a2332;
-  line-height:1.2;
-}
-#subtitle{
-  font-size:clamp(11px,0.9vw,15px);
-  color:#64748b;
-  margin-top:3px;
-  line-height:1.4;
-}
-</style>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;}
+    #banner{
+      width:100%;height:100%;
+      background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
+      display:flex;align-items:center;padding:0 clamp(16px,3vw,40px);
+      gap:clamp(16px,2.5vw,32px);
+    }
+    .divider{
+      width:3px;height:65%;
+      background:rgba(255,255,255,0.3);
+      flex-shrink:0;border-radius:2px;
+    }
+    .title-block{flex-shrink:0;}
+    .page-title{
+      font-size:clamp(16px,2.2vw,28px);
+      font-weight:900;color:white;
+      letter-spacing:-0.5px;line-height:1.1;
+    }
+    .page-title span{color:#b2ebf2;}
+    .blurb-block{flex:1;}
+    .page-blurb{
+      font-size:clamp(11px,1.1vw,14px);
+      font-weight:300;color:rgba(255,255,255,0.82);
+      line-height:1.65;max-width:700px;
+    }
+  </style>
 </head>
 <body>
-<div id="bar">
-  <div id="title"></div>
-  <div id="subtitle"></div>
+<div id="banner">
+  <div class="title-block">
+    <div class="page-title" id="page-title">GBEP</div>
+  </div>
+  <div class="divider"></div>
+  <div class="blurb-block">
+    <div class="page-blurb" id="page-blurb"></div>
+  </div>
 </div>
 <script>
-var params = new URLSearchParams(window.location.search);
-var title = params.get('title') || 'GBEP';
-var subtitle = params.get('subtitle') || '';
-document.getElementById('title').textContent = title;
-var subEl = document.getElementById('subtitle');
-if(subtitle){
-  subEl.textContent = subtitle;
-} else {
-  subEl.style.display = 'none';
-}
+  var params=new URLSearchParams(window.location.search);
+  if(params.get('title')) document.getElementById('page-title').innerHTML=params.get('title');
+  if(params.get('blurb')) document.getElementById('page-blurb').textContent=params.get('blurb');
 </script>
 </body>
 </html>
