@@ -224,14 +224,7 @@ function getPhosphorIcon(name) {
   return "ph-question";
 }
 
-function drawTreemap() {
-  var el = document.getElementById("treemap-chart");
-  el.innerHTML = "";
-  el.style.position = "relative"; // needed for absolute children
-
-  // ── NORMALIZE & COUNT ────────────────────────────────────────────────────
-  // Lookup map for truncated Survey123 habitat type coded values
-  var HAB_LABELS={
+var HAB_LABELS={
     "submerged aquatic vegetation":         "Submerged Aquatic Vegetation (SAV)",
     "submerged aquatic veg":                "Submerged Aquatic Vegetation (SAV)",
     "estuarine water column open bay":      "Estuarine Water Column/Open Bay",
@@ -256,14 +249,21 @@ function drawTreemap() {
     var cleaned = String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
       .replace(/^[\s\-]+|[\s\-]+$/g,"")
       .replace(/none\s*[-]*\s*this project was research/i,"Research only");
-    // Normalize slashes for key lookup
     var key = cleaned.toLowerCase().replace(/[/\\]/g," ").replace(/\s+/g," ").trim();
-    // Prefix match for truncated names
     for(var k in HAB_LABELS){
       if(key===k||key.indexOf(k)===0)return HAB_LABELS[k];
     }
     return cleaned.replace(/\b\w/g,function(c){return c.toUpperCase();});
   }
+
+function drawTreemap() {
+  var el = document.getElementById("treemap-chart");
+  el.innerHTML = "";
+  el.style.position = "relative"; // needed for absolute children
+
+  // ── NORMALIZE & COUNT ────────────────────────────────────────────────────
+  // Lookup map for truncated Survey123 habitat type coded values
+
 
   var funded = filteredData.filter(function(d){
     return d.project_landscape_type && String(d.project_landscape_type).trim();
