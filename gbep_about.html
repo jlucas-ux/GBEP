@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>About GBEP</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;}
+#box{
+  position:absolute;inset:0;
+  font-family:'Roboto',sans-serif;
+  padding:clamp(12px,2vw,28px);
+  background:linear-gradient(135deg,#1D9E75,#137dc9);
+  border-radius:8px;
+  display:flex;flex-direction:column;justify-content:center;
+  gap:clamp(8px,1.2vh,18px);
+}
+.label{
+  color:#9FE1CB;
+  font-size:clamp(12px,0.9vw,16px);
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.body{
+  color:#E1F5EE;
+  font-size:clamp(13px,1.2vw,20px);
+  line-height:1.7;
+  flex:1;
+  display:flex;align-items:center;
+}
+.nav{
+  color:#9FE1CB;
+  font-size:clamp(12px,0.9vw,16px);
+  padding-top:clamp(8px,1vh,16px);
+  border-top:1px solid rgba(255,255,255,0.2);
+}
+</style>
+</head>
+<body>
+<div id="box">
+  <div class="label">About This Database</div>
+  <div class="body">
+    The NRU Subcommittee advises the Galveston Bay Estuary Program Council on habitat conservation and balanced human uses, recommending projects for annual funding. This database represents all GBEP-funded NRU projects from 2005 to present.
+  </div>
+  <div class="nav">
+    Use the navigation above to explore projects by map, browse the full database, or view facts and figures.
+  </div>
+</div>
+</body>
+</html>
