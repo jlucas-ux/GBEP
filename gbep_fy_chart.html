@@ -12,7 +12,7 @@ html,body{width:100%;height:100%;background:white;font-family:'Roboto',sans-seri
 #wrap{width:100%;height:100%;display:flex;flex-direction:column;padding:12px 14px 8px;overflow:auto;min-width:300px;}
 .chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;}
 .chart-subtitle{font-size:12px;color:#64748b;margin-bottom:8px;}
-#fy-chart{flex:1;min-height:180px;position:relative;}
+#fy-chart{flex:1;min-height:260px;position:relative;overflow:auto;}
 #tooltip{position:fixed;background:rgba(26,35,50,.92);color:white;padding:7px 10px;border-radius:6px;
   font-size:12px;font-family:'Roboto',sans-serif;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
 </style>
@@ -40,7 +40,8 @@ function fmt$(v){if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return"$"+
 function drawChart(data){
   var el=document.getElementById("fy-chart");
   var width=el.clientWidth||window.innerWidth;
-  var height=el.clientHeight||(window.innerHeight-100);
+  // Use a fixed chart height so zoom never squishes it — container scrolls instead
+  var height=Math.max(el.clientHeight||0, 260);
   var funded=data.filter(function(d){return d.fiscal_year_awarded;});
   var byYear=d3.rollups(funded,function(v){return{count:v.length,award:d3.sum(v,function(d){return d.gbep_award_amount||0;})};},
     function(d){var fy=d.fiscal_year_awarded;if(!fy)return null;if(String(fy).length===4)return parseInt(fy);var p=new Date(fy);if(!isNaN(p))return p.getFullYear();return parseInt(String(fy).slice(0,4));})
@@ -51,8 +52,12 @@ function drawChart(data){
   var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;
   document.getElementById("fy-subtitle").textContent="Award dollars (bars) and project count (line) per fiscal year, "+minY+"–"+maxY+".";
   if(!width||!height||width<10||height<10)return;
-  var minBarW=28,mL=Math.max(58,Math.round(vfs(60))),mR=30,mT=20,mB=Math.max(80,Math.round(vfs(90)));
+  var minBarW=28,mL=Math.max(58,Math.round(vfs(60))),mR=30;
+  var mT=Math.min(20, Math.round(height*0.07));
+  var mB=Math.min(75, Math.max(55, Math.round(height*0.26)));
   var chartW=Math.max(width,byYear.length*minBarW+mL+mR),w=chartW-mL-mR,h=height-mT-mB;
+  if(h<40){mB=Math.max(30,mB-40);h=height-mT-mB;}
+  if(h<20)return;
   var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
   var yMax=d3.max(byYear,function(d){return d.award;})||1;
   var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
