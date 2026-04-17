@@ -161,9 +161,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <span id="result-count"></span>
   </div>
 
-  <div id="legend-bar">
-    <span style="font-weight:700;color:#475569;font-size:14px;flex-shrink:0;">Habitat type:</span>
-    <div class="leg-item"><div class="leg-accent" style="background:#2e7d32;"></div>Estuarine Wetland</div>
+  Estuarine Wetland</div>
     <div class="leg-item"><div class="leg-accent" style="background:#e65100;"></div>Estuarine Shoreline</div>
     <div class="leg-item"><div class="leg-accent" style="background:#827717;"></div>Coastal Prairie</div>
     <div class="leg-item"><div class="leg-accent" style="background:#0277bd;"></div>Open Bay/Water Column</div>
@@ -264,9 +262,16 @@ var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/service
 
 // Action plan category colors
   var AP_COLORS={
-    "HC":"#1565c0","SC":"#2e7d32","FWI":"#00838f","NPS":"#6a1b9a",
-    "PS":"#e65100","PHA":"#c62828","SPO":"#5d4037",
-    "PEA":"#f9a825","RES":"#455a64","ACS":"#00695c"
+    "HC":"#2e7d32",
+    "SC":"#2e7d32",
+    "FWI":"#2e7d32",
+    "NPS":"#1565c0",
+    "PS":"#1565c0",
+    "PHA":"#1565c0",
+    "SPO":"#6a1b9a",
+    "PEA":"#6a1b9a",
+    "RES":"#e65100",
+    "ACS":"#e65100"
   };
   function apColor(tag){
     var prefix=tag.split("-")[0];
@@ -655,22 +660,8 @@ function renderCards(){
     card.className="pcard"+(activeId===d._id?" active":"");
     card.dataset.id=d._id;
     var allApTags=getActionPlanTags(d);
-    // Build multi-stripe gradient for all habitat types
-    var habColors=habList.slice(0,5).map(habitatColor);
-    var accentBg;
-    if(habColors.length<=1){
-      accentBg=habColors[0]||'#1677bc';
-    } else {
-      var stops=[],pct=100/habColors.length;
-      habColors.forEach(function(c,i){
-        var s=Math.round(pct*i),e=Math.round(pct*(i+1));
-        stops.push(c+' '+s+'% '+e+'%');
-      });
-      accentBg='linear-gradient(to bottom,'+stops.join(',')+')';
-    }
-
     card.innerHTML=
-      '<div class="pcard-accent" style="background:'+accentBg+'"></div>'+
+      '<div class="pcard-accent" style="background:#1677bc"></div>'+
       '<div class="pcard-body">'+
         '<div class="pcard-title">'+title+'</div>'+
         '<div class="pcard-org">'+org+'</div>'+
@@ -680,7 +671,6 @@ function renderCards(){
           (acres!=="—"?'<div><div class="pcard-stat-val">'+acres+'</div><div class="pcard-stat-lbl">area</div></div>':'')+
         '</div>'+
         '<div class="pcard-tags">'+
-          habList.slice(0,3).map(function(h){return '<span class="ptag ptag-hab">'+h+'</span>';}).join('')+
           (normalizeVal(clean(d.project_scale))?'<span class="ptag ptag-scale">'+normalizeVal(clean(d.project_scale))+'</span>':'')+
         '</div>'+
       '</div>'+
