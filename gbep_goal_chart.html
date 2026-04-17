@@ -148,7 +148,7 @@ function drawGoalChart(data){
     })
     .on("mouseleave",function(){d3.select(this).attr("d",arc);hideTooltip();});
 
-  var pctFs=Math.max(9,Math.min(13,Math.floor(r*0.15)));
+  var pctFs=Math.max(12,Math.min(13,Math.floor(r*0.15)));
   slices.forEach(function(d){
     if(d.data.value/attrSum*100<5)return;
     var c=arc.centroid(d);
@@ -164,16 +164,16 @@ function drawGoalChart(data){
     .attr("font-size",cFs).attr("font-weight",900).attr("fill","#1a2332")
     .text(fmtAcres(totalAcres));
   g.append("text").attr("text-anchor","middle").attr("y",cFs*0.1+cFs*0.65)
-    .attr("font-size",Math.max(8,Math.floor(cFs*0.38))).attr("fill","#888")
+    .attr("font-size",Math.max(13,Math.floor(cFs*0.48))).attr("fill","#2d3748").attr("font-weight","600")
     .text("physical acres");
 
   // ── Legend — fills the full right column, items auto-size ─────────────────
   // Font sizes scale with available height per item
   var itemCount=visible.length||1;
   var targetItemH=Math.floor((H-8)/itemCount);      // ideal height per item
-  var nameFs=Math.max(10,Math.min(13,Math.floor(targetItemH*0.38)));
+  var nameFs=Math.max(12,Math.min(13,Math.floor(targetItemH*0.38)));
   var pctLFs=Math.max(12,Math.min(16,Math.floor(targetItemH*0.48)));
-  var swSz=Math.max(8,Math.min(11,Math.floor(nameFs*0.85)));
+  var swSz=Math.max(12,Math.min(13,Math.floor(nameFs*0.85)));
 
   // Fixed-width columns inside legend so name always gets remaining space
   var PAD=8;                                          // left padding
