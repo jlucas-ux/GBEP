@@ -1,54 +1,89 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;}
-
-    #banner{
-      width:100%;height:100%;
-      background:linear-gradient(135deg,#0d47a1 0%,#1677bc 60%,#54a9ad 100%);
-      display:flex;align-items:center;padding:0 40px;
-      gap:32px;
-    }
-
-    .divider{
-      width:3px;height:65%;
-      background:rgba(255,255,255,0.3);
-      flex-shrink:0;border-radius:2px;
-    }
-
-    .title-block{flex-shrink:0;}
-    .page-title{
-      font-size:28px;font-weight:900;color:white;
-      letter-spacing:-0.5px;line-height:1.1;
-    }
-    .page-title span{color:#b2ebf2;}
-
-    .blurb-block{flex:1;}
-    .page-blurb{
-      font-size:14px;font-weight:300;color:rgba(255,255,255,0.82);
-      line-height:1.65;max-width:700px;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>GBEP Hero Stats</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;font-family:'Roboto',sans-serif;overflow:hidden;}
+#stats{
+  position:absolute;inset:0;display:flex;
+  background:linear-gradient(to right,#1565C0,#1976D2,#0097A7,#00ACC1);
+}
+.stat{
+  flex:1;display:flex;flex-direction:column;
+  align-items:flex-start;justify-content:center;
+  padding:clamp(8px,1.5vh,24px) clamp(14px,2vw,32px);
+  border-right:1px solid rgba(255,255,255,0.15);
+  gap:clamp(1px,0.3vh,5px);
+}
+.stat:last-child{border-right:none;}
+.stat-val{
+  font-size:clamp(18px,2.8vw,48px);
+  font-weight:900;
+  color:white;
+  line-height:1;
+  letter-spacing:-0.5px;
+}
+.stat-lbl{
+  font-size:clamp(8px,0.75vw,12px);
+  color:rgba(255,255,255,0.9);
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  font-weight:700;
+  line-height:1.2;
+}
+.stat-sub{
+  font-size:clamp(7px,0.6vw,10px);
+  color:rgba(255,255,255,0.55);
+  line-height:1;
+}
+</style>
 </head>
 <body>
-<div id="banner">
-  <div class="title-block">
-    <div class="page-title" id="page-title">Search Projects</div>
+<div id="stats">
+  <div class="stat">
+    <div class="stat-val" id="s-projects">—</div>
+    <div class="stat-lbl">Projects Funded</div>
+    <div class="stat-sub">GBEP award</div>
   </div>
-  <div class="divider"></div>
-  <div class="blurb-block">
-    <div class="page-blurb" id="page-blurb">Search and filter all GBEP project records by attributes. View matching records and download data, GIS files, and attachments.</div>
+  <div class="stat">
+    <div class="stat-val" id="s-award">—</div>
+    <div class="stat-lbl">Total GBEP Awarded</div>
+    <div class="stat-sub">All funded projects</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="s-acres">—</div>
+    <div class="stat-lbl">Acres Impacted</div>
+    <div class="stat-sub">Approximate project size</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="s-orgs">—</div>
+    <div class="stat-lbl">Lead Organizations</div>
+    <div class="stat-sub">Distinct funded orgs</div>
   </div>
 </div>
-
 <script>
-  var params=new URLSearchParams(window.location.search);
-  if(params.get("title")) document.getElementById("page-title").innerHTML=params.get("title");
-  if(params.get("blurb")) document.getElementById("page-blurb").textContent=params.get("blurb");
+var URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+function fmt$(v){if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return"$"+Math.round(v/1e3)+"K";return"$"+Math.round(v);}
+function fmtAc(v){if(v>=1e6)return(v/1e6).toFixed(1)+"M ac";if(v>=1e3)return(v/1e3).toFixed(1)+"K ac";return Math.round(v)+" ac";}
+async function init(){
+  try{
+    var res=await fetch(URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=gbep_award_amount,numeric_approximate_project_siz,lead_organization_name&f=json&resultRecordCount=2000");
+    var d=await res.json();
+    var rows=d.features.map(function(f){return f.attributes;});
+    var totalAward=rows.reduce(function(s,r){return s+(r.gbep_award_amount||0);},0);
+    var totalAcres=rows.filter(function(r){return r.numeric_approximate_project_siz>0;}).reduce(function(s,r){return s+(r.numeric_approximate_project_siz||0);},0);
+    var orgs=new Set(rows.map(function(r){return(r.lead_organization_name||"").trim();}).filter(Boolean)).size;
+    document.getElementById("s-projects").textContent=rows.length;
+    document.getElementById("s-award").textContent=fmt$(totalAward);
+    document.getElementById("s-acres").textContent=fmtAc(totalAcres);
+    document.getElementById("s-orgs").textContent=orgs;
+  }catch(e){console.error(e);}
+}
+init();
 </script>
 </body>
 </html>
