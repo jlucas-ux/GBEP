@@ -88,10 +88,10 @@ function drawChart(data){
   g.append("g").attr("transform","translate(0,"+h+")")
     .call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
     .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",Math.max(12,vfs(12))).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
-  g.append("text").attr("x",w+4).attr("y",-6)
-    .attr("text-anchor","start").attr("font-size",Math.max(12,vfs(11)))
-    .attr("fill","#888").attr("font-family",FONT).attr("font-style","italic")
-    .text("Fiscal Year →");
+  g.append("text").attr("x",w/2).attr("y",h+48)
+    .attr("text-anchor","middle").attr("font-size",Math.max(12,vfs(12)))
+    .attr("fill","#888").attr("font-family",FONT)
+    .text("Fiscal Year");
 }
 
 async function init(){
