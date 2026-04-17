@@ -131,11 +131,13 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
   border-left:1px solid #e2e8f0;background:#f8fafc;
 }
 .ap-bubble{
-  width:34px;height:34px;border-radius:50%;
+  min-width:34px;height:34px;border-radius:17px;
+  padding:0 6px;
   display:flex;align-items:center;justify-content:center;
   font-size:9px;font-weight:900;color:white;
-  text-align:center;line-height:1.1;flex-shrink:0;
+  text-align:center;line-height:1.2;flex-shrink:0;
   box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  white-space:nowrap;letter-spacing:0.3px;
 };text-align:center;line-height:1.3;width:100%;}
 </style>
 </head>
@@ -244,21 +246,22 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 
 // Action plan category colors
-  var AP_COLORS={
-    "HC":"#2e7d32",
-    "SC":"#2e7d32",
-    "FWI":"#2e7d32",
-    "NPS":"#1565c0",
-    "PS":"#1565c0",
-    "PHA":"#1565c0",
-    "SPO":"#6a1b9a",
-    "PEA":"#6a1b9a",
-    "RES":"#e65100",
-    "ACS":"#e65100"
-  };
-  function apColor(tag){
-    var prefix=tag.split("-")[0];
-    return AP_COLORS[prefix]||"#64748b";
+  // 4 AP color groups
+  var AP_GROUPS=[
+    {color:"#2e7d32", prefixes:["HC","SC","FWI"]},
+    {color:"#1565c0", prefixes:["NPS","PS","PHA"]},
+    {color:"#6a1b9a", prefixes:["SPO","PEA"]},
+    {color:"#e65100", prefixes:["RES","ACS"]}
+  ];
+
+  // Returns array of {color, label, tags} for groups that have any tags
+  function groupApTags(allTags){
+    return AP_GROUPS.map(function(g){
+      var matched=allTags.filter(function(t){
+        return g.prefixes.indexOf(t.split("-")[0])>-1;
+      });
+      return matched.length ? {color:g.color, tags:matched} : null;
+    }).filter(Boolean);
   }
 
   // Exact normalized habitat name → color
@@ -657,14 +660,19 @@ function renderCards(){
           (normalizeVal(clean(d.project_scale))?'<span class="ptag ptag-scale">'+normalizeVal(clean(d.project_scale))+'</span>':'')+
         '</div>'+
       '</div>'+
-      (allApTags.length?
-        '<div class="pcard-ap">'+
-          allApTags.slice(0,6).map(function(t){
-            return '<div class="ap-bubble" style="background:'+apColor(t)+'" title="'+t+'">'+
-              t.replace('-','\n')+'</div>';
+      (function(){
+        var groups=groupApTags(allApTags);
+        if(!groups.length)return '';
+        return '<div class="pcard-ap">'+
+          groups.map(function(g){
+            var label=g.tags.map(function(t){return t.replace('-','\u2011');}).join(', ');
+            var short=g.tags.map(function(t){
+              var p=t.split('-');return p[0].charAt(0)+p[1];
+            }).join(' ');
+            return '<div class="ap-bubble" style="background:'+g.color+'" title="'+label+'">'+short+'</div>';
           }).join('')+
-        '</div>'
-      :'');
+        '</div>';
+      })();
 
     card.addEventListener("click",function(){selectCard(d);});
     scroll.appendChild(card);
