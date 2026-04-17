@@ -8,7 +8,7 @@
 <title>GBEP Projects by Focal Species</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;background:transparent;font-family:'Roboto',sans-serif;}
+html,body{width:100%;height:100%;background:white;font-family:'Roboto',sans-serif;}
 #wrap{width:100%;height:100%;display:flex;flex-direction:column;padding:12px 14px 8px;}
 .chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;}
 .chart-subtitle{font-size:12px;color:#64748b;margin-bottom:8px;}
@@ -40,12 +40,19 @@ function vfs(b){
 var SPECIES_LABELS={
   "invasive_species_control_eradic":"Invasive Species Control/Eradication",
   "invasive species control eradic":"Invasive Species Control/Eradication",
+  "invasive species control/eradic":"Invasive Species Control/Eradication",
+  "invasive_species_control":"Invasive Species Control/Eradication",
   "state_listed_species_species_of":"State Listed Species/Species of Greatest Conservation Need",
   "state listed species species of":"State Listed Species/Species of Greatest Conservation Need",
+  "state_listed_species":"State Listed Species/Species of Greatest Conservation Need",
   "endangered_threatened_species":"Endangered/Threatened Species",
   "endangered threatened species":"Endangered/Threatened Species",
+  "endangered/threatened species":"Endangered/Threatened Species",
   "nongame_wildlife":"Nongame Wildlife",
-  "no_focal_species_during_planning":"No Focal Species During Planning"
+  "nongame wildlife":"Nongame Wildlife",
+  "no_focal_species_during_planning":"No Focal Species During Planning",
+  "no focal species during planning":"No Focal Species During Planning",
+  "no focal species":"No Focal Species During Planning"
 };
 
 function normalizeSpecies(s){
@@ -61,19 +68,14 @@ function drawSpeciesChart(data) {
   el.innerHTML = "";
   el.style.position = "relative";
   var width = el.clientWidth || 400, height = el.clientHeight || 200;
+  if(width < 10 || height < 10) return;
 
   // ── Data ──────────────────────────────────────────────────────────────────
   var funded = data.filter(function(d) {
-    return d.gbep_award_amount &&
-           d.targeted_focal_species &&
-           d.targeted_focal_species.trim() !== "";
+    return d.gbep_award_amount && d.targeted_focal_species && d.targeted_focal_species.trim() !== "";
   });
 
-  // Build species counts, expanding "other" with its companion field
-  // Use two maps: lowercase key for dedup, display label for rendering
-  var sKey = {};    // key (lowercase) → count
-  var sLabel = {};  // key (lowercase) → display string
-
+  var sKey = {}, sLabel = {};
   funded.forEach(function(row) {
     row.targeted_focal_species.split(",")
       .map(function(s) { return s.trim(); })
@@ -81,20 +83,16 @@ function drawSpeciesChart(data) {
       .forEach(function(raw) {
         var norm = normalizeSpecies(raw);
         var key  = norm.toLowerCase().trim();
-
-        // Expand "other" using targeted_focal_species_other
         if (key === "other" || key === "other focal species" ||
-            key.indexOf("other_targeted") === 0 ||
-            key.indexOf("other targeted") === 0) {
-          var desc = (row.targeted_focal_species_other || "").trim()
-                       .replace(/_/g, " ").replace(/\s+/g, " ");
+            key.indexOf("other_targeted") === 0 || key.indexOf("other targeted") === 0) {
+          var desc = (row.targeted_focal_species_other || "").trim().replace(/_/g," ").replace(/\s+/g," ");
           var label = desc ? "Other: " + desc : "Other";
           var labelKey = label.toLowerCase();
           sKey[labelKey]   = (sKey[labelKey]   || 0) + 1;
           sLabel[labelKey] = label;
         } else {
           sKey[key]   = (sKey[key]   || 0) + 1;
-          sLabel[key] = norm;  // store display label separately from key
+          sLabel[key] = norm;
         }
       });
   });
@@ -105,41 +103,18 @@ function drawSpeciesChart(data) {
   if (!counts.length) return;
   var total = d3.sum(counts, function(d) { return d.count; });
 
-  // Collect "other species benefited" notes
-  var otherBenefited = [];
-  funded.forEach(function(row) {
-    var val = row.what_other_species_were_identif ||
-              row.what_other_species_were_identifi || "";
-    val = val.trim().replace(/_/g, " ").replace(/\s+/g, " ");
-    if (val && val.toLowerCase() !== "none" && val.toLowerCase() !== "n/a" &&
-        val.toLowerCase() !== "null") {
-      otherBenefited.push(val);
-    }
-  });
-  // Deduplicate
-  var uniqueBenefited = otherBenefited.filter(function(v, i, a) {
-    return a.indexOf(v) === i;
-  });
+  // ── Layout constants (matching goal chart font scale) ─────────────────────
+  var N = counts.length;
+  // Legend on left, drop on right — sizes are responsive
+  var leftW  = Math.max(110, Math.min(width * 0.50, 220));
+  var dropAreaW = width - leftW - 12;
+  var dropH     = height - 8;
 
-  // ── Layout ────────────────────────────────────────────────────────────────
-  // If there are benefited species notes, reserve bottom strip
-  var noteH = uniqueBenefited.length > 0 ? Math.min(38, Math.round(height * 0.18)) : 0;
-  var chartH = height - noteH;
-
-  var leftW = Math.max(120, width * 0.42);
-
-  // ── SVG (raindrop only) ───────────────────────────────────────────────────
-  var svg = d3.select("#species-chart").append("svg")
-    .attr("width", width).attr("height", chartH)
-    .style("font-family", FONT);
-
-  // Raindrop geometry
-  var dropAreaW = width - leftW - 10;
-  var dropH     = chartH - 16;
-  var r         = Math.min(dropAreaW * 0.50, dropH * 0.35);
-  var cx        = leftW + dropAreaW / 2;
-  var topY      = 8;
-  var bottomCy  = topY + dropH - r - 4;
+  // Raindrop geometry — constrained to available space
+  var r = Math.min(dropAreaW * 0.46, dropH * 0.32, 90);
+  var cx    = leftW + 12 + dropAreaW / 2;
+  var topY  = 6;
+  var bottomCy = topY + dropH - r - 4;
   var dropBottom = bottomCy + r;
   var dropTotalH = dropBottom - topY;
 
@@ -149,30 +124,37 @@ function drawSpeciesChart(data) {
     " A " + r + "," + r + " 0 0 1 " + (cx - r) + "," + bottomCy +
     " Z";
 
+  // Legend font sizing — matching goal chart
+  var rowH    = height / N;
+  var nameFs  = Math.max(10, Math.min(13, Math.floor(rowH * 0.38)));
+  var pctLFs  = Math.max(12, Math.min(16, Math.floor(rowH * 0.48)));
+  var swSz    = Math.max(8, Math.min(11, Math.floor(nameFs * 0.85)));
+
+  // ── SVG ───────────────────────────────────────────────────────────────────
+  var svg = d3.select("#species-chart").append("svg")
+    .attr("width", width).attr("height", height)
+    .style("font-family", FONT).style("overflow", "visible");
+
   var clipId = "spe-drop-clip";
   svg.append("defs").append("clipPath").attr("id", clipId)
     .append("path").attr("d", dropPath);
 
-  // ── Stacked layers — largest at base, smallest at tip ─────────────────────
+  // ── Stacked layers ────────────────────────────────────────────────────────
   var curBottom = dropBottom;
-
-  // Pass 1: fills + dividers
   counts.forEach(function(c, i) {
     var pct    = c.count / total;
     var layerH = pct * dropTotalH;
     var layerTop = curBottom - layerH;
-
     svg.append("rect")
       .attr("x", cx - r - 4).attr("y", layerTop)
       .attr("width", (r + 4) * 2).attr("height", layerH + 1)
       .attr("fill", SPE_PALETTE[i % SPE_PALETTE.length])
       .attr("clip-path", "url(#" + clipId + ")");
-
     if (i < counts.length - 1) {
       svg.append("line")
         .attr("x1", cx - r - 4).attr("x2", cx + r + 4)
         .attr("y1", layerTop).attr("y2", layerTop)
-        .attr("stroke", "white").attr("stroke-width", 2)
+        .attr("stroke", "white").attr("stroke-width", 1.5)
         .attr("clip-path", "url(#" + clipId + ")");
     }
     curBottom = layerTop;
@@ -184,28 +166,7 @@ function drawSpeciesChart(data) {
     .attr("stroke", "rgba(255,255,255,0.35)")
     .attr("stroke-width", 2);
 
-  // Pass 2: % labels inside layers
-  curBottom = dropBottom;
-  counts.forEach(function(c, i) {
-    var pct    = c.count / total;
-    var layerH = pct * dropTotalH;
-    var layerTop = curBottom - layerH;
-    var midY   = layerTop + layerH / 2;
-    if (layerH >= 14) {
-      var fs = Math.max(12, Math.min(vfs(18), Math.floor(layerH * 0.48)));
-      svg.append("text")
-        .attr("x", cx).attr("y", midY)
-        .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-        .attr("font-size", fs).attr("font-weight", "700")
-        .attr("fill", "rgba(255,255,255,0.95)")
-        .attr("font-family", FONT)
-        .style("pointer-events", "none")
-        .text(Math.round(pct * 100) + "%");
-    }
-    curBottom = layerTop;
-  });
-
-  // Pass 3: invisible hover rects
+  // ── Hover rects ───────────────────────────────────────────────────────────
   curBottom = dropBottom;
   counts.forEach(function(c, i) {
     var pct    = c.count / total;
@@ -213,7 +174,7 @@ function drawSpeciesChart(data) {
     var layerTop = curBottom - layerH;
     svg.append("rect")
       .attr("x", cx - r - 4).attr("y", layerTop)
-      .attr("width", (r + 4) * 2).attr("height", layerH)
+      .attr("width", (r + 4) * 2).attr("height", Math.max(layerH, 4))
       .attr("fill", "transparent")
       .attr("clip-path", "url(#" + clipId + ")")
       .style("cursor", "pointer")
@@ -228,68 +189,73 @@ function drawSpeciesChart(data) {
     curBottom = layerTop;
   });
 
-  // ── Legend (left side, HTML) ───────────────────────────────────────────────
+  // ── Lead lines + % labels from legend to drop sections ────────────────────
+  // Compute each layer's midpoint Y for lead line attachment
+  var layerMids = [];
+  curBottom = dropBottom;
+  counts.forEach(function(c, i) {
+    var pct    = c.count / total;
+    var layerH = pct * dropTotalH;
+    var layerTop = curBottom - layerH;
+    layerMids.push(layerTop + layerH / 2);
+    curBottom = layerTop;
+  });
+
+  // ── HTML legend (left side) ───────────────────────────────────────────────
   var list = document.createElement("div");
   list.style.cssText =
     "position:absolute;left:0;top:0;" +
-    "width:" + (leftW - 8) + "px;height:" + chartH + "px;" +
+    "width:" + (leftW - 6) + "px;height:" + height + "px;" +
     "display:flex;flex-direction:column;justify-content:center;" +
     "font-family:" + FONT + ";overflow:hidden;pointer-events:none;" +
-    "box-sizing:border-box;padding:4px 4px 4px 6px;";
+    "box-sizing:border-box;padding:4px 6px 4px 4px;";
 
-  var rowH   = chartH / counts.length;
-  var pctFS  = Math.max(12, Math.min(vfs(26), Math.floor(rowH * 0.52)));
-  var nameFS = Math.max(12, Math.min(vfs(15), Math.floor(pctFS * 0.72)));
-  var swatch = Math.max(7,  Math.floor(pctFS * 0.50));
-
-  // Legend is reversed: largest at bottom matches raindrop base
+  // Legend reversed so largest is at bottom matching raindrop
   counts.slice().reverse().forEach(function(c, revIdx) {
-    // Original index (for color matching)
-    var i = counts.length - 1 - revIdx;
+    var i     = counts.length - 1 - revIdx;
     var color = SPE_PALETTE[i % SPE_PALETTE.length];
     var pct   = Math.round(c.count / total * 100);
+    var midY  = layerMids[i]; // Y on the raindrop for this layer
 
-    var topPad = Math.max(1, Math.floor((rowH - nameFS * 1.3) / 2));
+    var topPad = Math.max(1, Math.floor((rowH - nameFs * 1.3) / 2));
     var row    = document.createElement("div");
     row.style.cssText =
       "display:flex;align-items:flex-start;gap:5px;" +
       "height:" + Math.floor(rowH) + "px;overflow:hidden;flex-shrink:0;" +
       "box-sizing:border-box;padding-top:" + topPad + "px;";
 
-    // Color swatch
     row.innerHTML =
-      '<div style="width:' + swatch + 'px;height:' + swatch + 'px;background:' + color +
-        ';border-radius:50%;flex-shrink:0;margin-top:' + Math.round(nameFS * 0.08) + 'px;"></div>' +
-      // % in matching color
-      '<div style="font-size:' + pctFS + 'px;font-weight:900;color:' + color +
+      '<div style="width:' + swSz + 'px;height:' + swSz + 'px;background:' + color +
+        ';border-radius:50%;flex-shrink:0;margin-top:' + Math.round(nameFs * 0.08) + 'px;"></div>' +
+      '<div style="font-size:' + pctLFs + 'px;font-weight:900;color:' + color +
         ';flex-shrink:0;letter-spacing:-0.5px;line-height:1;">' + pct + '%</div>' +
-      // Name
-      '<div style="font-size:' + nameFS + 'px;font-weight:600;color:#334155;' +
+      '<div style="font-size:' + nameFs + 'px;font-weight:600;color:#334155;' +
         'overflow-wrap:break-word;word-break:break-word;min-width:0;flex:1;line-height:1.25;">' +
         c.label + '</div>';
 
     list.appendChild(row);
   });
-
   el.appendChild(list);
 
-  // ── "Other species benefited" note strip ──────────────────────────────────
-  if (noteH > 0 && uniqueBenefited.length > 0) {
-    var note = document.createElement("div");
-    var noteFS = Math.max(9, Math.min(11, Math.floor(noteH * 0.30)));
-    note.style.cssText =
-      "position:absolute;left:0;bottom:0;width:100%;height:" + noteH + "px;" +
-      "background:rgba(22,119,188,0.06);border-top:1px solid rgba(22,119,188,0.15);" +
-      "padding:3px 8px;box-sizing:border-box;overflow:hidden;" +
-      "font-family:" + FONT + ";font-size:" + noteFS + "px;color:#555;line-height:1.35;";
+  // ── Draw lead lines from legend row centre to layer midpoint on drop ──────
+  counts.slice().reverse().forEach(function(c, revIdx) {
+    var i     = counts.length - 1 - revIdx;
+    var color = SPE_PALETTE[i % SPE_PALETTE.length];
+    // Y centre of legend row (bottom-to-top order matches raindrop)
+    var legendRowIdx = revIdx; // 0 = top row in legend = largest = bottom of drop
+    var legendY = (legendRowIdx + 0.5) * rowH;
+    var dropY   = layerMids[i];
+    var startX  = leftW - 4;  // right edge of legend
+    var endX    = cx - r - 6; // left edge of drop
 
-    var preview = uniqueBenefited.slice(0, 3).join("; ");
-    if (uniqueBenefited.length > 3) preview += " (+" + (uniqueBenefited.length - 3) + " more)";
-    note.innerHTML =
-      '<span style="font-weight:700;color:#1677bc;">Also benefiting:</span> ' + preview;
-    note.title = uniqueBenefited.join("\n");
-    el.appendChild(note);
-  }
+    svg.append("line")
+      .attr("x1", startX).attr("y1", legendY)
+      .attr("x2", endX).attr("y2", dropY)
+      .attr("stroke", color)
+      .attr("stroke-width", 1)
+      .attr("opacity", 0.45)
+      .attr("stroke-dasharray", "3,3");
+  });
 }
 
 async function init(){
