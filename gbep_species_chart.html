@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <title>GBEP Projects by Focal Species</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;max-height:100vh;overflow:hidden;background:white;font-family:'Roboto',sans-serif;}
-#wrap{position:absolute;inset:0;display:flex;flex-direction:column;padding:10px 12px 6px;overflow:hidden;}
+#wrap{position:absolute;inset:0;display:flex;flex-direction:column;padding:10px 12px 6px;}
 .chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;flex-shrink:0;}
 .chart-subtitle{font-size:12px;color:#64748b;margin-bottom:6px;flex-shrink:0;}
-#species-chart{flex:1;min-height:0;position:relative;overflow:hidden;}
+#sc{flex:1;min-height:0;position:relative;overflow:hidden;}
 #tooltip{position:fixed;background:rgba(26,35,50,.92);color:white;padding:7px 10px;border-radius:6px;
   font-size:12px;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
 </style>
@@ -21,17 +21,17 @@ html,body{width:100%;height:100%;max-height:100vh;overflow:hidden;background:whi
 <body>
 <div id="wrap">
   <div class="chart-title">Projects by Focal Species</div>
-  <div class="chart-subtitle">Each band represents the share of funded projects targeting that focal species.</div>
-  <div id="species-chart"></div>
+  <div class="chart-subtitle">Each band represents the share of funded projects targeting that focal species. Hover for details.</div>
+  <div id="sc"></div>
 </div>
 <div id="tooltip"></div>
 <script>
-var URL_DATA="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+var SURL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 var tip=document.getElementById("tooltip");
 function showTip(e,h){tip.innerHTML=h;tip.style.display="block";tip.style.left=(e.clientX+14)+"px";tip.style.top=(e.clientY-10)+"px";}
 function hideTip(){tip.style.display="none";}
 
-var SPECIES_LABELS={
+var SLABELS={
   "invasive_species_control_eradic":"Invasive Species Control/Eradication",
   "invasive species control eradic":"Invasive Species Control/Eradication",
   "invasive species control/eradic":"Invasive Species Control/Eradication",
@@ -50,255 +50,206 @@ var SPECIES_LABELS={
   "no focal species during planning":"No Focal Species During Planning",
   "no focal species":"No Focal Species During Planning"
 };
-
-// Phosphor icon classes for each category
-var SPECIES_ICONS={
+var SICONS={
   "Nongame Wildlife":"ph-bird",
   "Endangered/Threatened Species":"ph-shield-star",
   "Invasive Species Control/Eradication":"ph-prohibit",
   "State Listed Species/Species of Greatest Conservation Need":"ph-list-checks",
-  "No Focal Species During Planning":"ph-minus-circle",
-  "Other":"ph-question"
+  "No Focal Species During Planning":"ph-minus-circle"
 };
-
-function iconFor(label){
-  for(var k in SPECIES_ICONS){
-    if(label.indexOf(k.split(" ")[0])>-1)return SPECIES_ICONS[k];
-  }
+function getIcon(lbl){
+  for(var k in SICONS)if(lbl.toLowerCase().indexOf(k.split(" ")[0].toLowerCase())>-1)return SICONS[k];
   return "ph-leaf";
 }
-
-function normSpecies(s){
+function normS(s){
   var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim();
   var k=c.toLowerCase();
-  if(SPECIES_LABELS[k])return SPECIES_LABELS[k];
+  if(SLABELS[k])return SLABELS[k];
   var kns=k.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-  if(SPECIES_LABELS[kns])return SPECIES_LABELS[kns];
-  for(var key in SPECIES_LABELS){
-    var kkey=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-    if(kns.indexOf(kkey)===0||kkey.indexOf(kns)===0)return SPECIES_LABELS[key];
-  }
+  if(SLABELS[kns])return SLABELS[kns];
+  for(var key in SLABELS){var kk=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();if(kns.indexOf(kk)===0||kk.indexOf(kns)===0)return SLABELS[key];}
   return c.replace(/\b\w/g,function(ch){return ch.toUpperCase();});
 }
 
-// Gradient: light teal → mid blue → navy (matches reference)
-var GRADIENT=["#29b6d3","#1e8ec4","#1565c0","#0d47a1","#1b3a6b","#112d5c"];
+var COLORS=["#29b6d3","#1e8ec4","#1565c0","#0d47a1","#1b3a6b","#112d5c"];
 
 function draw(data){
-  var el=document.getElementById("species-chart");
+  var el=document.getElementById("sc");
   el.innerHTML="";
-  var W=el.clientWidth||500, H=el.clientHeight||340;
+  var W=el.clientWidth||500,H=el.clientHeight||340;
   if(W<50||H<50)return;
 
-  // ── Data ─────────────────────────────────────────────────────────────────
   var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim();});
   var sk={},sl={};
   funded.forEach(function(row){
-    row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(Boolean)
-    .forEach(function(raw){
-      var norm=normSpecies(raw);
-      var key=norm.toLowerCase().trim();
+    row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(Boolean).forEach(function(raw){
+      var norm=normS(raw),key=norm.toLowerCase().trim();
       if(key==="other"||key.indexOf("other targeted")===0||key.indexOf("other_targeted")===0){
         var desc=(row.targeted_focal_species_other||"").trim().replace(/_/g," ");
-        var lbl=desc?"Other: "+desc:"Other";
-        var lk=lbl.toLowerCase();
+        var lbl=desc?"Other: "+desc:"Other",lk=lbl.toLowerCase();
         sk[lk]=(sk[lk]||0)+1;sl[lk]=lbl;
       } else {sk[key]=(sk[key]||0)+1;sl[key]=norm;}
     });
   });
-  var counts=Object.keys(sk).map(function(k){return{label:sl[k],count:sk[k]};})
-    .sort(function(a,b){return b.count-a.count;});
+  var counts=Object.keys(sk).map(function(k){return{label:sl[k],count:sk[k]};}).sort(function(a,b){return b.count-a.count;});
   if(!counts.length)return;
-  var total=d3.sum(counts,function(d){return d.count;});
-  var N=counts.length;
+  var total=d3.sum(counts,function(d){return d.count;}),N=counts.length;
 
-  // ── Layout ────────────────────────────────────────────────────────────────
-  // Drop geometry — rounder shape (reference has ~60% circular, 40% triangular)
-  var ARM_W = Math.min(W*0.32, 160);   // arm extension length
-  var CIRC_R = Math.min(ARM_W*0.22, 32); // end circle radius
-  var DROP_PAD = ARM_W + CIRC_R*2 + 10;  // space needed each side for arms
+  // ── Layout ─────────────────────────────────────────────────────────────────
+  var ARM=Math.min(W*0.30,145);   // arm length beyond drop edge
+  var CR=Math.min(ARM*0.22,30);   // end circle radius
+  var PAD=ARM+CR*2+12;            // total side space needed
+  var DR=Math.min((W-PAD*2)*0.44,H*0.30,90); // drop radius
+  var cx=W/2, topY=12;
+  var bCy=H-DR-12;                // bottom circle centre Y
+  var dropH=bCy+DR-topY;
 
-  // Drop sits centered, arms use side space
-  var dropMaxR = Math.min((W - DROP_PAD*2) * 0.42, H*0.28, 95);
-  if(dropMaxR < 30){dropMaxR=Math.min((W*0.25), H*0.28, 95);}
-  var cx = W/2;
-  var dropR = dropMaxR; // radius of bottom circle
-  var topY = 10;
-  var bottomCy = H - dropR - 10; // center of bottom circle
-  var dropH = bottomCy + dropR - topY;
-
-  // Width of drop at given Y
   function hw(y){
-    if(y >= bottomCy) return Math.sqrt(Math.max(0, dropR*dropR - (y-bottomCy)*(y-bottomCy)));
-    // triangular section widens from 0 at tip to dropR at bottomCy
-    return dropR * (y - topY) / (bottomCy - topY);
+    if(y>=bCy)return Math.sqrt(Math.max(0,DR*DR-(y-bCy)*(y-bCy)));
+    return DR*(y-topY)/(bCy-topY);
   }
+  var dp="M"+cx+","+topY+" L"+(cx+DR)+","+bCy+" A"+DR+","+DR+" 0 0,1 "+(cx-DR)+","+bCy+" Z";
 
-  // Drop path
-  var dp="M"+cx+","+topY+" L"+(cx+dropR)+","+bottomCy+" A"+dropR+","+dropR+" 0 0,1 "+(cx-dropR)+","+bottomCy+" Z";
-
-  // ── SVG ───────────────────────────────────────────────────────────────────
-  var svg=d3.select("#species-chart").append("svg")
-    .attr("width",W).attr("height",H)
-    .style("font-family","'Roboto',sans-serif")
-    .style("overflow","visible");
-
+  var svg=d3.select("#sc").append("svg").attr("width",W).attr("height",H)
+    .style("font-family","'Roboto',sans-serif").style("overflow","visible");
   var defs=svg.append("defs");
+  defs.append("clipPath").attr("id","dc").append("path").attr("d",dp);
 
-  // Drop clip
-  defs.append("clipPath").attr("id","dclip")
-    .append("path").attr("d",dp);
-
-  // Gradient per band (defined inline as colors array)
-  // Shadow drop - offset and blurred
-  svg.append("path").attr("d",dp)
-    .attr("transform","translate(8,10)")
-    .attr("fill","rgba(13,71,161,0.22)")
-    .style("filter","url(#dshadow)");
-  var flt=defs.append("filter").attr("id","dshadow").attr("x","-30%").attr("y","-20%").attr("width","160%").attr("height","160%");
-  flt.append("feGaussianBlur").attr("in","SourceGraphic").attr("stdDeviation","10").attr("result","blur");
-
-  // ── Compute bands ─────────────────────────────────────────────────────────
+  // ── Compute bands ──────────────────────────────────────────────────────────
   var layers=[];
-  var cur=bottomCy+dropR;
+  var cur=bCy+DR;
   counts.forEach(function(c,i){
-    var pct=c.count/total;
-    var lh=pct*dropH;
-    var lt=cur-lh;
-    var midY=lt+lh/2;
-    layers.push({
-      label:c.label, count:c.count, pct:pct,
-      top:lt, bot:cur, midY:midY,
-      hw:hw(midY),
-      color:GRADIENT[i%GRADIENT.length],
-      right:(i%2===0)  // alternate: 0=right, 1=left, etc.
-    });
+    var pct=c.count/total,lh=pct*dropH,lt=cur-lh,midY=lt+lh/2;
+    layers.push({label:c.label,count:c.count,pct:pct,top:lt,bot:cur,midY:midY,
+      edgeHW:hw(midY),color:COLORS[i%COLORS.length],right:i%2===0});
     cur=lt;
   });
 
-  // ── Draw banded drop ──────────────────────────────────────────────────────
+  var armH=Math.max(18,Math.min(H/(N*1.4),42));
+
+  // ══ LAYER 1: Draw arms (behind drop) ════════════════════════════════════════
   layers.forEach(function(lay){
-    svg.append("rect")
-      .attr("x",cx-dropR-4).attr("y",lay.top)
-      .attr("width",(dropR+4)*2).attr("height",Math.max(lay.bot-lay.top,1))
-      .attr("fill",lay.color)
-      .attr("clip-path","url(#dclip)");
-    // Divider
-    if(lay.top > topY+2){
-      svg.append("line")
-        .attr("x1",cx-dropR-4).attr("x2",cx+dropR+4)
-        .attr("y1",lay.top).attr("y2",lay.top)
-        .attr("stroke","rgba(255,255,255,0.5)").attr("stroke-width",2)
-        .attr("clip-path","url(#dclip)");
+    var midY=lay.midY;
+    var ex=lay.right ? cx+lay.edgeHW : cx-lay.edgeHW;
+    var armX=lay.right ? ex : ex-ARM;
+
+    // Arm rectangle — starts flush at drop edge
+    svg.append("rect").attr("x",armX).attr("y",midY-armH/2)
+      .attr("width",ARM).attr("height",armH)
+      .attr("fill",lay.color).attr("rx",3);
+
+    // Fill the notch between band height and arm height at the junction
+    // so the arm appears to grow directly out of the drop
+    var bandH=Math.max(lay.bot-lay.top,1);
+    if(lay.right){
+      svg.append("rect").attr("x",ex-2).attr("y",midY-bandH/2)
+        .attr("width",4).attr("height",bandH)
+        .attr("fill",lay.color);
+    } else {
+      svg.append("rect").attr("x",ex-2).attr("y",midY-bandH/2)
+        .attr("width",4).attr("height",bandH)
+        .attr("fill",lay.color);
     }
   });
 
-  // Drop white outline
+  // ══ LAYER 2: Drop shadow — renders OVER the arm edges, creates 3D lift ══════
+  // Darker offset copy of drop shape
+  svg.append("path").attr("d",dp)
+    .attr("transform","translate(7,8)")
+    .attr("fill","rgba(10,50,120,0.28)")
+    .style("filter","blur(8px)");
+
+  // ══ LAYER 3: Drop bands (clipped to drop shape) ══════════════════════════════
+  layers.forEach(function(lay,i){
+    svg.append("rect").attr("x",cx-DR-4).attr("y",lay.top)
+      .attr("width",(DR+4)*2).attr("height",Math.max(lay.bot-lay.top,1))
+      .attr("fill",lay.color).attr("clip-path","url(#dc)");
+    // Divider
+    if(lay.top>topY+3){
+      svg.append("line").attr("x1",cx-DR).attr("x2",cx+DR)
+        .attr("y1",lay.top).attr("y2",lay.top)
+        .attr("stroke","rgba(255,255,255,0.45)").attr("stroke-width",2)
+        .attr("clip-path","url(#dc)");
+    }
+  });
+
+  // ══ LAYER 4: Drop outline ════════════════════════════════════════════════════
   svg.append("path").attr("d",dp).attr("fill","none")
     .attr("stroke","white").attr("stroke-width",3);
 
-  // ── Phosphor icons inside drop ─────────────────────────────────────────────
+  // ══ LAYER 5: Phosphor icons inside drop ══════════════════════════════════════
   layers.forEach(function(lay){
     var bandH=lay.bot-lay.top;
-    var iconSz=Math.max(14,Math.min(bandH*0.55,28));
-    // Use foreignObject to embed an <i> Phosphor icon
+    var sz=Math.max(16,Math.min(bandH*0.62,28));
     var fo=svg.append("foreignObject")
-      .attr("x",cx-iconSz/2).attr("y",lay.midY-iconSz/2)
-      .attr("width",iconSz).attr("height",iconSz);
+      .attr("x",cx-sz/2-2).attr("y",lay.midY-sz/2-2)
+      .attr("width",sz+8).attr("height",sz+8);
+    // Phosphor bold: class is 'ph-bold ph-bird' etc.
     fo.append("xhtml:i")
-      .attr("class","ph-bold "+iconFor(lay.label))
-      .style("font-size",iconSz+"px")
-      .style("color","rgba(255,255,255,0.9)")
-      .style("display","block")
-      .style("line-height","1");
+      .attr("class","ph-bold "+getIcon(lay.label))
+      .style("font-size",sz+"px")
+      .style("color","rgba(255,255,255,0.90)")
+      .style("display","flex")
+      .style("align-items","center")
+      .style("justify-content","center")
+      .style("width",sz+"px")
+      .style("height",sz+"px");
   });
 
-  // ── Arms + circles ─────────────────────────────────────────────────────────
-  var armFs=Math.max(11,Math.min(13,Math.floor(H/(N*2.2))));
-  var armH=Math.max(20,Math.min((H/N)*0.62,44));
+  // ══ LAYER 6: Arm labels + end circles ════════════════════════════════════════
+  var aFs=Math.max(11,Math.min(13,Math.floor(H/(N*2.0))));
 
   layers.forEach(function(lay){
     var midY=lay.midY;
-    var edgeX=lay.right ? cx+lay.hw : cx-lay.hw;
-    // Arm rect
-    var armX=lay.right ? edgeX : edgeX-ARM_W;
-    var rx=4;
-    svg.append("rect")
-      .attr("x",armX).attr("y",midY-armH/2)
-      .attr("width",ARM_W).attr("height",armH)
-      .attr("fill",lay.color).attr("rx",rx);
+    var ex=lay.right ? cx+lay.edgeHW : cx-lay.edgeHW;
+    var armX=lay.right ? ex : ex-ARM;
 
-    // Tapered connection from drop edge to arm
-    // (small triangle connecting band edge to arm)
-    if(lay.right){
-      svg.append("polygon")
-        .attr("points",
-          (cx+lay.hw)+ ","+(midY-Math.min(lay.bot-lay.top,armH)/2)+" "+
-          (cx+lay.hw)+ ","+(midY+Math.min(lay.bot-lay.top,armH)/2)+" "+
-          armX+","+(midY+armH/2)+" "+
-          armX+","+(midY-armH/2))
-        .attr("fill",lay.color);
-    } else {
-      svg.append("polygon")
-        .attr("points",
-          (cx-lay.hw)+ ","+(midY-Math.min(lay.bot-lay.top,armH)/2)+" "+
-          (cx-lay.hw)+ ","+(midY+Math.min(lay.bot-lay.top,armH)/2)+" "+
-          (armX+ARM_W)+","+(midY+armH/2)+" "+
-          (armX+ARM_W)+","+(midY-armH/2))
-        .attr("fill",lay.color);
-    }
-
-    // Arm text: species name (shortened)
-    var maxCh=Math.floor((ARM_W-8)/(armFs*0.52));
-    var labelShort=lay.label.length>maxCh ? lay.label.slice(0,maxCh-1)+"\u2026" : lay.label;
-    svg.append("text")
-      .attr("x",armX+ARM_W/2).attr("y",midY)
+    // Species label on arm
+    var maxCh=Math.floor((ARM-8)/(aFs*0.53));
+    var lbl=lay.label.length>maxCh ? lay.label.slice(0,maxCh-1)+"\u2026" : lay.label;
+    svg.append("text").attr("x",armX+ARM/2).attr("y",midY)
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",armFs).attr("font-weight","700")
-      .attr("fill","white").style("pointer-events","none")
-      .text(labelShort);
+      .attr("font-size",aFs).attr("font-weight","700").attr("fill","white")
+      .style("pointer-events","none").text(lbl);
 
-    // End circle (white bg, colored border, % inside)
-    var circX=lay.right ? armX+ARM_W+CIRC_R+4 : armX-CIRC_R-4;
-    // White circle
-    svg.append("circle").attr("cx",circX).attr("cy",midY).attr("r",CIRC_R)
-      .attr("fill","white")
-      .attr("stroke",lay.color).attr("stroke-width",3)
-      .attr("filter","url(#circ-shadow)");
-    // Percentage text
-    var pctStr=Math.round(lay.pct*100)+"%";
-    svg.append("text").attr("x",circX).attr("y",midY)
+    // End circle: white bg, colored ring, bold % inside
+    var cX=lay.right ? armX+ARM+CR+4 : armX-CR-4;
+    // Shadow behind circle
+    svg.append("circle").attr("cx",cX+2).attr("cy",midY+2).attr("r",CR)
+      .attr("fill","rgba(0,0,0,0.15)").style("filter","blur(4px)");
+    // White filled circle
+    svg.append("circle").attr("cx",cX).attr("cy",midY).attr("r",CR)
+      .attr("fill","white").attr("stroke",lay.color).attr("stroke-width",3);
+    // % text
+    svg.append("text").attr("x",cX).attr("y",midY)
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",Math.max(10,CIRC_R*0.65)).attr("font-weight","900")
+      .attr("font-size",Math.max(10,Math.round(CR*0.65))).attr("font-weight","900")
       .attr("fill",lay.color).style("pointer-events","none")
-      .text(pctStr);
+      .text(Math.round(lay.pct*100)+"%");
 
     // Hover zone
-    var hx=lay.right ? cx-lay.hw : circX-CIRC_R;
-    var hw2=lay.right ? circX+CIRC_R-(cx-lay.hw) : (cx+lay.hw)-(circX-CIRC_R);
-    svg.append("rect")
-      .attr("x",hx).attr("y",midY-armH/2-4)
-      .attr("width",Math.max(0,hw2)).attr("height",armH+8)
+    var hLeft=lay.right ? cx-DR : cX-CR;
+    var hRight=lay.right ? cX+CR : cx+DR;
+    svg.append("rect").attr("x",hLeft).attr("y",midY-armH/2-4)
+      .attr("width",Math.max(0,hRight-hLeft)).attr("height",armH+8)
       .attr("fill","transparent").style("cursor","pointer")
       .on("mousemove",function(ev){
-        showTip(ev,"<strong>"+lay.label+"</strong><br>"+Math.round(lay.pct*100)+"% of projects — "+lay.count+" project"+(lay.count!==1?"s":""));
+        showTip(ev,"<strong>"+lay.label+"</strong><br>"+
+          Math.round(lay.pct*100)+"% of projects — "+
+          lay.count+" project"+(lay.count!==1?"s":""));
       })
       .on("mouseleave",hideTip);
   });
-
-  // Circle shadow filter
-  var csf=defs.append("filter").attr("id","circ-shadow").attr("x","-20%").attr("y","-20%").attr("width","140%").attr("height","140%");
-  csf.append("feDropShadow").attr("dx",1).attr("dy",2).attr("stdDeviation",3).attr("flood-color","rgba(0,0,0,0.18)");
 }
 
 async function init(){
-  var res=await fetch(URL_DATA+"?where=gbep_award_amount+IS+NOT+NULL&outFields=*&f=json&resultRecordCount=2000");
+  var res=await fetch(SURL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=*&f=json&resultRecordCount=2000");
   var d=await res.json();
-  window._spdata=d.features.map(function(f){return f.attributes;});
-  requestAnimationFrame(function(){requestAnimationFrame(function(){draw(window._spdata);});});
+  window._spd=d.features.map(function(f){return f.attributes;});
+  requestAnimationFrame(function(){requestAnimationFrame(function(){draw(window._spd);});});
 }
 document.readyState==="loading"?document.addEventListener("DOMContentLoaded",init):init();
-window.addEventListener("resize",function(){if(window._spdata)draw(window._spdata);});
+window.addEventListener("resize",function(){if(window._spd)draw(window._spd);});
 </script>
 </body>
 </html>
