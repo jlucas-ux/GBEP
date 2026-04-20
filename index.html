@@ -77,7 +77,7 @@
           <span>Restoration, Stewardship &amp; Research</span>
         </span>
         <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
-          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;"><circle cx="6" cy="6" r="6" fill="#ea940d" opacity="0.78"/><path d="M6,6 L6,0 A6,6,0,0,1,12,6 Z" fill="#ac4341" opacity="0.82"/></svg>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;"><circle cx="6" cy="6" r="6" fill="#ea940d" opacity="0.82"/><path d="M6,6 L6,0 A6,6,0,0,1,12,6 Z" fill="#ac4341" opacity="0.88"/></svg>
           <span>Mix of both</span>
         </span>
       </div>
@@ -753,14 +753,6 @@ function drawTreemap() {
       .attr("font-weight","600").attr("fill","#475569")
       .text("Total GBEP Award");
 
-    // Pie arc helper
-    function arcPath(cx,cy,r,startAngle,endAngle){
-      var x1=cx+r*Math.cos(startAngle), y1=cy+r*Math.sin(startAngle);
-      var x2=cx+r*Math.cos(endAngle),   y2=cy+r*Math.sin(endAngle);
-      var large=(endAngle-startAngle)>Math.PI?1:0;
-      return "M "+cx+","+cy+" L "+x1+","+y1+" A "+r+","+r+" 0 "+large+",1 "+x2+","+y2+" Z";
-    }
-
     // Draw bubbles into bubbleG
     validSites.slice().sort(function(a,b){return b.count-a.count;})
       .forEach(function(d){
@@ -780,20 +772,31 @@ function drawTreemap() {
           .on("mouseleave",hideTooltip);
 
         if(landFrac<=0){
+          // All restoration/stewardship/research — solid orange
           bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
-            .attr("fill",C_OTHER).attr("fill-opacity",0.78)
+            .attr("fill",C_OTHER).attr("fill-opacity",0.82)
             .attr("stroke","white").attr("stroke-width",1.5);
         } else if(landFrac>=1){
+          // All land acquisition — solid red
           bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
-            .attr("fill",C_LAND).attr("fill-opacity",0.78)
+            .attr("fill",C_LAND).attr("fill-opacity",0.82)
             .attr("stroke","white").attr("stroke-width",1.5);
         } else {
+          // Mixed — pie: red slice for land acquisition, orange for rest
+          // Background (other = orange)
           bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
-            .attr("fill",C_OTHER).attr("fill-opacity",0.78)
+            .attr("fill",C_OTHER).attr("fill-opacity",0.82)
             .attr("stroke","white").attr("stroke-width",1.5);
-          var sA=-Math.PI/2, eA=sA+(landFrac*2*Math.PI);
-          bG.append("path").attr("d",arcPath(cx,cy,r,sA,eA))
-            .attr("fill",C_LAND).attr("fill-opacity",0.82)
+          // Red slice starting from 12 o'clock, clockwise
+          var sA=-Math.PI/2;
+          var eA=sA+(landFrac*2*Math.PI);
+          var x1=cx+r*Math.cos(sA), y1=cy+r*Math.sin(sA);
+          var x2=cx+r*Math.cos(eA), y2=cy+r*Math.sin(eA);
+          var large=landFrac>0.5?1:0;
+          bG.append("path")
+            .attr("d","M "+cx+","+cy+" L "+x1+","+y1+
+                      " A "+r+","+r+" 0 "+large+",1 "+x2+","+y2+" Z")
+            .attr("fill",C_LAND).attr("fill-opacity",0.88)
             .attr("stroke","white").attr("stroke-width",0.5);
         }
 
@@ -870,8 +873,9 @@ function drawTreemap() {
   }
   function drawSiteChart(){
     var mode=window._siteSortMode||"all";
-    var funded=filteredData.filter(function(d){
-      if(!d.gbep_award_amount)return false;
+
+    // ALL records with a site name — count every project regardless of award
+    var allRecords=filteredData.filter(function(d){
       if(!d.site_name_long_term_project_nam||!d.site_name_long_term_project_nam.trim())return false;
       if(mode==="physical"||mode==="large"){
         var sc=String(d.project_scale||"").replace(/_/g," ").toLowerCase();
@@ -881,26 +885,19 @@ function drawTreemap() {
       return true;
     });
 
-    // Roll up per site: projects, total award, total acres
-    var siteMap={};
-    // First pass: collect all rows per unique site+title
-    // (Survey123 may produce multiple rows per project for different goals/repeat questions)
+    // Two-pass dedup by site + title
     var rowsByTitle={};
-    funded.forEach(function(row){
+    allRecords.forEach(function(row){
       var site=row.site_name_long_term_project_nam.trim();
       var title=(row.nru_project_title||"").trim();
       var key=site+"|||"+title;
       if(!rowsByTitle[key])rowsByTitle[key]={site:site,title:title,
         award:0,totalCost:0,goals:[],habitats:[]};
-      // Take max non-zero award/cost across all rows for this title
+      // Take max non-zero award/cost across rows for this title
       var a=row.gbep_award_amount||0;
       var c=row.total_cost_of_project||0;
       if(a>rowsByTitle[key].award)rowsByTitle[key].award=a;
       if(c>rowsByTitle[key].totalCost)rowsByTitle[key].totalCost=c;
-      // If no total cost recorded, fall back to award (project sits on 1:1 line)
-      if(!rowsByTitle[key].totalCost&&rowsByTitle[key].award)
-        rowsByTitle[key].totalCost=rowsByTitle[key].award;
-      // Collect all goals (handle both comma-separated and separate rows)
       var goalsRaw=row.broad_project_goals;
       if(goalsRaw)rowsByTitle[key].goals.push(String(goalsRaw).toLowerCase());
       if(row.project_landscape_type){
@@ -911,21 +908,15 @@ function drawTreemap() {
       }
     });
 
-    // Debug: log first few goal values so we can see what's stored
-    var _dbKeys=Object.keys(rowsByTitle).slice(0,6);
-    _dbKeys.forEach(function(k){
-      var p=rowsByTitle[k];
-      console.log("SITE GOALS:",p.site.slice(0,30),"|",p.goals.slice(0,2));
-    });
-
-    // Second pass: roll up into siteMap
+    // Roll up into siteMap — count ALL projects, sum only available awards
+    var siteMap={};
     Object.keys(rowsByTitle).forEach(function(key){
       var proj=rowsByTitle[key];
       var site=proj.site;
       if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,habitats:[]};
       siteMap[site].count++;
-      siteMap[site].award+=proj.award;
-      siteMap[site].totalCost+=proj.totalCost;
+      siteMap[site].award+=proj.award;        // 0 if not recorded — that's fine
+      siteMap[site].totalCost+=proj.totalCost; // 0 if not recorded
       var isLand=proj.goals.some(function(g){
         return g.indexOf("land acquisition")>-1||g.indexOf("land_acquisition")>-1||
                g.indexOf("land acqui")>-1;
@@ -936,26 +927,24 @@ function drawTreemap() {
       });
     });
 
-
+    // Build sites — require award > 0 to position on chart, but count includes all
+    // If no totalCost recorded, use award as proxy
     var sites=Object.keys(siteMap).map(function(s){
+      var sm=siteMap[s];
       return{label:s,
-             count:siteMap[s].count,
-             award:siteMap[s].award,
-             totalCost:siteMap[s].totalCost,
-             landCount:siteMap[s].landCount||0,
-             habitats:siteMap[s].habitats||[]};
-    }).filter(function(d){return d.award>0&&d.count>0;});
+             count:sm.count,
+             award:sm.award,
+             totalCost:sm.totalCost||sm.award,  // fallback for log scale
+             landCount:sm.landCount||0,
+             habitats:sm.habitats||[]};
+    }).filter(function(d){return d.award>0;});  // must have some award to plot
 
     // Update count indicator
     var countEl=document.getElementById("site-count");
     if(countEl){
-      var projCount=funded.length;
-      var siteCount=sites.length;
-      countEl.textContent=siteCount+" site"+(siteCount!==1?"s":"")+", "+projCount+" project"+(projCount!==1?"s":"");
+      countEl.textContent=sites.length+" site"+(sites.length!==1?"s":"")+
+        ", "+Object.keys(rowsByTitle).length+" project"+(Object.keys(rowsByTitle).length!==1?"s":"");
     }
-    console.log("Site chart data sample:",sites.slice(0,3).map(function(s){
-      return{site:s.label,count:s.count,landCount:s.landCount,award:s.award};
-    }));
     drawScatterChart(sites,"site-chart");
   }
 
