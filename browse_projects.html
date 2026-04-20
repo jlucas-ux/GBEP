@@ -373,10 +373,14 @@ function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?Stri
     "site scale":                               "Local/Site Scale",
     "physical project":                         "Physical Project",
     "demonstration project":                    "Demonstration Project",
-    // Implementer types
+    // Implementer types — Survey123 stores with commas, truncated at ~30 chars
     "federal state or local government":        "Federal, State, or Local Government",
     "federal  state  or local government":      "Federal, State, or Local Government",
     "federal state local government":           "Federal, State, or Local Government",
+    "federal, state, or local government":      "Federal, State, or Local Government",
+    "federal, state, or local govern":          "Federal, State, or Local Government",
+    "federal, state, or local gover":           "Federal, State, or Local Government",
+    "federal, state, or local":                 "Federal, State, or Local Government",
     "non profit organization":                  "Non-profit Organization",
     "non-profit organization":                  "Non-profit Organization",
     "nonprofit organization":                   "Non-profit Organization",
@@ -394,13 +398,18 @@ function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?Stri
   function applyLabelFix(raw){
     if(!raw)return raw;
     var cleaned=String(raw).replace(/_/g," ").replace(/\s+/g," ").trim();
-    // Normalize for key lookup: lowercase + slashes/parens → space
-    var key=cleaned.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
-    // Exact match first
+    // Normalize for key lookup: lowercase + slashes/parens/commas → space
+    var key=cleaned.toLowerCase().replace(/[()\/\\,]/g," ").replace(/\s+/g," ").trim();
+    // Also try with commas preserved for comma-keyed entries
+    var keyComma=cleaned.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
+    // Exact match first (both with and without commas)
     if(LABEL_FIXES[key])return LABEL_FIXES[key];
+    if(LABEL_FIXES[keyComma])return LABEL_FIXES[keyComma];
     // Prefix match for truncated values
     for(var k in LABEL_FIXES){
-      if(key.indexOf(k)===0||k.indexOf(key)===0)return LABEL_FIXES[k];
+      var kNorm=k.replace(/[,]/g," ").replace(/\s+/g," ").trim();
+      if(key.indexOf(kNorm)===0||kNorm.indexOf(key)===0)return LABEL_FIXES[k];
+      if(keyComma.indexOf(k)===0||k.indexOf(keyComma)===0)return LABEL_FIXES[k];
     }
     return cleaned;
   }
