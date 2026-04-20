@@ -745,9 +745,7 @@ function drawTreemap() {
     });
 
     // Redraw everything that depends on X scale
-    var curXScale=xScaleBase;
     function redraw(xScale){
-      curXScale=xScale;
       // X grid
       xGridG.selectAll("line").remove();
       xScale.ticks(xTickCount).forEach(function(t){
@@ -844,21 +842,7 @@ function drawTreemap() {
           if(lines[nameLines-1].length>3)lines[nameLines-1]=lines[nameLines-1].slice(0,-1)+"\u2026";
         }
         if(acresStr)lines.push(acresStr);
-        // Nudge label up if this bubble is under a larger one
-        var labelNudge=0;
-        sorted.forEach(function(other){
-          if(other===d)return;
-          var ox=curXScale(other.totalCost), oy=yScale(other.pctGbep), or_=rScale(other.count);
-          if(or_>r){// other is bigger
-            var dx=cx-ox, dy=cy-oy;
-            var dist=Math.sqrt(dx*dx+dy*dy);
-            if(dist<r+or_){// overlapping
-              // Push label toward top of our bubble
-              labelNudge=-(r*0.4);
-            }
-          }
-        });
-        var sy=cy+labelNudge-((lines.length-1)*lh)/2;
+        var sy=cy-((lines.length-1)*lh)/2;
         lines.forEach(function(line,li){
           var isAc=(acresStr&&li===lines.length-1);
           bG.append("text").attr("x",cx).attr("y",sy+li*lh)
