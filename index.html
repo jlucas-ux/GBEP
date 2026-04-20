@@ -656,6 +656,7 @@ function drawTreemap() {
     var el=document.getElementById("org-chart");
     if(!el||el.clientWidth<10)return;
     var width=el.clientWidth||600;
+    var height=el.clientHeight||300;
 
     var funded=filteredData.filter(function(d){
       return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";
@@ -679,45 +680,60 @@ function drawTreemap() {
     });
     if(!sorted.length)return;
 
-    var maxCount=d3.max(sorted,function(d){return d.count;})||1;
     var totalAward=d3.sum(sorted,function(d){return d.award;});
     var avgCount=(total/sorted.length).toFixed(1);
+    var topOrg=sorted.slice().sort(function(a,b){return b.count-a.count;})[0];
 
-    // ── Layout: list left ~65%, stat panel right ~35% ─────────────────────
-    var PANEL_W=Math.min(220,Math.round(width*0.30));
-    var LIST_W=width-PANEL_W-16;
+    // ── Responsive sizing ─────────────────────────────────────────────────
+    // Panel takes 26% of width, min 180px
+    var PANEL_W=Math.max(180,Math.round(width*0.26));
+    // Row height distributes evenly across available height
+    var N=sorted.length;
+    var ROW_H=Math.max(32,Math.min(56,Math.floor(height/N)));
+    // Font scales with row height and container width
+    var orgFs=Math.max(13,Math.min(Math.round(ROW_H*0.40),Math.round(vfs(18))));
+    var cntFs=Math.max(14,Math.min(Math.round(ROW_H*0.48),Math.round(vfs(22))));
+    var rankSz=Math.max(20,Math.min(Math.round(ROW_H*0.55),30));
+    var rankFs=Math.max(11,Math.round(rankSz*0.50));
+    // Stat panel font
+    var statLabelFs=Math.max(12,Math.round(vfs(13)));
+    var statValueFs=Math.max(18,Math.round(vfs(28)));
+    var statSubFs=Math.max(12,Math.round(vfs(13)));
+    var panelTitleFs=Math.max(14,Math.round(vfs(16)));
 
-    el.style.overflow="hidden";
+    el.style.overflow="auto";
+    el.style.minHeight="200px";
     el.innerHTML="";
 
     var wrap=document.createElement("div");
-    wrap.style.cssText="display:flex;gap:16px;height:100%;width:100%;box-sizing:border-box;";
+    wrap.style.cssText="display:flex;gap:14px;height:100%;width:100%;box-sizing:border-box;";
 
     // ── Left: ranked rows ──────────────────────────────────────────────────
     var listEl=document.createElement("div");
     listEl.style.cssText="flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;";
 
     sorted.forEach(function(d,i){
-      var pct=(d.count/total)*100;  // % of ALL projects
+      var pct=(d.count/total)*100;
       var row=document.createElement("div");
       row.style.cssText=
-        "display:flex;align-items:center;gap:10px;padding:7px 8px;"+
-        "border-radius:6px;margin-bottom:3px;position:relative;"+
-        "transition:background .12s;cursor:default;";
+        "display:flex;align-items:center;gap:12px;"+
+        "padding:0 10px;height:"+ROW_H+"px;"+
+        "border-radius:6px;margin-bottom:2px;position:relative;"+
+        "transition:background .12s;cursor:default;box-sizing:border-box;";
       row.onmouseenter=function(){this.style.background="#f0f7ff";};
       row.onmouseleave=function(){this.style.background="";};
 
       row.innerHTML=
         '<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;'+
           'background:rgba(22,119,188,0.55);border-radius:6px;pointer-events:none;"></div>'+
-        '<span style="position:relative;min-width:22px;height:22px;border-radius:50%;'+
-          'background:#f1f5f9;color:#64748b;font-size:11px;font-weight:900;'+
+        '<span style="position:relative;min-width:'+rankSz+'px;height:'+rankSz+'px;border-radius:50%;'+
+          'background:#f1f5f9;color:#64748b;font-size:'+rankFs+'px;font-weight:900;'+
           'display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;'+
           'text-shadow:0 0 4px white,0 0 4px white;">'+(i+1)+'</span>'+
-        '<span style="position:relative;flex:1;font-size:14px;font-weight:700;'+
-          'color:#1a2332;line-height:1.3;min-width:0;'+
+        '<span style="position:relative;flex:1;font-size:'+orgFs+'px;font-weight:700;'+
+          'color:#1a2332;line-height:1.25;min-width:0;'+
           'text-shadow:0 0 6px white,0 0 6px white,0 0 4px white;">'+d.label+'</span>'+
-        '<span style="position:relative;font-size:16px;font-weight:900;'+
+        '<span style="position:relative;font-size:'+cntFs+'px;font-weight:900;'+
           'color:#1677bc;flex-shrink:0;'+
           'text-shadow:0 0 6px white,0 0 6px white;">'+d.count+'</span>';
 
@@ -728,16 +744,16 @@ function drawTreemap() {
     // ── Right: stat panel ──────────────────────────────────────────────────
     var panel=document.createElement("div");
     panel.style.cssText=
-      "width:"+PANEL_W+"px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;"+
-      "background:#f8fafc;border-radius:10px;padding:16px 14px;border:1px solid #e2e8f0;"+
-      "align-self:flex-start;";
+      "width:"+PANEL_W+"px;flex-shrink:0;display:flex;flex-direction:column;"+
+      "gap:0;background:#f8fafc;border-radius:10px;padding:14px 16px;"+
+      "border:1px solid #e2e8f0;box-sizing:border-box;height:100%;overflow-y:auto;";
 
     function statBlock(label,value,sub){
       return '<div style="text-align:center;padding:10px 0;border-bottom:1px solid #e2e8f0;">'+
-        '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;'+
-          'letter-spacing:.06em;margin-bottom:6px;">'+label+'</div>'+
-        '<div style="font-size:22px;font-weight:900;color:#1677bc;line-height:1;">'+value+'</div>'+
-        (sub?'<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+sub+'</div>':'')+
+        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#94a3b8;'+
+          'text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">'+label+'</div>'+
+        '<div style="font-size:'+statValueFs+'px;font-weight:900;color:#1677bc;line-height:1;">'+value+'</div>'+
+        (sub?'<div style="font-size:'+statSubFs+'px;color:#94a3b8;margin-top:3px;">'+sub+'</div>':'')+
       '</div>';
     }
 
@@ -747,20 +763,20 @@ function drawTreemap() {
       return"$"+Math.round(v);
     }
 
-    var topOrg=sorted.slice().sort(function(a,b){return b.count-a.count;})[0];
     panel.innerHTML=
-      '<div style="font-size:13px;font-weight:700;color:#1a2332;margin-bottom:4px;'+
-        'text-align:center;">Summary</div>'+
+      '<div style="font-size:'+panelTitleFs+'px;font-weight:700;color:#1a2332;'+
+        'margin-bottom:6px;text-align:center;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">Summary</div>'+
       statBlock("Lead Orgs",sorted.length,"distinct organizations")+
       statBlock("Total Projects",total,"across all orgs")+
       statBlock("Total Awarded",fmt$(totalAward),"")+
       statBlock("Avg per Org",avgCount,"projects per org")+
       '<div style="text-align:center;padding:10px 0;">'+
-        '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;'+
-          'letter-spacing:.06em;margin-bottom:6px;">Top Organization</div>'+
-        '<div style="font-size:13px;font-weight:700;color:#1a2332;line-height:1.3;">'+topOrg.label+'</div>'+
-        '<div style="font-size:20px;font-weight:900;color:#1677bc;margin-top:4px;">'+topOrg.count+
-          ' <span style="font-size:12px;font-weight:500;color:#94a3b8;">projects</span></div>'+
+        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#94a3b8;'+
+          'text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Top Org</div>'+
+        '<div style="font-size:'+Math.max(13,Math.round(vfs(14)))+'px;font-weight:700;'+
+          'color:#1a2332;line-height:1.3;">'+topOrg.label+'</div>'+
+        '<div style="font-size:'+statValueFs+'px;font-weight:900;color:#1677bc;margin-top:4px;">'+topOrg.count+
+          '<span style="font-size:'+statSubFs+'px;font-weight:500;color:#94a3b8;margin-left:4px;">projects</span></div>'+
       '</div>';
 
     wrap.appendChild(panel);
