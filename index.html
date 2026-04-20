@@ -69,8 +69,9 @@
       <div class="chart-subtitle">GBEP award vs. total project cost per long-term site — sites above the dashed line have significant co-funding beyond GBEP. Bubble size shows number of funded projects. Hover for details.</div>
       <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;">
         <button id="site-all" onclick="setSiteMode('all')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">All Projects</button>
-        <button id="site-physical" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects</button>
-        <button id="site-research" onclick="setSiteMode('research')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Research Only</button>
+        <button id="site-physical" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects Only</button>
+        <button id="site-large" onclick="setSiteMode('large')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Large Scale Only</button>
+        <span id="site-count" style="font-size:12px;color:#64748b;margin-left:6px;align-self:center;"></span>
       </div>
       <div class="chart-area" id="site-chart"></div>
     </div>
@@ -815,13 +816,10 @@ function drawTreemap() {
     var funded=filteredData.filter(function(d){
       if(!d.gbep_award_amount)return false;
       if(!d.site_name_long_term_project_nam||!d.site_name_long_term_project_nam.trim())return false;
-      if(mode==="physical"){
+      if(mode==="physical"||mode==="large"){
         var sc=normalizeVal(clean(d.project_scale)).toLowerCase();
-        if(sc.indexOf("physical")<0&&sc.indexOf("large scale")<0)return false;
-      }
-      if(mode==="research"){
-        var sc=normalizeVal(clean(d.project_scale)).toLowerCase();
-        if(sc.indexOf("research")<0&&sc.indexOf("monitoring")<0)return false;
+        if(mode==="physical"&&sc.indexOf("physical")<0)return false;
+        if(mode==="large"&&sc.indexOf("large scale")<0)return false;
       }
       return true;
     });
@@ -851,12 +849,19 @@ function drawTreemap() {
              habitats:siteMap[s].habitats};
     }).filter(function(d){return d.award>0;});
 
+    // Update count indicator
+    var countEl=document.getElementById("site-count");
+    if(countEl){
+      var projCount=funded.length;
+      var siteCount=sites.length;
+      countEl.textContent=siteCount+" site"+(siteCount!==1?"s":"")+", "+projCount+" project"+(projCount!==1?"s":"");
+    }
     drawScatterChart(sites,"site-chart");
   }
 
   function setSiteMode(mode){
     window._siteSortMode=mode;
-    ["all","physical","research"].forEach(function(m){
+    ["all","physical","large"].forEach(function(m){
       var btn=document.getElementById("site-"+m);
       if(!btn)return;
       if(m===mode){btn.style.background="#1677bc";btn.style.color="white";}
