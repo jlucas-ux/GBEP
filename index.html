@@ -650,6 +650,10 @@ function drawTreemap() {
     var plotH=H-mT-mB;
     if(plotW<60||plotH<60)return;
 
+    function fmtAc(v){
+      if(v>=1000)return Math.round(v/1000)+"K ac";
+      return Math.round(v)+" ac";
+    }
     function fmt$(v){
       if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";
       if(v>=1e3)return"$"+Math.round(v/1e3)+"K";
@@ -768,12 +772,16 @@ function drawTreemap() {
         var cx=xScale(d.totalCost), cy=yScale(d.award), r=rScale(d.count);
         var landFrac=(d.count>0?d.landCount/d.count:0);
         var leverage=d.totalCost>0?(d.totalCost/d.award).toFixed(1):"—";
-        var ttHtml=
-          "<strong>"+d.label+(d.incomplete?" <span style='color:#f9a825'>*incomplete cost data</span>":"")+"</strong><br>"+
+        var coFunding=d.totalCost>d.award?d.totalCost-d.award:0;
+        ttHtml=
+          "<strong>"+d.label+"</strong><br>"+
           d.count+" project"+(d.count!==1?"s":"")+"<br>"+
           "GBEP Award: "+fmt$(d.award)+"<br>"+
-          "Total Project Cost: "+fmt$(d.totalCost)+(d.incomplete?" (estimated)":"")+"<br>"+
-          "Leverage: "+leverage+"x<br>"+
+          (d.costRecorded
+            ?"Total Project Cost: "+fmt$(d.totalCost)+"<br>"+(coFunding>0?"Outside co-funding: "+fmt$(coFunding):"All GBEP-funded")
+            :"Total Project Cost: not recorded"
+          )+"<br>"+
+          (d.acres>0?"Approx. "+fmtAc(d.acres)+"<br>":"")+
           (d.landCount>0?d.landCount+" land acquisition project"+(d.landCount!==1?"s":""):"No land acquisition projects");
 
         var bG=bubbleG.append("g").style("cursor","pointer")
@@ -820,17 +828,26 @@ function drawTreemap() {
           if(test.length>cpl&&cur){lines.push(cur);cur=w;}else cur=test;
         });
         if(cur)lines.push(cur);
-        var lh=lf*1.2, mxL=Math.max(1,Math.floor((r*1.6)/lh));
-        if(lines.length>mxL){
-          lines=lines.slice(0,mxL);
-          var last=lines[mxL-1];
-          if(last.length>3)lines[mxL-1]=last.slice(0,last.length-1)+"\u2026";
+        // For land acquisition bubbles, reserve one line for acres if bubble is big enough
+        var isAllLand=(d.landCount===d.count&&d.landCount>0);
+        var acresStr=(isAllLand&&d.acres>0)?fmtAc(d.acres):null;
+        var lh=lf*1.2;
+        var mxL=Math.max(1,Math.floor((r*1.6)/lh));
+        var nameLines=acresStr?Math.max(1,mxL-1):mxL;
+        if(lines.length>nameLines){
+          lines=lines.slice(0,nameLines);
+          var last=lines[nameLines-1];
+          if(last.length>3)lines[nameLines-1]=last.slice(0,last.length-1)+"\u2026";
         }
+        if(acresStr)lines.push(acresStr);
         var sy=cy-((lines.length-1)*lh)/2;
         lines.forEach(function(line,li){
+          var isAcres=(acresStr&&li===lines.length-1);
           bubbleG.append("text").attr("x",cx).attr("y",sy+li*lh)
             .attr("text-anchor","middle").attr("dominant-baseline","middle")
-            .attr("font-size",lf).attr("font-weight","700").attr("fill","white")
+            .attr("font-size",isAcres?Math.max(11,lf-1):lf)
+            .attr("font-weight",isAcres?"500":"700")
+            .attr("fill","white").attr("fill-opacity",isAcres?0.85:1)
             .style("pointer-events","none").text(line);
         });
       });
@@ -904,13 +921,15 @@ function drawTreemap() {
       var title=(row.nru_project_title||"").trim();
       var key=site+"|||"+title;
       if(!rowsByTitle[key])rowsByTitle[key]={site:site,title:title,
-        award:0,totalCost:0,inkind:0,cash:0,goals:[],habitats:[]};
+        award:0,totalCost:0,acres:0,inkind:0,cash:0,goals:[],habitats:[]};
       // Take max non-zero award/cost/leverage across all rows for this title
       var a=row.gbep_award_amount||0;
       var c=row.total_cost_of_project||0;
       var inkind=row.in_kind_leveraging_amount||0;
       var cash=row.cash_leveraging_amount||0;
       if(a>rowsByTitle[key].award)rowsByTitle[key].award=a;
+      var ac=row.numeric_approximate_project_siz||0;
+      if(ac>rowsByTitle[key].acres)rowsByTitle[key].acres=ac;
       if(c>rowsByTitle[key].totalCost)rowsByTitle[key].totalCost=c;
       if(inkind>rowsByTitle[key].inkind)rowsByTitle[key].inkind=inkind;
       if(cash>rowsByTitle[key].cash)rowsByTitle[key].cash=cash;
@@ -929,9 +948,10 @@ function drawTreemap() {
     Object.keys(rowsByTitle).forEach(function(key){
       var proj=rowsByTitle[key];
       var site=proj.site;
-      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,habitats:[],incomplete:false};
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,acres:0,landCount:0,habitats:[],incomplete:false};
       siteMap[site].count++;
       siteMap[site].award+=proj.award;
+      siteMap[site].acres+=(proj.acres||0);
       // Use total_cost if available; fallback to award+leverage; fallback to award alone
       if(proj.totalCost>0){
         siteMap[site].totalCost+=proj.totalCost;
@@ -955,14 +975,15 @@ function drawTreemap() {
     // If no totalCost recorded, use award as proxy
     var sites=Object.keys(siteMap).map(function(s){
       var sm=siteMap[s];
-      return{label:sm.incomplete?s+' *':s,
-             labelBase:s,
+      var hasCost=sm.totalCost>0;
+      return{label:s,
              count:sm.count,
              award:sm.award,
-             totalCost:Math.max(sm.totalCost,sm.award), // never less than award
+             totalCost:hasCost?sm.totalCost:sm.award, // fallback to award if no cost recorded
+             costRecorded:hasCost,
+             acres:sm.acres||0,
              landCount:sm.landCount||0,
-             habitats:sm.habitats||[],
-             incomplete:sm.incomplete||false};
+             habitats:sm.habitats||[]};
     }).filter(function(d){return d.award>0;});  // must have some award to plot
 
     // Update count indicator
