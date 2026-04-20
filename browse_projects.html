@@ -526,7 +526,19 @@ function populateFilters(){
     allData.forEach(function(d){
       if(!d.targeted_focal_species)return;
       String(d.targeted_focal_species).split(",").forEach(function(s){
-        var norm=normalizeVal(s.trim());
+        s=s.trim();
+        var sLow=s.toLowerCase().replace(/_/g," ");
+        // If "Other", use the _other field for the actual species name
+        if((sLow==="other"||sLow==="other focal species"||sLow.indexOf("other_targeted")===0||sLow.indexOf("other targeted")===0)&&d.targeted_focal_species_other){
+          var desc=String(d.targeted_focal_species_other).trim().replace(/_/g," ").replace(/\s+/g," ");
+          if(desc){
+            var label="Other: "+desc;
+            var key=label.toLowerCase();
+            if(!seen[key]){seen[key]=true;out.push(label);}
+          }
+          return;
+        }
+        var norm=normalizeVal(s);
         if(!norm)return;
         var key=norm.toLowerCase();
         if(!seen[key]){seen[key]=true;out.push(norm);}
@@ -614,7 +626,12 @@ function applyFilters(){
     if(hab){var lt=normalizeVal(clean(d.project_landscape_type)||"");if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
     if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
     if(scale&&normalizeVal(clean(d.project_scale))!==scale)return false;
-    if(species){var sp=normalizeVal(clean(d.targeted_focal_species)||"");if(sp.toLowerCase().indexOf(species.toLowerCase())<0)return false;}
+    if(species){
+      var sp=normalizeVal(clean(d.targeted_focal_species)||"");
+      var spOther=d.targeted_focal_species_other?String(d.targeted_focal_species_other).trim():"";
+      var spCombined=(sp+(spOther?" Other: "+spOther:"")).toLowerCase();
+      if(spCombined.indexOf(species.toLowerCase())<0)return false;
+    }
     if(goals){var g=normalizeVal(clean(d.broad_project_goals)||"");if(g.toLowerCase().indexOf(goals.toLowerCase())<0)return false;}
     if(stage&&normalizeVal(clean(d.project_current_stage))!==stage)return false;
     if(impl&&normalizeVal(clean(d.lead_implementer_type))!==impl)return false;
