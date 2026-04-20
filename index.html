@@ -65,8 +65,8 @@
       <div class="chart-area" id="upset-chart" style="cursor:grab;"></div>
     </div>
     <div class="chart-panel" id="panel-1">
-      <div class="chart-title">NRU Projects by Site / Long-Term Project Name</div>
-      <div class="chart-subtitle">Total GBEP award vs. total project acres per long-term site. Bubble size shows number of funded projects. Hover any bubble for details.</div>
+      <div class="chart-title">NRU Projects by Site</div>
+      <div class="chart-subtitle">GBEP award vs. total project cost per long-term site — sites above the dashed line have significant co-funding beyond GBEP. Bubble size shows number of funded projects. Hover for details.</div>
       <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;">
         <button id="site-all" onclick="setSiteMode('all')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">All Projects</button>
         <button id="site-physical" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects</button>
@@ -627,31 +627,41 @@ function drawTreemap() {
     var W=el.clientWidth||600;
     var H=el.clientHeight||300;
 
-    var mL=64,mR=24,mT=20,mB=56;
+    var mL=80,mR=24,mT=20,mB=62;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<80||plotH<60)return;
-
-    // Scales
-    var maxAward=d3.max(sites,function(d){return d.award;})||1;
-    var maxAcres=d3.max(sites,function(d){return d.acres;})||1;
-    var maxCount=d3.max(sites,function(d){return d.count;})||1;
-    var xScale=d3.scaleLinear().domain([0,maxAward*1.08]).range([0,plotW]);
-    var yScale=d3.scaleLinear().domain([0,maxAcres*1.08]).range([plotH,0]);
-    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([Math.max(8,plotW*0.015),Math.max(22,plotW*0.045)]);
-
-    var fs=Math.max(12,Math.round(vfs(13)));
-    var labelFs=Math.max(12,Math.round(vfs(12)));
 
     function fmt$(v){
       if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";
       if(v>=1e3)return"$"+Math.round(v/1e3)+"K";
       return"$"+Math.round(v);
     }
-    function fmtAc(v){
-      if(v>=1000)return Math.round(v/1000)+"K ac";
-      return Math.round(v)+" ac";
-    }
+
+    // Filter to sites with both award and totalCost > 0 for log scales
+    var validSites=sites.filter(function(d){return d.award>0&&d.totalCost>0;});
+    var noTotalCost=sites.filter(function(d){return d.award>0&&(!d.totalCost||d.totalCost<=0);});
+
+    var maxAward=d3.max(validSites,function(d){return d.award;})||1;
+    var minAward=d3.min(validSites,function(d){return d.award;})||1;
+    var maxCost=d3.max(validSites,function(d){return d.totalCost;})||1;
+    var minCost=d3.min(validSites,function(d){return d.totalCost;})||1;
+    var maxCount=d3.max(sites,function(d){return d.count;})||1;
+
+    // Log scales spread funding data much better
+    var xScale=d3.scaleLog()
+      .domain([Math.max(1,minAward*0.8), maxAward*1.3])
+      .range([0,plotW]).nice();
+    var yScale=d3.scaleLog()
+      .domain([Math.max(1,minCost*0.8), maxCost*1.3])
+      .range([plotH,0]).nice();
+    var rScale=d3.scaleSqrt()
+      .domain([1,maxCount])
+      .range([Math.max(8,plotW*0.014),Math.max(20,plotW*0.042)]);
+
+    var fs=Math.max(12,Math.round(vfs(13)));
+    var labelFs=Math.max(12,Math.round(vfs(12)));
+    var axLabelFs=Math.max(12,Math.round(vfs(13)));
 
     var svg=d3.select("#"+containerId).append("svg")
       .attr("width",W).attr("height",H)
@@ -659,25 +669,39 @@ function drawTreemap() {
 
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // Grid lines
-    var xTicks=xScale.ticks(5);
-    var yTicks=yScale.ticks(5);
-    xTicks.forEach(function(t){
+    // Subtle grid
+    xScale.ticks(5).forEach(function(t){
       g.append("line")
         .attr("x1",xScale(t)).attr("x2",xScale(t))
         .attr("y1",0).attr("y2",plotH)
         .attr("stroke","#f0f0f0").attr("stroke-width",1);
     });
-    yTicks.forEach(function(t){
+    yScale.ticks(5).forEach(function(t){
       g.append("line")
         .attr("x1",0).attr("x2",plotW)
         .attr("y1",yScale(t)).attr("y2",yScale(t))
         .attr("stroke","#f0f0f0").attr("stroke-width",1);
     });
 
+    // 1:1 reference line (GBEP award = total cost = fully GBEP-funded)
+    var refMin=Math.max(xScale.domain()[0],yScale.domain()[0]);
+    var refMax=Math.min(xScale.domain()[1],yScale.domain()[1]);
+    if(refMax>refMin){
+      g.append("line")
+        .attr("x1",xScale(refMin)).attr("y1",yScale(refMin))
+        .attr("x2",xScale(refMax)).attr("y2",yScale(refMax))
+        .attr("stroke","#e2e8f0").attr("stroke-width",1.5)
+        .attr("stroke-dasharray","4,3");
+      g.append("text")
+        .attr("x",xScale(refMax)-4).attr("y",yScale(refMax)-6)
+        .attr("text-anchor","end")
+        .attr("font-size",Math.max(12,Math.round(vfs(11))))
+        .attr("fill","#94a3b8").text("1:1 line");
+    }
+
     // X axis
     g.append("g").attr("transform","translate(0,"+plotH+")")
-      .call(d3.axisBottom(xScale).ticks(5).tickFormat(fmt$))
+      .call(d3.axisBottom(xScale).ticks(5,"~s").tickFormat(fmt$))
       .call(function(ax){
         ax.select(".domain").attr("stroke","#e2e8f0");
         ax.selectAll(".tick line").attr("stroke","#e2e8f0");
@@ -686,7 +710,7 @@ function drawTreemap() {
 
     // Y axis
     g.append("g")
-      .call(d3.axisLeft(yScale).ticks(5).tickFormat(fmtAc))
+      .call(d3.axisLeft(yScale).ticks(5,"~s").tickFormat(fmt$))
       .call(function(ax){
         ax.select(".domain").attr("stroke","#e2e8f0");
         ax.selectAll(".tick line").attr("stroke","#e2e8f0");
@@ -695,78 +719,80 @@ function drawTreemap() {
 
     // Axis labels
     g.append("text")
-      .attr("x",plotW/2).attr("y",plotH+42)
+      .attr("x",plotW/2).attr("y",plotH+48)
       .attr("text-anchor","middle")
-      .attr("font-size",Math.max(12,Math.round(vfs(13))))
-      .attr("font-weight","600").attr("fill","#475569")
+      .attr("font-size",axLabelFs).attr("font-weight","600").attr("fill","#475569")
       .text("Total GBEP Award");
 
     g.append("text")
       .attr("transform","rotate(-90)")
-      .attr("x",-plotH/2).attr("y",-50)
+      .attr("x",-plotH/2).attr("y",-62)
       .attr("text-anchor","middle")
-      .attr("font-size",Math.max(12,Math.round(vfs(13))))
-      .attr("font-weight","600").attr("fill","#475569")
-      .text("Total Acres");
+      .attr("font-size",axLabelFs).attr("font-weight","600").attr("fill","#475569")
+      .text("Total Project Cost (All Funding Sources)");
 
-    // Bubbles
-    sites.forEach(function(d){
+    // Bubbles — sites with total cost data
+    validSites.forEach(function(d){
       var cx=xScale(d.award);
-      var cy=yScale(d.acres);
+      var cy=yScale(d.totalCost);
       var r=rScale(d.count);
+      var leverage=d.award>0?(d.totalCost/d.award).toFixed(1):"—";
 
       g.append("circle")
         .attr("cx",cx).attr("cy",cy).attr("r",r)
-        .attr("fill","#1677bc").attr("fill-opacity",0.72)
+        .attr("fill","#1677bc").attr("fill-opacity",0.75)
         .attr("stroke","white").attr("stroke-width",1.5)
         .style("cursor","pointer")
         .on("mousemove",function(event){
           showTooltip(event,
             "<strong>"+d.label+"</strong><br>"+
             d.count+" project"+(d.count!==1?"s":"")+"<br>"+
-            "Award: "+fmt$(d.award)+"<br>"+
-            "Acres: "+(d.acres>0?fmtAc(d.acres):"Not recorded"));
+            "GBEP Award: "+fmt$(d.award)+"<br>"+
+            "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
+            "Leverage ratio: "+leverage+"x");
         })
         .on("mouseleave",hideTooltip);
 
       // Label if bubble large enough
       if(r>=16){
         var words=d.label.split(/\s+/);
-        var maxLineChars=Math.floor((r*1.6)/(labelFs*0.55));
+        var maxLC=Math.floor((r*1.6)/(labelFs*0.55));
         var lines=[],cur="";
         words.forEach(function(w){
           var test=cur?cur+" "+w:w;
-          if(test.length>maxLineChars&&cur){lines.push(cur);cur=w;}
-          else{cur=test;}
+          if(test.length>maxLC&&cur){lines.push(cur);cur=w;}
+          else cur=test;
         });
         if(cur)lines.push(cur);
-        var maxLines=Math.floor((r*1.5)/(labelFs*1.2));
-        lines=lines.slice(0,Math.max(1,maxLines));
-
+        lines=lines.slice(0,Math.max(1,Math.floor((r*1.5)/(labelFs*1.2))));
         var lh=labelFs*1.2;
-        var startY=cy-((lines.length-1)*lh)/2;
+        var sy=cy-((lines.length-1)*lh)/2;
         lines.forEach(function(line,li){
           g.append("text")
-            .attr("x",cx).attr("y",startY+li*lh)
+            .attr("x",cx).attr("y",sy+li*lh)
             .attr("text-anchor","middle").attr("dominant-baseline","middle")
-            .attr("font-size",labelFs).attr("font-weight","700")
-            .attr("fill","white")
-            .attr("text-decoration","none")
-            .style("pointer-events","none")
-            .text(line);
+            .attr("font-size",labelFs).attr("font-weight","700").attr("fill","white")
+            .style("pointer-events","none").text(line);
         });
       }
     });
 
-    // Legend: bubble size
-    var legX=plotW-10, legY=10;
-    var legSizes=[1,Math.ceil(maxCount/2),maxCount];
-    var legLabel=["1 project",Math.ceil(maxCount/2)+" projects",maxCount+" projects"];
+    // Note if some sites had no total cost data
+    if(noTotalCost.length){
+      g.append("text")
+        .attr("x",plotW).attr("y",plotH+48)
+        .attr("text-anchor","end")
+        .attr("font-size",Math.max(12,Math.round(vfs(11))))
+        .attr("fill","#94a3b8")
+        .text(noTotalCost.length+" site"+(noTotalCost.length!==1?"s":"")+" omitted — no total cost recorded");
+    }
+
+    // Bubble size legend
     g.append("text")
-      .attr("x",legX).attr("y",legY)
+      .attr("x",plotW).attr("y",12)
       .attr("text-anchor","end")
       .attr("font-size",Math.max(12,Math.round(vfs(12))))
-      .attr("font-weight","700").attr("fill","#64748b")
+      .attr("font-weight","600").attr("fill","#64748b")
       .text("Bubble size = number of projects");
   }
   function drawSiteChart(){
@@ -789,10 +815,10 @@ function drawTreemap() {
     var siteMap={};
     funded.forEach(function(row){
       var site=row.site_name_long_term_project_nam.trim();
-      if(!siteMap[site])siteMap[site]={count:0,award:0,acres:0,titles:new Set()};
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,titles:new Set()};
       siteMap[site].titles.add(row.nru_project_title||"");
       siteMap[site].award+=(row.gbep_award_amount||0);
-      siteMap[site].acres+=(row.numeric_approximate_project_siz||0);
+      siteMap[site].totalCost+=(row.total_cost_of_project||0);
     });
     Object.keys(siteMap).forEach(function(s){
       siteMap[s].count=siteMap[s].titles.size;
@@ -800,7 +826,7 @@ function drawTreemap() {
 
     var sites=Object.keys(siteMap).map(function(s){
       return{label:s,count:siteMap[s].count,
-             award:siteMap[s].award,acres:siteMap[s].acres};
+             award:siteMap[s].award,totalCost:siteMap[s].totalCost};
     }).filter(function(d){return d.award>0;});
 
     drawScatterChart(sites,"site-chart");
