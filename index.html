@@ -628,7 +628,6 @@ function drawTreemap() {
     var W=el.clientWidth||600;
     var H=el.clientHeight||300;
 
-    // Margins — generous left for y-axis labels, bottom for rotated x labels
     var mL=88,mR=16,mT=16,mB=72;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
@@ -640,60 +639,40 @@ function drawTreemap() {
       return"$"+Math.round(v);
     }
 
-    // Habitat color map — match HAB_TYPE_COLORS from index
-    var HAB_COLORS={
-      "estuarine wetland":"#2e7d32","estuarine shoreline":"#e65100",
-      "coastal prairie":"#827717","estuarine water column/open bay":"#0277bd",
-      "freshwater marsh":"#006994","riparian":"#00838f",
-      "living shoreline":"#00897b","forested wetland":"#33691e",
-      "urban/suburban":"#546e7a","forest/woodland":"#1b5e20",
-      "agriculture/ranch":"#5d4037","beach/dune":"#f9a825",
-      "submerged aquatic vegetation (sav)":"#1565c0",
-      "intertidal/reef":"#4527a0","rookery island":"#ad1457"
-    };
-    var HAB_DEFAULT="#1677bc";
-    function habColor(raw){
-      if(!raw)return HAB_DEFAULT;
-      var key=raw.toLowerCase().replace(/\s+/g," ").trim();
-      if(HAB_COLORS[key])return HAB_COLORS[key];
-      // prefix match
-      for(var k in HAB_COLORS){if(key.indexOf(k)===0||k.indexOf(key)===0)return HAB_COLORS[k];}
-      return HAB_DEFAULT;
-    }
-
-    // Filter
+    // Filter — both axes require >= $5K
     var MIN_VAL=5000;
     var validSites=sites.filter(function(d){return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL;});
     var excluded=sites.filter(function(d){return d.award>0&&(!d.totalCost||d.totalCost<MIN_VAL);});
     if(!validSites.length)return;
 
     var maxAward=d3.max(validSites,function(d){return d.award;})||1;
-    var minAward=d3.min(validSites,function(d){return d.award;})||1;
     var maxCost=d3.max(validSites,function(d){return d.totalCost;})||1;
-    var minCost=d3.min(validSites,function(d){return d.totalCost;})||1;
     var maxCount=d3.max(validSites,function(d){return d.count;})||1;
 
+    // Both axes start at $5K
     var xScale=d3.scaleLog()
-      .domain([Math.max(1,minAward*0.7),maxAward*1.4])
-      .range([0,plotW]).nice();
+      .domain([MIN_VAL, maxAward*1.4])
+      .range([0,plotW]);
     var yScale=d3.scaleLog()
-      .domain([Math.max(1,minCost*0.7),maxCost*1.4])
-      .range([plotH,0]).nice();
+      .domain([MIN_VAL, maxCost*1.4])
+      .range([plotH,0]);
+
+    // Bigger bubbles so labels can fit
+    var rMin=Math.max(18,plotW*0.025);
+    var rMax=Math.max(50,plotW*0.09);
     var rScale=d3.scaleSqrt()
       .domain([1,maxCount])
-      .range([Math.max(7,plotW*0.012),Math.max(20,plotW*0.038)]);
+      .range([rMin,rMax]);
 
     var fs=Math.max(12,Math.round(vfs(12)));
     var axFs=Math.max(12,Math.round(vfs(13)));
+    var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
+    var yTickCount=Math.max(3,Math.min(5,Math.floor(plotH/55)));
 
     var svg=d3.select("#"+containerId).append("svg")
       .attr("width",W).attr("height",H)
       .style("font-family",FONT).style("overflow","visible");
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-
-    // Tick counts — one tick per ~90px so labels never crowd
-    var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
-    var yTickCount=Math.max(3,Math.min(5,Math.floor(plotH/55)));
 
     // Grid
     xScale.ticks(xTickCount).forEach(function(t){
@@ -720,7 +699,7 @@ function drawTreemap() {
         .text("1:1");
     }
 
-    // X axis — rotated labels prevent overlap
+    // Axes — rotated x labels to prevent overlap
     var xAx=g.append("g").attr("transform","translate(0,"+plotH+")")
       .call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
     xAx.select(".domain").attr("stroke","#e2e8f0");
@@ -729,7 +708,6 @@ function drawTreemap() {
       .attr("text-anchor","end").attr("transform","rotate(-35)")
       .attr("dx","-0.4em").attr("dy","0.3em");
 
-    // Y axis
     var yAx=g.append("g")
       .call(d3.axisLeft(yScale).ticks(yTickCount).tickFormat(fmt$));
     yAx.select(".domain").attr("stroke","#e2e8f0");
@@ -747,19 +725,18 @@ function drawTreemap() {
       .attr("font-weight","600").attr("fill","#475569")
       .text("Total Project Cost (All Funding Sources)");
 
-    // Bubbles — color by dominant habitat, no text inside
-    // Sort so smaller bubbles render on top
+    // Bubbles — single color, label always inside
+    var BUBBLE_COLOR="#1677bc";
     validSites.slice().sort(function(a,b){return b.count-a.count;})
       .forEach(function(d){
         var cx=xScale(d.award);
         var cy=yScale(d.totalCost);
         var r=rScale(d.count);
-        var color=habColor(d.habitats&&d.habitats[0]||"");
         var leverage=d.award>0?(d.totalCost/d.award).toFixed(1):"—";
 
         g.append("circle")
           .attr("cx",cx).attr("cy",cy).attr("r",r)
-          .attr("fill",color).attr("fill-opacity",0.72)
+          .attr("fill",BUBBLE_COLOR).attr("fill-opacity",0.75)
           .attr("stroke","white").attr("stroke-width",1.5)
           .style("cursor","pointer")
           .on("mousemove",function(event){
@@ -771,44 +748,55 @@ function drawTreemap() {
               "Leverage: "+leverage+"x");
           })
           .on("mouseleave",hideTooltip);
+
+        // Label: fit inside bubble — shrink font to fit, wrap to lines
+        // Available diameter for text = r*1.7 (chord at mid-bubble)
+        var availW=r*1.7;
+        var words=d.label.split(/\s+/);
+        // Find largest font that fits
+        var labelFont=Math.min(Math.max(12,Math.round(vfs(12))),Math.floor(r*0.45));
+        labelFont=Math.max(12,labelFont);
+        var charsPerLine=Math.max(4,Math.floor(availW/(labelFont*0.55)));
+        // Wrap into lines
+        var lines=[],cur="";
+        words.forEach(function(w){
+          var test=cur?cur+" "+w:w;
+          if(test.length>charsPerLine&&cur){lines.push(cur);cur=w;}
+          else cur=test;
+        });
+        if(cur)lines.push(cur);
+        // Max lines that fit vertically
+        var lh=labelFont*1.2;
+        var maxLines=Math.max(1,Math.floor((r*1.6)/lh));
+        if(lines.length>maxLines){
+          lines=lines.slice(0,maxLines);
+          // Add ellipsis to last line if truncated
+          var last=lines[maxLines-1];
+          if(last.length>3)lines[maxLines-1]=last.slice(0,last.length-1)+"\u2026";
+        }
+        var startY=cy-((lines.length-1)*lh)/2;
+        lines.forEach(function(line,li){
+          g.append("text")
+            .attr("x",cx).attr("y",startY+li*lh)
+            .attr("text-anchor","middle").attr("dominant-baseline","middle")
+            .attr("font-size",labelFont).attr("font-weight","700")
+            .attr("fill","white").style("pointer-events","none")
+            .text(line);
+        });
       });
 
-    // Bubble size note
+    // Notes
     g.append("text").attr("x",plotW).attr("y",10)
       .attr("text-anchor","end")
       .attr("font-size",Math.max(12,Math.round(vfs(12))))
       .attr("font-weight","600").attr("fill","#64748b")
       .text("Bubble size = number of projects");
 
-    // Exclusion note
     if(excluded.length){
       g.append("text").attr("x",plotW).attr("y",plotH+68)
         .attr("text-anchor","end")
         .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8")
         .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $5,000 or not recorded.");
-    }
-
-    // Habitat color legend — only show colors actually used
-    var usedHabs={};
-    validSites.forEach(function(d){
-      if(d.habitats&&d.habitats[0]){
-        var key=d.habitats[0].toLowerCase().replace(/\s+/g," ").trim();
-        usedHabs[d.habitats[0]]=habColor(key);
-      }
-    });
-    var legItems=Object.keys(usedHabs).slice(0,8);
-    if(legItems.length>1){
-      var legX=0, legY=plotH+48;
-      var legFs=Math.max(12,Math.round(vfs(11)));
-      legItems.forEach(function(hab,i){
-        var lx=legX+i*Math.floor(plotW/legItems.length);
-        g.append("circle").attr("cx",lx+6).attr("cy",legY).attr("r",5)
-          .attr("fill",usedHabs[hab]).attr("fill-opacity",0.85);
-        g.append("text").attr("x",lx+14).attr("y",legY)
-          .attr("dominant-baseline","middle")
-          .attr("font-size",legFs).attr("fill","#475569")
-          .text(hab.length>18?hab.slice(0,16)+"\u2026":hab);
-      });
     }
   }
   function drawSiteChart(){
