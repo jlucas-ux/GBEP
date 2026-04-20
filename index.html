@@ -647,7 +647,7 @@ function drawTreemap() {
     var H=Math.max(el.clientHeight||el.offsetHeight||
            (el.parentElement?el.parentElement.clientHeight-40:0)||300,150);
 
-    var mL=60,mR=20,mT=14,mB=62;
+    var mL=52,mR=20,mT=14,mB=62;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<60||plotH<60)return;
@@ -730,11 +730,13 @@ function drawTreemap() {
       .attr("text-anchor","middle").attr("font-size",axFs)
       .attr("font-weight","600").attr("fill","#475569")
       .text("Total Project Cost (All Funding Sources)");
-    root.append("text").attr("transform","rotate(-90)")
-      .attr("x",-plotH/2).attr("y",-48)
-      .attr("text-anchor","middle").attr("font-size",axFs)
-      .attr("font-weight","600").attr("fill","#475569")
-      .text("GBEP Share of Total Project Cost");
+    // Y axis label at top of axis line instead of rotated
+    root.append("text")
+      .attr("x",-4).attr("y",0)
+      .attr("text-anchor","end").attr("dominant-baseline","middle")
+      .attr("font-size",Math.max(12,Math.round(vfs(12)))).attr("font-weight","600")
+      .attr("fill","#475569")
+      .text("GBEP Share ↑");
 
     // Sort: land acquisition on top
     var sorted=validSites.slice().sort(function(a,b){
@@ -807,11 +809,25 @@ function drawTreemap() {
             .attr("stroke","white").attr("stroke-width",0.5);
         }
 
-        // Label inside bubble
-        var availW=r*1.7;
+        // Label inside bubble — fit text to available space
+        var availW=r*1.8;
         var words=d.label.split(/\s+/);
-        var lf=Math.max(12,Math.min(Math.floor(r*0.42),Math.round(vfs(12))));
-        var cpl=Math.max(4,Math.floor(availW/(lf*0.55)));
+        // Try progressively smaller fonts until text fits
+        var lf=Math.round(vfs(12));
+        for(var fTry=lf;fTry>=10;fTry--){
+          var cplTry=Math.max(3,Math.floor(availW/(fTry*0.55)));
+          var linesCheck=[],curCheck="";
+          words.forEach(function(w){
+            var t=curCheck?curCheck+" "+w:w;
+            if(t.length>cplTry&&curCheck){linesCheck.push(curCheck);curCheck=w;}else curCheck=t;
+          });
+          if(curCheck)linesCheck.push(curCheck);
+          var lhCheck=fTry*1.2;
+          var maxLCheck=Math.floor((r*1.7)/lhCheck);
+          if(linesCheck.length<=Math.max(1,maxLCheck)){lf=fTry;break;}
+        }
+        lf=Math.max(10,lf);
+        var cpl=Math.max(3,Math.floor(availW/(lf*0.55)));
         var lines=[],cur="";
         words.forEach(function(w){
           var test=cur?cur+" "+w:w;
@@ -903,77 +919,43 @@ function drawTreemap() {
       return true;
     });
 
-    // Two-pass dedup by site + title
-    var rowsByTitle={};
+        // Every row = one project. Award/cost deduplicated per title.
+    var siteMap={};
+    var seenAward={};
     allRecords.forEach(function(row){
       var site=row.site_name_long_term_project_nam.trim();
       var title=(row.nru_project_title||"").trim();
-      var key=site+"|||"+title;
-      if(!rowsByTitle[key])rowsByTitle[key]={site:site,title:title,
-        award:0,totalCost:0,acres:0,inkind:0,cash:0,goals:[],habitats:[]};
-      // Take max non-zero award/cost/leverage across all rows for this title
-      var a=row.gbep_award_amount||0;
-      var c=row.total_cost_of_project||0;
-      var inkind=row.in_kind_leveraging_amount||0;
-      var cash=row.cash_leveraging_amount||0;
-      if(a>rowsByTitle[key].award)rowsByTitle[key].award=a;
-      var ac=row.numeric_approximate_project_siz||0;
-      if(ac>rowsByTitle[key].acres)rowsByTitle[key].acres=ac;
-      if(c>rowsByTitle[key].totalCost)rowsByTitle[key].totalCost=c;
-      if(inkind>rowsByTitle[key].inkind)rowsByTitle[key].inkind=inkind;
-      if(cash>rowsByTitle[key].cash)rowsByTitle[key].cash=cash;
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,acres:0,landCount:0,habitats:[]};
+      siteMap[site].count++;
+      // Award/cost: only add once per unique title
+      var aKey=site+"|||"+title;
+      if(!seenAward[aKey]){
+        seenAward[aKey]=true;
+        var a=row.gbep_award_amount||0;
+        var c=row.total_cost_of_project||0;
+        siteMap[site].award+=a;
+        siteMap[site].totalCost+=Math.max(c,a);
+        siteMap[site].acres+=(row.numeric_approximate_project_siz||0);
+      }
       var goalsRaw=row.edited_broad_project_goals||row.broad_project_goals;
-      if(goalsRaw)rowsByTitle[key].goals.push(String(goalsRaw).toLowerCase());
+      if(goalsRaw){
+        var g=String(goalsRaw).replace(/_/g," ").toLowerCase();
+        if(g.indexOf("land acqui")>-1)siteMap[site].landCount++;
+      }
       if(row.project_landscape_type){
         row.project_landscape_type.split(",").forEach(function(h){
           h=normHab(h.trim());
-          if(h&&rowsByTitle[key].habitats.indexOf(h)<0)rowsByTitle[key].habitats.push(h);
+          if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
         });
       }
     });
 
-    // Roll up into siteMap — count ALL projects, sum only available awards
-    var siteMap={};
-    Object.keys(rowsByTitle).forEach(function(key){
-      var proj=rowsByTitle[key];
-      var site=proj.site;
-      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,acres:0,landCount:0,habitats:[],incomplete:false};
-      siteMap[site].count++;
-      siteMap[site].award+=proj.award;
-      siteMap[site].acres+=(proj.acres||0);
-      // Use total_cost if available; fallback to award+leverage; fallback to award alone
-      if(proj.totalCost>0){
-        siteMap[site].totalCost+=proj.totalCost;
-      } else {
-        var leverageCost=proj.award+(proj.inkind||0)+(proj.cash||0);
-        siteMap[site].totalCost+=leverageCost;
-        if(leverageCost===proj.award)siteMap[site].incomplete=true;
-      }
-      var isLand=proj.goals.some(function(g){
-        // Flag as land acquisition if it appears anywhere in the goals string
-        var norm=g.replace(/_/g," ").toLowerCase();
-        return norm.indexOf("land acqui")>-1;
-      });
-      if(isLand)siteMap[site].landCount++;
-      proj.habitats.forEach(function(h){
-        if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
-      });
-    });
-
-    // Build sites — require award > 0 to position on chart, but count includes all
-    // If no totalCost recorded, use award as proxy
     var sites=Object.keys(siteMap).map(function(s){
       var sm=siteMap[s];
-      var hasCost=sm.totalCost>0;
-      return{label:s,
-             count:sm.count,
-             award:sm.award,
-             totalCost:hasCost?sm.totalCost:sm.award, // fallback to award if no cost recorded
-             costRecorded:hasCost,
-             acres:sm.acres||0,
-             landCount:sm.landCount||0,
-             habitats:sm.habitats||[]};
-    }).filter(function(d){return d.award>0;});  // must have some award to plot
+      return{label:s,count:sm.count,award:sm.award,acres:sm.acres||0,
+             totalCost:sm.totalCost||sm.award,
+             landCount:sm.landCount||0,habitats:sm.habitats||[]};
+    }).filter(function(d){return d.award>0&&d.count>0;});
 
     // Update count indicator
     var countEl=document.getElementById("site-count");
