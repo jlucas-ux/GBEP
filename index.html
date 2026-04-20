@@ -664,13 +664,13 @@ function drawTreemap() {
 
     var C_LAND="#ac4341";
     var C_OTHER="#ea940d";
-    var MIN_VAL=5000;
+    var MIN_VAL=1000;
 
     var validSites=sites.filter(function(d){
-      return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL&&d.totalCost>=d.award;
+      return d.award>=MIN_VAL&&d.totalCost>0;
     });
     var excluded=sites.filter(function(d){
-      return d.award>0&&(d.totalCost<MIN_VAL||!d.totalCost||d.totalCost<d.award);
+      return d.award>0&&(!d.totalCost||d.totalCost<MIN_VAL);
     });
     if(!validSites.length)return;
 
@@ -747,7 +747,9 @@ function drawTreemap() {
     });
 
     // Redraw everything that depends on X scale
+    var curXScale=xScaleBase;
     function redraw(xScale){
+      curXScale=xScale;
       // X grid
       xGridG.selectAll("line").remove();
       xScale.ticks(xTickCount).forEach(function(t){
@@ -844,7 +846,21 @@ function drawTreemap() {
           if(lines[nameLines-1].length>3)lines[nameLines-1]=lines[nameLines-1].slice(0,-1)+"\u2026";
         }
         if(acresStr)lines.push(acresStr);
-        var sy=cy-((lines.length-1)*lh)/2;
+        // Nudge label up if this bubble is under a larger one
+        var labelNudge=0;
+        sorted.forEach(function(other){
+          if(other===d)return;
+          var ox=curXScale(other.totalCost), oy=yScale(other.pctGbep), or_=rScale(other.count);
+          if(or_>r){// other is bigger
+            var dx=cx-ox, dy=cy-oy;
+            var dist=Math.sqrt(dx*dx+dy*dy);
+            if(dist<r+or_){// overlapping
+              // Push label toward top of our bubble
+              labelNudge=-(r*0.4);
+            }
+          }
+        });
+        var sy=cy+labelNudge-((lines.length-1)*lh)/2;
         lines.forEach(function(line,li){
           var isAc=(acresStr&&li===lines.length-1);
           bG.append("text").attr("x",cx).attr("y",sy+li*lh)
@@ -896,10 +912,29 @@ function drawTreemap() {
       });
 
     svg.call(zoom).style("cursor","grab");
-    // Apply initial fit transform
     svg.call(zoom.transform,initTransform);
     svg.on("dblclick.zoom",function(){
       svg.transition().duration(400).call(zoom.transform,initTransform);
+    });
+
+    // Click: show tooltip listing ALL sites whose bubble contains the click point
+    svg.on("click",function(event){
+      var coords=d3.pointer(event,root.node());
+      var px=coords[0], py=coords[1];
+      var t=d3.zoomTransform(svg.node());
+      var curX=t.rescaleX(xScaleBase);
+      var hits=validSites.filter(function(d){
+        var cx=curX(d.totalCost), cy=yScale(d.pctGbep), r=rScale(d.count);
+        var dx=px-cx, dy=py-cy;
+        return dx*dx+dy*dy<=r*r;
+      });
+      if(hits.length>1){
+        showTooltip(event,"<strong>"+hits.length+" overlapping sites:</strong><br>"+
+          hits.map(function(d){
+            return "• "+d.label+" — "+d.count+" project"+(d.count!==1?"s":"")+
+              ", "+d.pctGbep+"% GBEP";
+          }).join("<br>"));
+      }
     });
 
     window._zoomBehaviors=window._zoomBehaviors||{};
