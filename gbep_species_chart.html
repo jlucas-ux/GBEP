@@ -175,32 +175,19 @@ function drawSpeciesChart(data){
       .on("mouseleave",hideTooltip);
   });
 
-  // ── Collision-free chip positions ─────────────────────────────────────────
-  var CHIP_H=36, GAP=4;
-  var pos=layerMids.slice();
-
-  for(var pass=0;pass<10;pass++){
-    // Push apart downward
-    for(var i=0;i<pos.length-1;i++){
-      var need=CHIP_H+GAP;
-      if(pos[i+1]-pos[i]<need){
-        var push=(need-(pos[i+1]-pos[i]))/2;
-        pos[i]-=push;
-        pos[i+1]+=push;
-      }
-    }
-    // Clamp top
-    var pad=CHIP_H/2+2;
-    if(pos[0]<pad)pos[0]=pad;
-    for(var i=1;i<pos.length;i++){
-      if(pos[i]<pos[i-1]+CHIP_H+GAP)pos[i]=pos[i-1]+CHIP_H+GAP;
-    }
-    // Clamp bottom
-    if(pos[pos.length-1]>height-pad)pos[pos.length-1]=height-pad;
-    for(var i=pos.length-2;i>=0;i--){
-      if(pos[i]>pos[i+1]-CHIP_H-GAP)pos[i]=pos[i+1]-CHIP_H-GAP;
-    }
-  }
+  // ── Evenly spaced chip positions matching raindrop order ─────────────────
+  // counts[0] = largest = bottom of raindrop (high Y)
+  // counts[N-1] = smallest = top of raindrop (low Y)
+  // Chips spread evenly top→bottom in same order → no crossing lines
+  var CHIP_H=36;
+  var N=counts.length;
+  var pad=CHIP_H/2+4;
+  var pos=counts.map(function(c,i){
+    // i=0 → bottom chip (largest), i=N-1 → top chip (smallest)
+    // So position = height-pad going up to pad
+    if(N===1) return height/2;
+    return (height-pad) - i*((height-2*pad)/(N-1));
+  });
 
   // ── Draw connectors + chips ───────────────────────────────────────────────
   var chipLeft=DROP_W+8;
