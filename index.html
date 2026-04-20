@@ -67,7 +67,7 @@
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site</div>
       <div class="chart-subtitle" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;">
-        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. The dashed 1:1 line marks where GBEP fully funded the project — sites above it had additional co-funding from other sources (leverage). Hover for details.</span>
+        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. The dashed line shows where GBEP covered the full project cost. Sites below the line received additional funding from other sources — the further below, the more outside investment the project attracted. Hover any bubble for details.</span>
         <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
           <span style="width:12px;height:12px;border-radius:50%;background:#ac4341;display:inline-block;flex-shrink:0;"></span>
           <span>Land Acquisition</span>
@@ -721,7 +721,7 @@ function drawTreemap() {
         .attr("stroke-dasharray","4,3");
       axG.append("text")
         .attr("x",xScale(refMax)+4).attr("y",yScale(refMax)-6)
-        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8").text("1:1");
+        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8").text("100% GBEP funded");
     }
 
     // Axes
