@@ -219,7 +219,7 @@
 
   async function fetchData(){
     var ppFields=[];for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
-    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals"];
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals"];
     var url=LAYER_URL+"?where=1%3D1&outFields="+base.concat(ppFields).join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
@@ -883,23 +883,26 @@ function drawTreemap() {
 
     // Roll up per site: projects, total award, total acres
     var siteMap={};
-    // First pass: aggregate award/cost/habitats per unique title per site
-    // (Survey123 may produce multiple rows per project for different goals)
+    // First pass: collect all rows per unique site+title
+    // (Survey123 may produce multiple rows per project for different goals/repeat questions)
     var rowsByTitle={};
     funded.forEach(function(row){
       var site=row.site_name_long_term_project_nam.trim();
       var title=(row.nru_project_title||"").trim();
       var key=site+"|||"+title;
       if(!rowsByTitle[key])rowsByTitle[key]={site:site,title:title,
-        award:0,totalCost:0,goals:[],habitats:[],counted:false};
-      // Only add award/cost once per unique title (first row wins)
-      if(!rowsByTitle[key].counted){
-        rowsByTitle[key].award+=(row.gbep_award_amount||0);
-        rowsByTitle[key].totalCost+=(row.total_cost_of_project||0);
-        rowsByTitle[key].counted=true;
-      }
-      // Collect all goals and habitats across rows
-      if(row.broad_project_goals)rowsByTitle[key].goals.push(String(row.broad_project_goals).toLowerCase());
+        award:0,totalCost:0,goals:[],habitats:[]};
+      // Take max non-zero award/cost across all rows for this title
+      var a=row.gbep_award_amount||0;
+      var c=row.total_cost_of_project||0;
+      if(a>rowsByTitle[key].award)rowsByTitle[key].award=a;
+      if(c>rowsByTitle[key].totalCost)rowsByTitle[key].totalCost=c;
+      // If no total cost recorded, fall back to award (project sits on 1:1 line)
+      if(!rowsByTitle[key].totalCost&&rowsByTitle[key].award)
+        rowsByTitle[key].totalCost=rowsByTitle[key].award;
+      // Collect all goals (handle both comma-separated and separate rows)
+      var goalsRaw=row.broad_project_goals;
+      if(goalsRaw)rowsByTitle[key].goals.push(String(goalsRaw).toLowerCase());
       if(row.project_landscape_type){
         row.project_landscape_type.split(",").forEach(function(h){
           h=normHab(h.trim());
@@ -908,22 +911,31 @@ function drawTreemap() {
       }
     });
 
-    // Second pass: roll up deduplicated project rows into siteMap
-    Object.values(rowsByTitle).forEach(function(proj){
+    // Debug: log first few goal values so we can see what's stored
+    var _dbKeys=Object.keys(rowsByTitle).slice(0,6);
+    _dbKeys.forEach(function(k){
+      var p=rowsByTitle[k];
+      console.log("SITE GOALS:",p.site.slice(0,30),"|",p.goals.slice(0,2));
+    });
+
+    // Second pass: roll up into siteMap
+    Object.keys(rowsByTitle).forEach(function(key){
+      var proj=rowsByTitle[key];
       var site=proj.site;
       if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,habitats:[]};
       siteMap[site].count++;
       siteMap[site].award+=proj.award;
       siteMap[site].totalCost+=proj.totalCost;
-      // Land acquisition: check if ANY of the project's goal rows include it
       var isLand=proj.goals.some(function(g){
-        return g.indexOf("land acquisition")>-1||g.indexOf("land_acquisition")>-1;
+        return g.indexOf("land acquisition")>-1||g.indexOf("land_acquisition")>-1||
+               g.indexOf("land acqui")>-1;
       });
       if(isLand)siteMap[site].landCount++;
       proj.habitats.forEach(function(h){
         if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
       });
     });
+
 
     var sites=Object.keys(siteMap).map(function(s){
       return{label:s,
@@ -941,6 +953,9 @@ function drawTreemap() {
       var siteCount=sites.length;
       countEl.textContent=siteCount+" site"+(siteCount!==1?"s":"")+", "+projCount+" project"+(projCount!==1?"s":"");
     }
+    console.log("Site chart data sample:",sites.slice(0,3).map(function(s){
+      return{site:s.label,count:s.count,landCount:s.landCount,award:s.award};
+    }));
     drawScatterChart(sites,"site-chart");
   }
 
