@@ -627,7 +627,7 @@ function drawTreemap() {
     var W=el.clientWidth||600;
     var H=el.clientHeight||300;
 
-    var mL=80,mR=24,mT=20,mB=62;
+    var mL=86,mR=24,mT=20,mB=72;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<80||plotH<60)return;
@@ -638,9 +638,9 @@ function drawTreemap() {
       return"$"+Math.round(v);
     }
 
-    // Filter: require both award and totalCost >= $1,000
-    // Values under $1K likely reflect incomplete data entry and distort the log scale
-    var MIN_VAL=1000;
+    // Filter: require both award and totalCost >= $5,000
+    // Values under $5K likely reflect incomplete data entry and distort the log scale
+    var MIN_VAL=5000;
     var validSites=sites.filter(function(d){return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL;});
     var excluded=sites.filter(function(d){return d.award>0&&(d.totalCost<MIN_VAL||!d.totalCost);});
 
@@ -671,14 +671,18 @@ function drawTreemap() {
 
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-    // Subtle grid
-    xScale.ticks(5).forEach(function(t){
+// Tick counts scale with container size — fewer ticks = no overlap
+    var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
+    var yTickCount=Math.max(3,Math.min(5,Math.floor(plotH/55)));
+
+    // Grid lines — same tick counts as axes
+    xScale.ticks(xTickCount).forEach(function(t){
       g.append("line")
         .attr("x1",xScale(t)).attr("x2",xScale(t))
         .attr("y1",0).attr("y2",plotH)
         .attr("stroke","#f0f0f0").attr("stroke-width",1);
     });
-    yScale.ticks(5).forEach(function(t){
+    yScale.ticks(yTickCount).forEach(function(t){
       g.append("line")
         .attr("x1",0).attr("x2",plotW)
         .attr("y1",yScale(t)).attr("y2",yScale(t))
@@ -701,27 +705,29 @@ function drawTreemap() {
         .attr("fill","#94a3b8").text("1:1 line");
     }
 
-    // X axis
-    g.append("g").attr("transform","translate(0,"+plotH+")")
-      .call(d3.axisBottom(xScale).ticks(5,"~s").tickFormat(fmt$))
-      .call(function(ax){
-        ax.select(".domain").attr("stroke","#e2e8f0");
-        ax.selectAll(".tick line").attr("stroke","#e2e8f0");
-        ax.selectAll("text").attr("font-size",fs).attr("fill","#475569");
-      });
 
-    // Y axis
-    g.append("g")
-      .call(d3.axisLeft(yScale).ticks(5,"~s").tickFormat(fmt$))
-      .call(function(ax){
-        ax.select(".domain").attr("stroke","#e2e8f0");
-        ax.selectAll(".tick line").attr("stroke","#e2e8f0");
-        ax.selectAll("text").attr("font-size",fs).attr("fill","#475569");
-      });
+
+    // X axis — rotate labels so they never overlap
+    var xAxis=g.append("g").attr("transform","translate(0,"+plotH+")")
+      .call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
+    xAxis.select(".domain").attr("stroke","#e2e8f0");
+    xAxis.selectAll(".tick line").attr("stroke","#e2e8f0");
+    xAxis.selectAll("text")
+      .attr("font-size",fs).attr("fill","#475569")
+      .attr("text-anchor","end")
+      .attr("transform","rotate(-35)")
+      .attr("dx","-0.5em").attr("dy","0.3em");
+
+    // Y axis — enough left margin to prevent label clipping
+    var yAxis=g.append("g")
+      .call(d3.axisLeft(yScale).ticks(yTickCount).tickFormat(fmt$));
+    yAxis.select(".domain").attr("stroke","#e2e8f0");
+    yAxis.selectAll(".tick line").attr("stroke","#e2e8f0");
+    yAxis.selectAll("text").attr("font-size",fs).attr("fill","#475569");
 
     // Axis labels
     g.append("text")
-      .attr("x",plotW/2).attr("y",plotH+48)
+      .attr("x",plotW/2).attr("y",plotH+64)
       .attr("text-anchor","middle")
       .attr("font-size",axLabelFs).attr("font-weight","600").attr("fill","#475569")
       .text("Total GBEP Award");
@@ -786,7 +792,7 @@ function drawTreemap() {
         .attr("text-anchor","end")
         .attr("font-size",Math.max(12,Math.round(vfs(11))))
         .attr("fill","#94a3b8")
-        .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $1,000 or not recorded.");
+        .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $5,000 or not recorded.");
     }
 
     // Bubble size legend
