@@ -205,7 +205,9 @@
     if(!chartDrawn[i]&&filteredData.length>0){
       setTimeout(function(){
         if(i===0)drawUpset(filteredData,"upset-chart");
-        if(i===1)drawSiteChart();
+        if(i===1)requestAnimationFrame(function(){
+          requestAnimationFrame(function(){drawSiteChart();});
+        });
         if(i===2)drawOrgChart();
         if(i===3)drawAllPlanPriorities();
         if(i===4)drawFiscalYear();
@@ -641,10 +643,11 @@ function drawTreemap() {
     el.innerHTML="";
     el.style.overflow="hidden";
     el.style.position="relative";
-    var W=Math.max(el.clientWidth||600,200);
-    var H=Math.max(el.clientHeight||300,150);
+    var W=Math.max(el.clientWidth||el.offsetWidth||600,200);
+    var H=Math.max(el.clientHeight||el.offsetHeight||
+           (el.parentElement?el.parentElement.clientHeight-40:0)||300,150);
 
-    var mL=60,mR=16,mT=14,mB=62;
+    var mL=60,mR=20,mT=14,mB=62;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<60||plotH<60)return;
@@ -680,11 +683,11 @@ function drawTreemap() {
     var maxCount=d3.max(validSites,function(d){return d.count;})||1;
 
     // X: total project cost (log), Y: % GBEP of total cost (linear 0-100)
-    var xScale=d3.scaleLog().domain([MIN_VAL,maxCost*1.4]).range([0,plotW]);
+    var xScale=d3.scaleLog().domain([MIN_VAL,maxCost*1.1]).range([0,plotW]);
     var yScale=d3.scaleLinear().domain([0,100]).range([plotH,0]);
 
-    var rMin=Math.max(18,plotW*0.025);
-    var rMax=Math.max(50,plotW*0.09);
+    var rMin=Math.max(14,plotW*0.02);
+    var rMax=Math.max(40,plotW*0.07);
     var rScale=d3.scaleSqrt().domain([1,maxCount]).range([rMin,rMax]);
 
     var fs=Math.max(13,Math.round(vfs(14)));
