@@ -716,11 +716,12 @@ function drawTreemap() {
     }
     drawGrid();
 
-    // 1:1 reference line
+    // 1:1 reference line — named group so zoom handler can redraw it
+    var refLineG=axG.append("g");
     var refMin=Math.max(xScale.domain()[0],yScale.domain()[0]);
     var refMax=Math.min(xScale.domain()[1],yScale.domain()[1]);
     if(refMax>refMin){
-      axG.append("line")
+      refLineG.append("line")
         .attr("x1",xScale(refMin)).attr("y1",yScale(refMin))
         .attr("x2",xScale(refMax)).attr("y2",yScale(refMax))
         .attr("stroke","#cbd5e1").attr("stroke-width",1.5)
@@ -874,9 +875,10 @@ function drawTreemap() {
       .scaleExtent([0.5,10])
       .on("zoom",function(event){
         var t=event.transform;
-        // Rescale axes
         var newX=t.rescaleX(xScale);
         var newY=t.rescaleY(yScale);
+
+        // Redraw axes with rescaled ticks
         xAxisG.call(d3.axisBottom(newX).ticks(xTickCount).tickFormat(fmt$));
         xAxisG.select(".domain").attr("stroke","#e2e8f0");
         xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
@@ -887,6 +889,44 @@ function drawTreemap() {
         yAxisG.select(".domain").attr("stroke","#e2e8f0");
         yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
         yAxisG.selectAll("text").attr("font-size",Math.max(13,Math.round(vfs(14)))).attr("fill","#475569");
+
+        // Redraw grid lines with rescaled positions
+        xGridG.selectAll("line").remove();
+        newX.ticks(xTickCount).forEach(function(tick){
+          xGridG.append("line")
+            .attr("x1",newX(tick)).attr("x2",newX(tick))
+            .attr("y1",0).attr("y2",plotH)
+            .attr("stroke","#f0f0f0").attr("stroke-width",1);
+        });
+        yGridG.selectAll("line").remove();
+        newY.ticks(yTickCount).forEach(function(tick){
+          yGridG.append("line")
+            .attr("x1",0).attr("x2",plotW)
+            .attr("y1",newY(tick)).attr("y2",newY(tick))
+            .attr("stroke","#f0f0f0").attr("stroke-width",1);
+        });
+
+        // Redraw 1:1 reference line with rescaled positions
+        refLineG.selectAll("*").remove();
+        var rxMin=Math.max(newX.domain()[0],newY.domain()[0]);
+        var rxMax=Math.min(newX.domain()[1],newY.domain()[1]);
+        if(rxMax>rxMin){
+          // Clamp to plot area
+          var x1c=Math.max(0,Math.min(plotW,newX(rxMin)));
+          var y1c=Math.max(0,Math.min(plotH,newY(rxMin)));
+          var x2c=Math.max(0,Math.min(plotW,newX(rxMax)));
+          var y2c=Math.max(0,Math.min(plotH,newY(rxMax)));
+          refLineG.append("line")
+            .attr("x1",x1c).attr("y1",y1c)
+            .attr("x2",x2c).attr("y2",y2c)
+            .attr("stroke","#cbd5e1").attr("stroke-width",1.5)
+            .attr("stroke-dasharray","4,3");
+          refLineG.append("text")
+            .attr("x",x2c+4).attr("y",y2c-6)
+            .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8")
+            .text("100% GBEP funded");
+        }
+
         // Transform bubble group
         bubbleG.attr("transform","translate("+t.x+","+t.y+") scale("+t.k+")");
       });
