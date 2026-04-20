@@ -666,7 +666,6 @@ function drawTreemap() {
     var C_OTHER="#ea940d";
     var MIN_VAL=5000;
 
-    // Compute % GBEP of total cost per site — only use sites with cost data
     var validSites=sites.filter(function(d){
       return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL&&d.totalCost>=d.award;
     });
@@ -680,15 +679,16 @@ function drawTreemap() {
     });
 
     var maxCost=d3.max(validSites,function(d){return d.totalCost;})||1;
+    var minCost=d3.min(validSites,function(d){return d.totalCost;})||1;
     var maxCount=d3.max(validSites,function(d){return d.count;})||1;
 
-    // X: total project cost (log), Y: % GBEP of total cost (linear 0-100)
-    var xScale=d3.scaleLog().domain([MIN_VAL,maxCost*1.1]).range([0,plotW]);
-    var yScale=d3.scaleLinear().domain([0,100]).range([plotH,0]);
-
-    var rMin=Math.max(14,plotW*0.02);
-    var rMax=Math.max(40,plotW*0.07);
+    var rMin=Math.max(14,plotW*0.018);
+    var rMax=Math.max(40,plotW*0.065);
     var rScale=d3.scaleSqrt().domain([1,maxCount]).range([rMin,rMax]);
+
+    // Base scales
+    var xScaleBase=d3.scaleLog().domain([minCost*0.7,maxCost*1.3]).range([0,plotW]);
+    var yScale=d3.scaleLinear().domain([0,100]).range([plotH,0]);
 
     var fs=Math.max(13,Math.round(vfs(14)));
     var axFs=Math.max(14,Math.round(vfs(15)));
@@ -703,46 +703,25 @@ function drawTreemap() {
       .append("rect").attr("x",0).attr("y",0).attr("width",plotW).attr("height",plotH);
 
     var root=svg.append("g").attr("transform","translate("+mL+","+mT+")");
-    var axG=root.append("g");
-    var xGridG=axG.append("g");
-    var yGridG=axG.append("g");
-    var zoomG=root.append("g").attr("clip-path","url(#scatter-clip)");
-    var bubbleG=zoomG.append("g");
-
-    // Grid
-    function drawGrid(xs,ys){
-      xGridG.selectAll("line").remove();
-      xs.ticks(xTickCount).forEach(function(t){
-        xGridG.append("line").attr("x1",xs(t)).attr("x2",xs(t))
-          .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
-      });
-      yGridG.selectAll("line").remove();
-      yTicks.forEach(function(t){
-        yGridG.append("line").attr("x1",0).attr("x2",plotW)
-          .attr("y1",ys(t)).attr("y2",ys(t))
-          .attr("stroke",t===50?"#e2e8f0":"#f0f0f0")
-          .attr("stroke-width",t===50?1.5:1);
-      });
-    }
-    drawGrid(xScale,yScale);
-
-    // Axes
+    var xGridG=root.append("g");
+    var yGridG=root.append("g");
     var xAxisG=root.append("g").attr("transform","translate(0,"+plotH+")");
     var yAxisG=root.append("g");
+    var bubbleLayer=root.append("g").attr("clip-path","url(#scatter-clip)");
 
-    function drawAxes(xs,ys){
-      xAxisG.call(d3.axisBottom(xs).ticks(xTickCount).tickFormat(fmt$));
-      xAxisG.select(".domain").attr("stroke","#e2e8f0");
-      xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-      xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
-        .attr("text-anchor","end").attr("transform","rotate(-35)")
-        .attr("dx","-0.4em").attr("dy","0.3em");
-      yAxisG.call(d3.axisLeft(ys).tickValues(yTicks).tickFormat(function(d){return d+"%";}));
-      yAxisG.select(".domain").attr("stroke","#e2e8f0");
-      yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-      yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
-    }
-    drawAxes(xScale,yScale);
+    // Draw Y grid once (linear, doesn't change)
+    yTicks.forEach(function(t){
+      yGridG.append("line").attr("x1",0).attr("x2",plotW)
+        .attr("y1",yScale(t)).attr("y2",yScale(t))
+        .attr("stroke",t===50?"#e2e8f0":"#f0f0f0")
+        .attr("stroke-width",t===50?1.5:1);
+    });
+
+    // Draw Y axis once
+    yAxisG.call(d3.axisLeft(yScale).tickValues(yTicks).tickFormat(function(d){return d+"%";}));
+    yAxisG.select(".domain").attr("stroke","#e2e8f0");
+    yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+    yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
 
     // Axis labels
     root.append("text").attr("x",plotW/2).attr("y",plotH+50)
@@ -755,90 +734,115 @@ function drawTreemap() {
       .attr("font-weight","600").attr("fill","#475569")
       .text("GBEP Share of Total Project Cost");
 
-    // Bubbles — land acquisition sorted to top (render last)
-    validSites.slice().sort(function(a,b){
-      var aLand=(a.landCount===a.count&&a.landCount>0)?1:0;
-      var bLand=(b.landCount===b.count&&b.landCount>0)?1:0;
-      if(aLand!==bLand)return aLand-bLand;
+    // Sort: land acquisition on top
+    var sorted=validSites.slice().sort(function(a,b){
+      var aL=(a.landCount===a.count&&a.landCount>0)?1:0;
+      var bL=(b.landCount===b.count&&b.landCount>0)?1:0;
+      if(aL!==bL)return aL-bL;
       return b.count-a.count;
-    }).forEach(function(d){
-      var cx=xScale(d.totalCost);
-      var cy=yScale(d.pctGbep);
-      var r=rScale(d.count);
-      var landFrac=(d.count>0?d.landCount/d.count:0);
-      var coFunding=d.totalCost-d.award;
-
-      var ttHtml=
-        "<strong>"+d.label+"</strong><br>"+
-        d.count+" project"+(d.count!==1?"s":"")+"<br>"+
-        "GBEP Award: "+fmt$(d.award)+"<br>"+
-        "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
-        (coFunding>0?"Outside co-funding: "+fmt$(coFunding):"All GBEP-funded")+"<br>"+
-        "GBEP share: "+d.pctGbep+"%<br>"+
-        (d.acres>0?"Approx. "+fmtAc(d.acres)+"<br>":"")+
-        (d.landCount>0?d.landCount+" land acquisition project"+(d.landCount!==1?"s":""):"No land acquisition projects");
-
-      var bG=bubbleG.append("g").style("cursor","pointer")
-        .on("mousemove",function(event){showTooltip(event,ttHtml);})
-        .on("mouseleave",hideTooltip);
-
-      if(landFrac<=0){
-        bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
-          .attr("fill",C_OTHER).attr("fill-opacity",0.82)
-          .attr("stroke","white").attr("stroke-width",1.5);
-      } else if(landFrac>=1){
-        bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
-          .attr("fill",C_LAND).attr("fill-opacity",0.82)
-          .attr("stroke","white").attr("stroke-width",1.5);
-      } else {
-        bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
-          .attr("fill",C_OTHER).attr("fill-opacity",0.82)
-          .attr("stroke","white").attr("stroke-width",1.5);
-        var sA=-Math.PI/2, eA=sA+(landFrac*2*Math.PI);
-        var x1=cx+r*Math.cos(sA),y1=cy+r*Math.sin(sA);
-        var x2=cx+r*Math.cos(eA),y2=cy+r*Math.sin(eA);
-        var large=landFrac>0.5?1:0;
-        bG.append("path")
-          .attr("d","M "+cx+","+cy+" L "+x1+","+y1+" A "+r+","+r+" 0 "+large+",1 "+x2+","+y2+" Z")
-          .attr("fill",C_LAND).attr("fill-opacity",0.88)
-          .attr("stroke","white").attr("stroke-width",0.5);
-      }
-
-      // Label inside bubble
-      var availW=r*1.7;
-      var words=d.label.split(/\s+/);
-      var lf=Math.max(12,Math.min(Math.floor(r*0.42),Math.round(vfs(12))));
-      var cpl=Math.max(4,Math.floor(availW/(lf*0.55)));
-      var lines=[],cur="";
-      words.forEach(function(w){
-        var test=cur?cur+" "+w:w;
-        if(test.length>cpl&&cur){lines.push(cur);cur=w;}else cur=test;
-      });
-      if(cur)lines.push(cur);
-      var isAllLand=(d.landCount===d.count&&d.landCount>0);
-      var acresStr=(isAllLand&&d.acres>0)?fmtAc(d.acres):null;
-      var lh=lf*1.2;
-      var mxL=Math.max(1,Math.floor((r*1.6)/lh));
-      var nameLines=acresStr?Math.max(1,mxL-1):mxL;
-      if(lines.length>nameLines){
-        lines=lines.slice(0,nameLines);
-        var last=lines[nameLines-1];
-        if(last.length>3)lines[nameLines-1]=last.slice(0,last.length-1)+"\u2026";
-      }
-      if(acresStr)lines.push(acresStr);
-      var sy=cy-((lines.length-1)*lh)/2;
-      lines.forEach(function(line,li){
-        var isAcres=(acresStr&&li===lines.length-1);
-        bubbleG.append("text").attr("x",cx).attr("y",sy+li*lh)
-          .attr("text-anchor","middle").attr("dominant-baseline","middle")
-          .attr("font-size",isAcres?Math.max(11,lf-1):lf)
-          .attr("font-weight",isAcres?"500":"700")
-          .attr("fill","white").attr("fill-opacity",isAcres?0.85:1)
-          .style("pointer-events","none").text(line);
-      });
     });
 
-    // Bubble size note
+    // Redraw everything that depends on X scale
+    function redraw(xScale){
+      // X grid
+      xGridG.selectAll("line").remove();
+      xScale.ticks(xTickCount).forEach(function(t){
+        xGridG.append("line").attr("x1",xScale(t)).attr("x2",xScale(t))
+          .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
+      });
+
+      // X axis
+      xAxisG.call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
+      xAxisG.select(".domain").attr("stroke","#e2e8f0");
+      xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+      xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+        .attr("text-anchor","end").attr("transform","rotate(-35)")
+        .attr("dx","-0.4em").attr("dy","0.3em");
+
+      // Bubbles — repositioned using current xScale, Y unchanged
+      bubbleLayer.selectAll("g.bubble").remove();
+
+      sorted.forEach(function(d){
+        var cx=xScale(d.totalCost);
+        var cy=yScale(d.pctGbep);
+        var r=rScale(d.count);
+        var landFrac=(d.count>0?d.landCount/d.count:0);
+        var coFunding=d.totalCost-d.award;
+
+        var ttHtml=
+          "<strong>"+d.label+"</strong><br>"+
+          d.count+" project"+(d.count!==1?"s":"")+"<br>"+
+          "GBEP Award: "+fmt$(d.award)+"<br>"+
+          "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
+          (coFunding>0?"Outside co-funding: "+fmt$(coFunding):"All GBEP-funded")+"<br>"+
+          "GBEP share: "+d.pctGbep+"%<br>"+
+          (d.acres>0?"Approx. "+fmtAc(d.acres)+"<br>":"")+
+          (d.landCount>0?d.landCount+" land acquisition project"+(d.landCount!==1?"s":""):"No land acquisition projects");
+
+        var bG=bubbleLayer.append("g").attr("class","bubble")
+          .style("cursor","pointer")
+          .on("mousemove",function(event){showTooltip(event,ttHtml);})
+          .on("mouseleave",hideTooltip);
+
+        if(landFrac<=0){
+          bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
+            .attr("fill",C_OTHER).attr("fill-opacity",0.82)
+            .attr("stroke","white").attr("stroke-width",1.5);
+        } else if(landFrac>=1){
+          bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
+            .attr("fill",C_LAND).attr("fill-opacity",0.82)
+            .attr("stroke","white").attr("stroke-width",1.5);
+        } else {
+          bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
+            .attr("fill",C_OTHER).attr("fill-opacity",0.82)
+            .attr("stroke","white").attr("stroke-width",1.5);
+          var sA=-Math.PI/2,eA=sA+(landFrac*2*Math.PI);
+          var x1=cx+r*Math.cos(sA),y1=cy+r*Math.sin(sA);
+          var x2=cx+r*Math.cos(eA),y2=cy+r*Math.sin(eA);
+          bG.append("path")
+            .attr("d","M "+cx+","+cy+" L "+x1+","+y1+" A "+r+","+r+" 0 "+(landFrac>0.5?1:0)+",1 "+x2+","+y2+" Z")
+            .attr("fill",C_LAND).attr("fill-opacity",0.88)
+            .attr("stroke","white").attr("stroke-width",0.5);
+        }
+
+        // Label inside bubble
+        var availW=r*1.7;
+        var words=d.label.split(/\s+/);
+        var lf=Math.max(12,Math.min(Math.floor(r*0.42),Math.round(vfs(12))));
+        var cpl=Math.max(4,Math.floor(availW/(lf*0.55)));
+        var lines=[],cur="";
+        words.forEach(function(w){
+          var test=cur?cur+" "+w:w;
+          if(test.length>cpl&&cur){lines.push(cur);cur=w;}else cur=test;
+        });
+        if(cur)lines.push(cur);
+        var isAllLand=(d.landCount===d.count&&d.landCount>0);
+        var acresStr=(isAllLand&&d.acres>0)?fmtAc(d.acres):null;
+        var lh=lf*1.2;
+        var mxL=Math.max(1,Math.floor((r*1.6)/lh));
+        var nameLines=acresStr?Math.max(1,mxL-1):mxL;
+        if(lines.length>nameLines){
+          lines=lines.slice(0,nameLines);
+          if(lines[nameLines-1].length>3)lines[nameLines-1]=lines[nameLines-1].slice(0,-1)+"\u2026";
+        }
+        if(acresStr)lines.push(acresStr);
+        var sy=cy-((lines.length-1)*lh)/2;
+        lines.forEach(function(line,li){
+          var isAc=(acresStr&&li===lines.length-1);
+          bG.append("text").attr("x",cx).attr("y",sy+li*lh)
+            .attr("text-anchor","middle").attr("dominant-baseline","middle")
+            .attr("font-size",isAc?Math.max(11,lf-1):lf)
+            .attr("font-weight",isAc?"500":"700")
+            .attr("fill","white").attr("fill-opacity",isAc?0.85:1)
+            .style("pointer-events","none").text(line);
+        });
+      });
+    }
+
+    // Initial draw
+    redraw(xScaleBase);
+
+    // Notes
     root.append("text").attr("x",plotW).attr("y",-2)
       .attr("text-anchor","end")
       .attr("font-size",Math.max(12,Math.round(vfs(12)))).attr("font-weight","600").attr("fill","#64748b")
@@ -851,32 +855,37 @@ function drawTreemap() {
         .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — cost data incomplete.");
     }
 
-    // Zoom
-    var zoom=d3.zoom().scaleExtent([0.5,10])
+    // Auto-fit: compute initial zoom so all bubbles are visible
+    var xVals=validSites.map(function(d){return d.totalCost;});
+    var pad=rMax*1.2; // padding = max bubble radius
+    var xDataMin=d3.min(xVals), xDataMax=d3.max(xVals);
+    // Target range in pixel space with padding
+    var pxMin=xScaleBase(xDataMin)-pad;
+    var pxMax=xScaleBase(xDataMax)+pad;
+    var dataSpanPx=pxMax-pxMin;
+    var initK=dataSpanPx>0?plotW/dataSpanPx:1;
+    initK=Math.max(0.3,Math.min(initK,8));
+    var initTx=-pxMin*initK;
+    var initTransform=d3.zoomIdentity.translate(initTx,0).scale(initK);
+
+    // Zoom — X only, redraw on each event
+    var zoom=d3.zoom().scaleExtent([0.2,20])
       .on("zoom",function(event){
         var t=event.transform;
-        var newX=t.rescaleX(xScale);
-        xAxisG.call(d3.axisBottom(newX).ticks(xTickCount).tickFormat(fmt$));
-        xAxisG.select(".domain").attr("stroke","#e2e8f0");
-        xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-        xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
-          .attr("text-anchor","end").attr("transform","rotate(-35)")
-          .attr("dx","-0.4em").attr("dy","0.3em");
-        // Redraw x grid only (y is linear 0-100, doesn't change with zoom)
-        xGridG.selectAll("line").remove();
-        newX.ticks(xTickCount).forEach(function(tick){
-          xGridG.append("line").attr("x1",newX(tick)).attr("x2",newX(tick))
-            .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
-        });
-        bubbleG.attr("transform","translate("+t.x+","+t.y+") scale("+t.k+")");
+        // Only use X translate and scale, ignore Y movement
+        var newX=t.rescaleX(xScaleBase);
+        redraw(newX);
       });
 
     svg.call(zoom).style("cursor","grab");
+    // Apply initial fit transform
+    svg.call(zoom.transform,initTransform);
     svg.on("dblclick.zoom",function(){
-      svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity);
+      svg.transition().duration(400).call(zoom.transform,initTransform);
     });
+
     window._zoomBehaviors=window._zoomBehaviors||{};
-    window._zoomBehaviors[containerId]={svg:svg,zoom:zoom};
+    window._zoomBehaviors[containerId]={svg:svg,zoom:zoom,initTransform:initTransform};
   }
   function drawSiteChart(){
     var mode=window._siteSortMode||"all";
