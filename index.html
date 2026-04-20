@@ -848,27 +848,26 @@ function drawTreemap() {
           if(lines[nameLines-1].length>3)lines[nameLines-1]=lines[nameLines-1].slice(0,-1)+"\u2026";
         }
         if(acresStr)lines.push(acresStr);
-        // Shift label toward free edge if another larger bubble overlaps
-        // Clamp: label block must stay inside this bubble
+        // Only shift labels on large bubbles (small ones stay centered)
         var labelShift=0;
         var halfH=((lines.length)*lh)/2;
-        sorted.forEach(function(other){
-          if(other===d)return;
-          var or_=rScale(other.count);
-          if(or_<=r)return; // only larger bubbles push us
-          var ocx=curX(other.totalCost), ocy=yScale(other.pctGbep);
-          var dx=cx-ocx, dy=cy-ocy;
-          var dist=Math.sqrt(dx*dx+dy*dy);
-          if(dist<r+or_*0.85){ // meaningful overlap
-            // Push label away from other bubble center (up if other is below, down if above)
-            var pushDir=cy<ocy?-1:1;
-            var push=Math.min(r*0.35, (r+or_*0.85-dist)*0.4)*pushDir;
-            if(Math.abs(push)>Math.abs(labelShift))labelShift=push;
-          }
-        });
-        // Clamp so label block stays within bubble
-        var maxShift=Math.max(0, r*0.7-halfH);
-        labelShift=Math.max(-maxShift,Math.min(maxShift,labelShift));
+        if(r>=rMin*2){ // only shift on bubbles at least twice the minimum size
+          sorted.forEach(function(other){
+            if(other===d)return;
+            var or_=rScale(other.count);
+            if(or_<=r)return;
+            var ocx=curX(other.totalCost), ocy=yScale(other.pctGbep);
+            var dx=cx-ocx, dy=cy-ocy;
+            var dist=Math.sqrt(dx*dx+dy*dy);
+            if(dist<r+or_*0.85){
+              var pushDir=cy<ocy?-1:1;
+              var push=Math.min(r*0.3,(r+or_*0.85-dist)*0.35)*pushDir;
+              if(Math.abs(push)>Math.abs(labelShift))labelShift=push;
+            }
+          });
+          var maxShift=Math.max(0,r*0.65-halfH);
+          labelShift=Math.max(-maxShift,Math.min(maxShift,labelShift));
+        }
         var sy=cy+labelShift-((lines.length-1)*lh)/2;
         lines.forEach(function(line,li){
           var isAc=(acresStr&&li===lines.length-1);
