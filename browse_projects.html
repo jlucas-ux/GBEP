@@ -251,9 +251,9 @@ var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/service
     if(!scale)return null;
     var s=scale.toLowerCase();
     if(s.indexOf("large scale")>-1||s.indexOf("large-scale")>-1)
-      return "background:#e8eaf6;color:#283593;border:1px solid #9fa8da;";
+      return "background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;";
     if(s.indexOf("physical")>-1)
-      return "background:#e0f7fa;color:#006064;border:1px solid #80deea;";
+      return "background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;";
     return null;
   }
 
@@ -682,6 +682,7 @@ function renderCards(){
         '<div class="pcard-tags">'+
           habList.map(function(h){return '<span class="ptag ptag-hab">'+h+'</span>';}).join('')+
           (function(){var sc=normalizeVal(clean(d.project_scale));var st=sc?scaleStyle(sc):null;return st?'<span class="ptag" style="'+st+'">'+sc+'</span>':'';})()+
+          (function(){var g=String(d.edited_broad_project_goals||d.broad_project_goals||'').replace(/_/g,' ').toLowerCase();return g.indexOf('land acqui')>-1?'<span class="ptag" style="background:#fde8e8;color:#ac4341;border:1px solid #f5b7b7;font-weight:600;">Land Acquisition</span>':'';})()+
         '</div>'+
       '</div>';
 
