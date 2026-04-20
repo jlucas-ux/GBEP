@@ -66,7 +66,21 @@
     </div>
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site</div>
-      <div class="chart-subtitle">Total project cost vs. GBEP award per long-term site. Green = land acquisition projects, blue = restoration/stewardship/research, pie = mix of both. Bubble size = number of projects. Hover for details.</div>
+      <div class="chart-subtitle" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;">
+        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. Hover for details.</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+          <span style="width:12px;height:12px;border-radius:50%;background:#ac4341;display:inline-block;flex-shrink:0;"></span>
+          <span>Land Acquisition</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+          <span style="width:12px;height:12px;border-radius:50%;background:#ea940d;display:inline-block;flex-shrink:0;"></span>
+          <span>Restoration, Stewardship &amp; Research</span>
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;"><circle cx="6" cy="6" r="6" fill="#ea940d" opacity="0.78"/><path d="M6,6 L6,0 A6,6,0,0,1,12,6 Z" fill="#ac4341" opacity="0.82"/></svg>
+          <span>Mix of both</span>
+        </span>
+      </div>
       <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;">
         <button id="site-all" onclick="setSiteMode('all')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">All Projects</button>
         <button id="site-physical" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects Only</button>
@@ -623,15 +637,16 @@ function drawTreemap() {
     var el=document.getElementById(containerId);
     if(!el||!sites||!sites.length)return;
     el.innerHTML="";
-    el.style.overflow="auto";
-    el.style.minHeight="200px";
-    var W=el.clientWidth||600;
-    var H=el.clientHeight||300;
+    el.style.overflow="hidden";
+    el.style.position="relative";
+    var W=Math.max(el.clientWidth||600,200);
+    var H=Math.max(el.clientHeight||300,150);
 
-    var mL=88,mR=16,mT=16,mB=72;
+    // Tighter bottom margin — legend is now in subtitle
+    var mL=82,mR=14,mT=14,mB=58;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
-    if(plotW<80||plotH<60)return;
+    if(plotW<60||plotH<60)return;
 
     function fmt$(v){
       if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";
@@ -639,16 +654,13 @@ function drawTreemap() {
       return"$"+Math.round(v);
     }
 
-    // Colors: land acquisition = green, restoration/stewardship/research = blue
     var C_LAND="#ac4341";
     var C_OTHER="#ea940d";
-
     var MIN_VAL=5000;
     var validSites=sites.filter(function(d){return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL;});
     var excluded=sites.filter(function(d){return d.award>0&&(!d.totalCost||d.totalCost<MIN_VAL);});
     if(!validSites.length)return;
 
-    // SWITCHED AXES: X = Total Project Cost, Y = GBEP Award
     var maxCost=d3.max(validSites,function(d){return d.totalCost;})||1;
     var maxAward=d3.max(validSites,function(d){return d.award;})||1;
     var maxCount=d3.max(validSites,function(d){return d.count;})||1;
@@ -667,82 +679,95 @@ function drawTreemap() {
 
     var svg=d3.select("#"+containerId).append("svg")
       .attr("width",W).attr("height",H)
-      .style("font-family",FONT).style("overflow","visible");
-    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+      .style("font-family",FONT).style("display","block");
+
+    // Clip path so bubbles don't overflow axes
+    svg.append("defs").append("clipPath").attr("id","scatter-clip")
+      .append("rect").attr("x",0).attr("y",0).attr("width",plotW).attr("height",plotH);
+
+    var root=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+
+    // Static axes group (not zoomed)
+    var axG=root.append("g");
+    // Zoomable content group
+    var zoomG=root.append("g").attr("clip-path","url(#scatter-clip)");
+    var bubbleG=zoomG.append("g");
 
     // Grid
-    xScale.ticks(xTickCount).forEach(function(t){
-      g.append("line").attr("x1",xScale(t)).attr("x2",xScale(t))
-        .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
-    });
-    yScale.ticks(yTickCount).forEach(function(t){
-      g.append("line").attr("x1",0).attr("x2",plotW)
-        .attr("y1",yScale(t)).attr("y2",yScale(t)).attr("stroke","#f0f0f0").attr("stroke-width",1);
-    });
+    var xGridG=axG.append("g");
+    var yGridG=axG.append("g");
+    function drawGrid(){
+      xGridG.selectAll("line").remove();
+      yGridG.selectAll("line").remove();
+      xScale.ticks(xTickCount).forEach(function(t){
+        xGridG.append("line").attr("x1",xScale(t)).attr("x2",xScale(t))
+          .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
+      });
+      yScale.ticks(yTickCount).forEach(function(t){
+        yGridG.append("line").attr("x1",0).attr("x2",plotW)
+          .attr("y1",yScale(t)).attr("y2",yScale(t)).attr("stroke","#f0f0f0").attr("stroke-width",1);
+      });
+    }
+    drawGrid();
 
     // 1:1 reference line
     var refMin=Math.max(xScale.domain()[0],yScale.domain()[0]);
     var refMax=Math.min(xScale.domain()[1],yScale.domain()[1]);
     if(refMax>refMin){
-      g.append("line")
+      axG.append("line")
         .attr("x1",xScale(refMin)).attr("y1",yScale(refMin))
         .attr("x2",xScale(refMax)).attr("y2",yScale(refMax))
         .attr("stroke","#cbd5e1").attr("stroke-width",1.5)
         .attr("stroke-dasharray","4,3");
-      g.append("text")
+      axG.append("text")
         .attr("x",xScale(refMax)+4).attr("y",yScale(refMax)-6)
-        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8")
-        .text("1:1");
+        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8").text("1:1");
     }
 
-    // X axis — rotated labels
-    var xAx=g.append("g").attr("transform","translate(0,"+plotH+")")
-      .call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
-    xAx.select(".domain").attr("stroke","#e2e8f0");
-    xAx.selectAll(".tick line").attr("stroke","#e2e8f0");
-    xAx.selectAll("text").attr("font-size",fs).attr("fill","#475569")
-      .attr("text-anchor","end").attr("transform","rotate(-35)")
-      .attr("dx","-0.4em").attr("dy","0.3em");
+    // Axes
+    var xAxisG=root.append("g").attr("transform","translate(0,"+plotH+")");
+    var yAxisG=root.append("g");
+    function drawAxes(){
+      xAxisG.call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
+      xAxisG.select(".domain").attr("stroke","#e2e8f0");
+      xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+      xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+        .attr("text-anchor","end").attr("transform","rotate(-35)")
+        .attr("dx","-0.4em").attr("dy","0.3em");
 
-    // Y axis
-    var yAx=g.append("g")
-      .call(d3.axisLeft(yScale).ticks(yTickCount).tickFormat(fmt$));
-    yAx.select(".domain").attr("stroke","#e2e8f0");
-    yAx.selectAll(".tick line").attr("stroke","#e2e8f0");
-    yAx.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+      yAxisG.call(d3.axisLeft(yScale).ticks(yTickCount).tickFormat(fmt$));
+      yAxisG.select(".domain").attr("stroke","#e2e8f0");
+      yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+      yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+    }
+    drawAxes();
 
     // Axis labels
-    g.append("text").attr("x",plotW/2).attr("y",plotH+62)
+    root.append("text").attr("x",plotW/2).attr("y",plotH+50)
       .attr("text-anchor","middle").attr("font-size",axFs)
       .attr("font-weight","600").attr("fill","#475569")
       .text("Total Project Cost (All Funding Sources)");
-    g.append("text").attr("transform","rotate(-90)")
-      .attr("x",-plotH/2).attr("y",-70)
+    root.append("text").attr("transform","rotate(-90)")
+      .attr("x",-plotH/2).attr("y",-66)
       .attr("text-anchor","middle").attr("font-size",axFs)
       .attr("font-weight","600").attr("fill","#475569")
       .text("Total GBEP Award");
 
-    // Helper: draw pie arc path
+    // Pie arc helper
     function arcPath(cx,cy,r,startAngle,endAngle){
-      var x1=cx+r*Math.cos(startAngle);
-      var y1=cy+r*Math.sin(startAngle);
-      var x2=cx+r*Math.cos(endAngle);
-      var y2=cy+r*Math.sin(endAngle);
+      var x1=cx+r*Math.cos(startAngle), y1=cy+r*Math.sin(startAngle);
+      var x2=cx+r*Math.cos(endAngle),   y2=cy+r*Math.sin(endAngle);
       var large=(endAngle-startAngle)>Math.PI?1:0;
-      return "M "+cx+","+cy+" L "+x1+","+y1+
-             " A "+r+","+r+" 0 "+large+",1 "+x2+","+y2+" Z";
+      return "M "+cx+","+cy+" L "+x1+","+y1+" A "+r+","+r+" 0 "+large+",1 "+x2+","+y2+" Z";
     }
 
-    // Draw bubbles — sort so smaller render on top
+    // Draw bubbles into bubbleG
     validSites.slice().sort(function(a,b){return b.count-a.count;})
       .forEach(function(d){
-        var cx=xScale(d.totalCost);
-        var cy=yScale(d.award);
-        var r=rScale(d.count);
+        var cx=xScale(d.totalCost), cy=yScale(d.award), r=rScale(d.count);
         var landFrac=(d.count>0?d.landCount/d.count:0);
         var leverage=d.totalCost>0?(d.totalCost/d.award).toFixed(1):"—";
-
-        var tooltipHtml=
+        var ttHtml=
           "<strong>"+d.label+"</strong><br>"+
           d.count+" project"+(d.count!==1?"s":"")+"<br>"+
           "GBEP Award: "+fmt$(d.award)+"<br>"+
@@ -750,107 +775,98 @@ function drawTreemap() {
           "Leverage: "+leverage+"x<br>"+
           (d.landCount>0?d.landCount+" land acquisition project"+(d.landCount!==1?"s":""):"No land acquisition projects");
 
-        var bG=g.append("g").style("cursor","pointer")
-          .on("mousemove",function(event){showTooltip(event,tooltipHtml);})
+        var bG=bubbleG.append("g").style("cursor","pointer")
+          .on("mousemove",function(event){showTooltip(event,ttHtml);})
           .on("mouseleave",hideTooltip);
 
         if(landFrac<=0){
-          // All restoration/stewardship/research — solid blue
           bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
             .attr("fill",C_OTHER).attr("fill-opacity",0.78)
             .attr("stroke","white").attr("stroke-width",1.5);
         } else if(landFrac>=1){
-          // All land acquisition — solid green
           bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
             .attr("fill",C_LAND).attr("fill-opacity",0.78)
             .attr("stroke","white").attr("stroke-width",1.5);
         } else {
-          // Mixed — pie: green slice for land, blue for rest
-          // Background circle (other = blue)
           bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
             .attr("fill",C_OTHER).attr("fill-opacity",0.78)
             .attr("stroke","white").attr("stroke-width",1.5);
-          // Green slice (land acquisition)
-          var startA=-Math.PI/2;
-          var endA=startA+(landFrac*2*Math.PI);
-          bG.append("path")
-            .attr("d",arcPath(cx,cy,r,startA,endA))
+          var sA=-Math.PI/2, eA=sA+(landFrac*2*Math.PI);
+          bG.append("path").attr("d",arcPath(cx,cy,r,sA,eA))
             .attr("fill",C_LAND).attr("fill-opacity",0.82)
             .attr("stroke","white").attr("stroke-width",0.5);
-          // Dividing line
-          bG.append("line")
-            .attr("x1",cx).attr("y1",cy)
-            .attr("x2",cx+r*Math.cos(startA)).attr("y2",cy+r*Math.sin(startA))
-            .attr("stroke","white").attr("stroke-width",1.5);
-          bG.append("line")
-            .attr("x1",cx).attr("y1",cy)
-            .attr("x2",cx+r*Math.cos(endA)).attr("y2",cy+r*Math.sin(endA))
-            .attr("stroke","white").attr("stroke-width",1.5);
         }
 
-        // Label inside — font scales to fit
+        // Label inside bubble — font scales to fit
         var availW=r*1.7;
         var words=d.label.split(/\s+/);
-        var labelFont=Math.max(12,Math.min(Math.floor(r*0.42),Math.round(vfs(12))));
-        var charsPerLine=Math.max(4,Math.floor(availW/(labelFont*0.55)));
+        var lf=Math.max(12,Math.min(Math.floor(r*0.42),Math.round(vfs(12))));
+        var cpl=Math.max(4,Math.floor(availW/(lf*0.55)));
         var lines=[],cur="";
         words.forEach(function(w){
           var test=cur?cur+" "+w:w;
-          if(test.length>charsPerLine&&cur){lines.push(cur);cur=w;}
-          else cur=test;
+          if(test.length>cpl&&cur){lines.push(cur);cur=w;}else cur=test;
         });
         if(cur)lines.push(cur);
-        var lh=labelFont*1.2;
-        var maxLines=Math.max(1,Math.floor((r*1.6)/lh));
-        if(lines.length>maxLines){
-          lines=lines.slice(0,maxLines);
-          var last=lines[maxLines-1];
-          if(last.length>3)lines[maxLines-1]=last.slice(0,last.length-1)+"\u2026";
+        var lh=lf*1.2, mxL=Math.max(1,Math.floor((r*1.6)/lh));
+        if(lines.length>mxL){
+          lines=lines.slice(0,mxL);
+          var last=lines[mxL-1];
+          if(last.length>3)lines[mxL-1]=last.slice(0,last.length-1)+"\u2026";
         }
-        var startY=cy-((lines.length-1)*lh)/2;
+        var sy=cy-((lines.length-1)*lh)/2;
         lines.forEach(function(line,li){
-          g.append("text")
-            .attr("x",cx).attr("y",startY+li*lh)
+          bubbleG.append("text").attr("x",cx).attr("y",sy+li*lh)
             .attr("text-anchor","middle").attr("dominant-baseline","middle")
-            .attr("font-size",labelFont).attr("font-weight","700")
-            .attr("fill","white").style("pointer-events","none")
-            .text(line);
+            .attr("font-size",lf).attr("font-weight","700").attr("fill","white")
+            .style("pointer-events","none").text(line);
         });
       });
 
-    // Legend
-    var legY=plotH+52;
-    var legFs=Math.max(12,Math.round(vfs(12)));
-    g.append("circle").attr("cx",0).attr("cy",legY).attr("r",7).attr("fill",C_OTHER).attr("fill-opacity",0.78);
-    g.append("text").attr("x",12).attr("y",legY).attr("dominant-baseline","middle")
-      .attr("font-size",legFs).attr("fill","#475569")
-      .text("Restoration, Stewardship & Research");
-    g.append("circle").attr("cx",200).attr("cy",legY).attr("r",7).attr("fill",C_LAND).attr("fill-opacity",0.78);
-    g.append("text").attr("x",212).attr("y",legY).attr("dominant-baseline","middle")
-      .attr("font-size",legFs).attr("fill","#475569")
-      .text("Land Acquisition");
-    // Pie sample
-    var pX=320,pR=7;
-    g.append("circle").attr("cx",pX).attr("cy",legY).attr("r",pR).attr("fill",C_OTHER).attr("fill-opacity",0.78);
-    g.append("path")
-      .attr("d","M "+pX+","+legY+" L "+pX+","+(legY-pR)+" A "+pR+","+pR+" 0 0,1 "+(pX+pR)+","+legY+" Z")
-      .attr("fill",C_LAND).attr("fill-opacity",0.82);
-    g.append("text").attr("x",pX+12).attr("y",legY).attr("dominant-baseline","middle")
-      .attr("font-size",legFs).attr("fill","#475569")
-      .text("Mix of both");
-
-    // Size note
-    g.append("text").attr("x",plotW).attr("y",10)
+    // Bubble size note
+    root.append("text").attr("x",plotW).attr("y",-2)
       .attr("text-anchor","end")
-      .attr("font-size",legFs).attr("font-weight","600").attr("fill","#64748b")
+      .attr("font-size",Math.max(12,Math.round(vfs(12)))).attr("font-weight","600").attr("fill","#64748b")
       .text("Bubble size = number of projects");
 
     if(excluded.length){
-      g.append("text").attr("x",plotW).attr("y",plotH+68)
+      root.append("text").attr("x",plotW).attr("y",plotH+52)
         .attr("text-anchor","end")
-        .attr("font-size",legFs).attr("fill","#94a3b8")
+        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8")
         .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $5,000 or not recorded.");
     }
+
+    // ── Zoom behaviour ────────────────────────────────────────────────────────
+    var initialScale=1;
+    var zoom=d3.zoom()
+      .scaleExtent([0.5,10])
+      .on("zoom",function(event){
+        var t=event.transform;
+        // Rescale axes
+        var newX=t.rescaleX(xScale);
+        var newY=t.rescaleY(yScale);
+        xAxisG.call(d3.axisBottom(newX).ticks(xTickCount).tickFormat(fmt$));
+        xAxisG.select(".domain").attr("stroke","#e2e8f0");
+        xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+        xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+          .attr("text-anchor","end").attr("transform","rotate(-35)")
+          .attr("dx","-0.4em").attr("dy","0.3em");
+        yAxisG.call(d3.axisLeft(newY).ticks(yTickCount).tickFormat(fmt$));
+        yAxisG.select(".domain").attr("stroke","#e2e8f0");
+        yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+        yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+        // Transform bubble group
+        bubbleG.attr("transform","translate("+t.x+","+t.y+") scale("+t.k+")");
+      });
+
+    svg.call(zoom).style("cursor","grab");
+    svg.on("dblclick.zoom",function(){
+      svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity);
+    });
+
+    // Store for reset button
+    window._zoomBehaviors=window._zoomBehaviors||{};
+    window._zoomBehaviors[containerId]={svg:svg,zoom:zoom};
   }
   function drawSiteChart(){
     var mode=window._siteSortMode||"all";
@@ -867,33 +883,56 @@ function drawTreemap() {
 
     // Roll up per site: projects, total award, total acres
     var siteMap={};
+    // First pass: aggregate award/cost/habitats per unique title per site
+    // (Survey123 may produce multiple rows per project for different goals)
+    var rowsByTitle={};
     funded.forEach(function(row){
       var site=row.site_name_long_term_project_nam.trim();
-      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,titles:new Set(),habitats:[]};
-      siteMap[site].titles.add(row.nru_project_title||"");
-      siteMap[site].award+=(row.gbep_award_amount||0);
-      siteMap[site].totalCost+=(row.total_cost_of_project||0);
-      // Track land acquisition projects
-      var goals=String(row.broad_project_goals||"").toLowerCase();
-      if(goals.indexOf("land acquisition")>-1||goals.indexOf("land_acquisition")>-1)
-        siteMap[site].landCount++;
+      var title=(row.nru_project_title||"").trim();
+      var key=site+"|||"+title;
+      if(!rowsByTitle[key])rowsByTitle[key]={site:site,title:title,
+        award:0,totalCost:0,goals:[],habitats:[],counted:false};
+      // Only add award/cost once per unique title (first row wins)
+      if(!rowsByTitle[key].counted){
+        rowsByTitle[key].award+=(row.gbep_award_amount||0);
+        rowsByTitle[key].totalCost+=(row.total_cost_of_project||0);
+        rowsByTitle[key].counted=true;
+      }
+      // Collect all goals and habitats across rows
+      if(row.broad_project_goals)rowsByTitle[key].goals.push(String(row.broad_project_goals).toLowerCase());
       if(row.project_landscape_type){
         row.project_landscape_type.split(",").forEach(function(h){
           h=normHab(h.trim());
-          if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
+          if(h&&rowsByTitle[key].habitats.indexOf(h)<0)rowsByTitle[key].habitats.push(h);
         });
       }
     });
-    Object.keys(siteMap).forEach(function(s){
-      siteMap[s].count=siteMap[s].titles.size;
+
+    // Second pass: roll up deduplicated project rows into siteMap
+    Object.values(rowsByTitle).forEach(function(proj){
+      var site=proj.site;
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,habitats:[]};
+      siteMap[site].count++;
+      siteMap[site].award+=proj.award;
+      siteMap[site].totalCost+=proj.totalCost;
+      // Land acquisition: check if ANY of the project's goal rows include it
+      var isLand=proj.goals.some(function(g){
+        return g.indexOf("land acquisition")>-1||g.indexOf("land_acquisition")>-1;
+      });
+      if(isLand)siteMap[site].landCount++;
+      proj.habitats.forEach(function(h){
+        if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
+      });
     });
 
     var sites=Object.keys(siteMap).map(function(s){
-      return{label:s,count:siteMap[s].count,
-             award:siteMap[s].award,totalCost:siteMap[s].totalCost,
+      return{label:s,
+             count:siteMap[s].count,
+             award:siteMap[s].award,
+             totalCost:siteMap[s].totalCost,
              landCount:siteMap[s].landCount||0,
-             habitats:siteMap[s].habitats};
-    }).filter(function(d){return d.award>0;});
+             habitats:siteMap[s].habitats||[]};
+    }).filter(function(d){return d.award>0&&d.count>0;});
 
     // Update count indicator
     var countEl=document.getElementById("site-count");
