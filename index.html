@@ -638,9 +638,11 @@ function drawTreemap() {
       return"$"+Math.round(v);
     }
 
-    // Filter to sites with both award and totalCost > 0 for log scales
-    var validSites=sites.filter(function(d){return d.award>0&&d.totalCost>0;});
-    var noTotalCost=sites.filter(function(d){return d.award>0&&(!d.totalCost||d.totalCost<=0);});
+    // Filter: require both award and totalCost >= $1,000
+    // Values under $1K likely reflect incomplete data entry and distort the log scale
+    var MIN_VAL=1000;
+    var validSites=sites.filter(function(d){return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL;});
+    var excluded=sites.filter(function(d){return d.award>0&&(d.totalCost<MIN_VAL||!d.totalCost);});
 
     var maxAward=d3.max(validSites,function(d){return d.award;})||1;
     var minAward=d3.min(validSites,function(d){return d.award;})||1;
@@ -777,14 +779,14 @@ function drawTreemap() {
       }
     });
 
-    // Note if some sites had no total cost data
-    if(noTotalCost.length){
+    // Note about excluded sites
+    if(excluded.length){
       g.append("text")
-        .attr("x",plotW).attr("y",plotH+48)
+        .attr("x",plotW).attr("y",plotH+56)
         .attr("text-anchor","end")
         .attr("font-size",Math.max(12,Math.round(vfs(11))))
         .attr("fill","#94a3b8")
-        .text(noTotalCost.length+" site"+(noTotalCost.length!==1?"s":"")+" omitted — no total cost recorded");
+        .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $1,000 or not recorded.");
     }
 
     // Bubble size legend
