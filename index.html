@@ -688,7 +688,9 @@ function drawTreemap() {
 
     // Base scales
     var xScaleBase=d3.scaleLog().domain([minCost*0.7,maxCost*1.3]).range([0,plotW]);
-    var yScale=d3.scaleLinear().domain([0,100]).range([plotH,0]);
+    // Add padding so bubbles at 0% and 100% don't clip at edges
+    var yPad=rMax*1.1;
+    var yScale=d3.scaleLinear().domain([0,100]).range([plotH-yPad,yPad]);
 
     var fs=Math.max(13,Math.round(vfs(14)));
     var axFs=Math.max(14,Math.round(vfs(15)));
@@ -1005,7 +1007,9 @@ function drawTreemap() {
       if(m===mode){btn.style.background="#1677bc";btn.style.color="white";}
       else{btn.style.background="white";btn.style.color="#1677bc";}
     });
-    drawSiteChart();
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){drawSiteChart();});
+    });
   }
 
   function normalizeOrg(s){
