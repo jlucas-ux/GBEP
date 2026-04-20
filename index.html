@@ -627,7 +627,8 @@ function drawTreemap() {
     var W=el.clientWidth||600;
     var H=el.clientHeight||300;
 
-    var mL=86,mR=24,mT=20,mB=72;
+    // Margins — generous left for y-axis labels, bottom for rotated x labels
+    var mL=88,mR=16,mT=16,mB=72;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<80||plotH<60)return;
@@ -638,170 +639,176 @@ function drawTreemap() {
       return"$"+Math.round(v);
     }
 
-    // Filter: require both award and totalCost >= $5,000
-    // Values under $5K likely reflect incomplete data entry and distort the log scale
+    // Habitat color map — match HAB_TYPE_COLORS from index
+    var HAB_COLORS={
+      "estuarine wetland":"#2e7d32","estuarine shoreline":"#e65100",
+      "coastal prairie":"#827717","estuarine water column/open bay":"#0277bd",
+      "freshwater marsh":"#006994","riparian":"#00838f",
+      "living shoreline":"#00897b","forested wetland":"#33691e",
+      "urban/suburban":"#546e7a","forest/woodland":"#1b5e20",
+      "agriculture/ranch":"#5d4037","beach/dune":"#f9a825",
+      "submerged aquatic vegetation (sav)":"#1565c0",
+      "intertidal/reef":"#4527a0","rookery island":"#ad1457"
+    };
+    var HAB_DEFAULT="#1677bc";
+    function habColor(raw){
+      if(!raw)return HAB_DEFAULT;
+      var key=raw.toLowerCase().replace(/\s+/g," ").trim();
+      if(HAB_COLORS[key])return HAB_COLORS[key];
+      // prefix match
+      for(var k in HAB_COLORS){if(key.indexOf(k)===0||k.indexOf(key)===0)return HAB_COLORS[k];}
+      return HAB_DEFAULT;
+    }
+
+    // Filter
     var MIN_VAL=5000;
     var validSites=sites.filter(function(d){return d.award>=MIN_VAL&&d.totalCost>=MIN_VAL;});
-    var excluded=sites.filter(function(d){return d.award>0&&(d.totalCost<MIN_VAL||!d.totalCost);});
+    var excluded=sites.filter(function(d){return d.award>0&&(!d.totalCost||d.totalCost<MIN_VAL);});
+    if(!validSites.length)return;
 
     var maxAward=d3.max(validSites,function(d){return d.award;})||1;
     var minAward=d3.min(validSites,function(d){return d.award;})||1;
     var maxCost=d3.max(validSites,function(d){return d.totalCost;})||1;
     var minCost=d3.min(validSites,function(d){return d.totalCost;})||1;
-    var maxCount=d3.max(sites,function(d){return d.count;})||1;
+    var maxCount=d3.max(validSites,function(d){return d.count;})||1;
 
-    // Log scales spread funding data much better
     var xScale=d3.scaleLog()
-      .domain([Math.max(1,minAward*0.8), maxAward*1.3])
+      .domain([Math.max(1,minAward*0.7),maxAward*1.4])
       .range([0,plotW]).nice();
     var yScale=d3.scaleLog()
-      .domain([Math.max(1,minCost*0.8), maxCost*1.3])
+      .domain([Math.max(1,minCost*0.7),maxCost*1.4])
       .range([plotH,0]).nice();
     var rScale=d3.scaleSqrt()
       .domain([1,maxCount])
-      .range([Math.max(8,plotW*0.014),Math.max(20,plotW*0.042)]);
+      .range([Math.max(7,plotW*0.012),Math.max(20,plotW*0.038)]);
 
-    var fs=Math.max(12,Math.round(vfs(13)));
-    var labelFs=Math.max(12,Math.round(vfs(12)));
-    var axLabelFs=Math.max(12,Math.round(vfs(13)));
+    var fs=Math.max(12,Math.round(vfs(12)));
+    var axFs=Math.max(12,Math.round(vfs(13)));
 
     var svg=d3.select("#"+containerId).append("svg")
       .attr("width",W).attr("height",H)
       .style("font-family",FONT).style("overflow","visible");
-
     var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
 
-// Tick counts scale with container size — fewer ticks = no overlap
+    // Tick counts — one tick per ~90px so labels never crowd
     var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
     var yTickCount=Math.max(3,Math.min(5,Math.floor(plotH/55)));
 
-    // Grid lines — same tick counts as axes
+    // Grid
     xScale.ticks(xTickCount).forEach(function(t){
-      g.append("line")
-        .attr("x1",xScale(t)).attr("x2",xScale(t))
-        .attr("y1",0).attr("y2",plotH)
-        .attr("stroke","#f0f0f0").attr("stroke-width",1);
+      g.append("line").attr("x1",xScale(t)).attr("x2",xScale(t))
+        .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
     });
     yScale.ticks(yTickCount).forEach(function(t){
-      g.append("line")
-        .attr("x1",0).attr("x2",plotW)
-        .attr("y1",yScale(t)).attr("y2",yScale(t))
-        .attr("stroke","#f0f0f0").attr("stroke-width",1);
+      g.append("line").attr("x1",0).attr("x2",plotW)
+        .attr("y1",yScale(t)).attr("y2",yScale(t)).attr("stroke","#f0f0f0").attr("stroke-width",1);
     });
 
-    // 1:1 reference line (GBEP award = total cost = fully GBEP-funded)
+    // 1:1 reference line
     var refMin=Math.max(xScale.domain()[0],yScale.domain()[0]);
     var refMax=Math.min(xScale.domain()[1],yScale.domain()[1]);
     if(refMax>refMin){
       g.append("line")
         .attr("x1",xScale(refMin)).attr("y1",yScale(refMin))
         .attr("x2",xScale(refMax)).attr("y2",yScale(refMax))
-        .attr("stroke","#e2e8f0").attr("stroke-width",1.5)
+        .attr("stroke","#cbd5e1").attr("stroke-width",1.5)
         .attr("stroke-dasharray","4,3");
       g.append("text")
-        .attr("x",xScale(refMax)-4).attr("y",yScale(refMax)-6)
-        .attr("text-anchor","end")
-        .attr("font-size",Math.max(12,Math.round(vfs(11))))
-        .attr("fill","#94a3b8").text("1:1 line");
+        .attr("x",xScale(refMax)+4).attr("y",yScale(refMax)-6)
+        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8")
+        .text("1:1");
     }
 
-
-
-    // X axis — rotate labels so they never overlap
-    var xAxis=g.append("g").attr("transform","translate(0,"+plotH+")")
+    // X axis — rotated labels prevent overlap
+    var xAx=g.append("g").attr("transform","translate(0,"+plotH+")")
       .call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
-    xAxis.select(".domain").attr("stroke","#e2e8f0");
-    xAxis.selectAll(".tick line").attr("stroke","#e2e8f0");
-    xAxis.selectAll("text")
-      .attr("font-size",fs).attr("fill","#475569")
-      .attr("text-anchor","end")
-      .attr("transform","rotate(-35)")
-      .attr("dx","-0.5em").attr("dy","0.3em");
+    xAx.select(".domain").attr("stroke","#e2e8f0");
+    xAx.selectAll(".tick line").attr("stroke","#e2e8f0");
+    xAx.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+      .attr("text-anchor","end").attr("transform","rotate(-35)")
+      .attr("dx","-0.4em").attr("dy","0.3em");
 
-    // Y axis — enough left margin to prevent label clipping
-    var yAxis=g.append("g")
+    // Y axis
+    var yAx=g.append("g")
       .call(d3.axisLeft(yScale).ticks(yTickCount).tickFormat(fmt$));
-    yAxis.select(".domain").attr("stroke","#e2e8f0");
-    yAxis.selectAll(".tick line").attr("stroke","#e2e8f0");
-    yAxis.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+    yAx.select(".domain").attr("stroke","#e2e8f0");
+    yAx.selectAll(".tick line").attr("stroke","#e2e8f0");
+    yAx.selectAll("text").attr("font-size",fs).attr("fill","#475569");
 
     // Axis labels
-    g.append("text")
-      .attr("x",plotW/2).attr("y",plotH+64)
-      .attr("text-anchor","middle")
-      .attr("font-size",axLabelFs).attr("font-weight","600").attr("fill","#475569")
+    g.append("text").attr("x",plotW/2).attr("y",plotH+62)
+      .attr("text-anchor","middle").attr("font-size",axFs)
+      .attr("font-weight","600").attr("fill","#475569")
       .text("Total GBEP Award");
-
-    g.append("text")
-      .attr("transform","rotate(-90)")
-      .attr("x",-plotH/2).attr("y",-62)
-      .attr("text-anchor","middle")
-      .attr("font-size",axLabelFs).attr("font-weight","600").attr("fill","#475569")
+    g.append("text").attr("transform","rotate(-90)")
+      .attr("x",-plotH/2).attr("y",-70)
+      .attr("text-anchor","middle").attr("font-size",axFs)
+      .attr("font-weight","600").attr("fill","#475569")
       .text("Total Project Cost (All Funding Sources)");
 
-    // Bubbles — sites with total cost data
-    validSites.forEach(function(d){
-      var cx=xScale(d.award);
-      var cy=yScale(d.totalCost);
-      var r=rScale(d.count);
-      var leverage=d.award>0?(d.totalCost/d.award).toFixed(1):"—";
+    // Bubbles — color by dominant habitat, no text inside
+    // Sort so smaller bubbles render on top
+    validSites.slice().sort(function(a,b){return b.count-a.count;})
+      .forEach(function(d){
+        var cx=xScale(d.award);
+        var cy=yScale(d.totalCost);
+        var r=rScale(d.count);
+        var color=habColor(d.habitats&&d.habitats[0]||"");
+        var leverage=d.award>0?(d.totalCost/d.award).toFixed(1):"—";
 
-      g.append("circle")
-        .attr("cx",cx).attr("cy",cy).attr("r",r)
-        .attr("fill","#1677bc").attr("fill-opacity",0.75)
-        .attr("stroke","white").attr("stroke-width",1.5)
-        .style("cursor","pointer")
-        .on("mousemove",function(event){
-          showTooltip(event,
-            "<strong>"+d.label+"</strong><br>"+
-            d.count+" project"+(d.count!==1?"s":"")+"<br>"+
-            "GBEP Award: "+fmt$(d.award)+"<br>"+
-            "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
-            "Leverage ratio: "+leverage+"x");
-        })
-        .on("mouseleave",hideTooltip);
+        g.append("circle")
+          .attr("cx",cx).attr("cy",cy).attr("r",r)
+          .attr("fill",color).attr("fill-opacity",0.72)
+          .attr("stroke","white").attr("stroke-width",1.5)
+          .style("cursor","pointer")
+          .on("mousemove",function(event){
+            showTooltip(event,
+              "<strong>"+d.label+"</strong><br>"+
+              d.count+" project"+(d.count!==1?"s":"")+"<br>"+
+              "GBEP Award: "+fmt$(d.award)+"<br>"+
+              "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
+              "Leverage: "+leverage+"x");
+          })
+          .on("mouseleave",hideTooltip);
+      });
 
-      // Label if bubble large enough
-      if(r>=16){
-        var words=d.label.split(/\s+/);
-        var maxLC=Math.floor((r*1.6)/(labelFs*0.55));
-        var lines=[],cur="";
-        words.forEach(function(w){
-          var test=cur?cur+" "+w:w;
-          if(test.length>maxLC&&cur){lines.push(cur);cur=w;}
-          else cur=test;
-        });
-        if(cur)lines.push(cur);
-        lines=lines.slice(0,Math.max(1,Math.floor((r*1.5)/(labelFs*1.2))));
-        var lh=labelFs*1.2;
-        var sy=cy-((lines.length-1)*lh)/2;
-        lines.forEach(function(line,li){
-          g.append("text")
-            .attr("x",cx).attr("y",sy+li*lh)
-            .attr("text-anchor","middle").attr("dominant-baseline","middle")
-            .attr("font-size",labelFs).attr("font-weight","700").attr("fill","white")
-            .style("pointer-events","none").text(line);
-        });
-      }
-    });
-
-    // Note about excluded sites
-    if(excluded.length){
-      g.append("text")
-        .attr("x",plotW).attr("y",plotH+56)
-        .attr("text-anchor","end")
-        .attr("font-size",Math.max(12,Math.round(vfs(11))))
-        .attr("fill","#94a3b8")
-        .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $5,000 or not recorded.");
-    }
-
-    // Bubble size legend
-    g.append("text")
-      .attr("x",plotW).attr("y",12)
+    // Bubble size note
+    g.append("text").attr("x",plotW).attr("y",10)
       .attr("text-anchor","end")
       .attr("font-size",Math.max(12,Math.round(vfs(12))))
       .attr("font-weight","600").attr("fill","#64748b")
       .text("Bubble size = number of projects");
+
+    // Exclusion note
+    if(excluded.length){
+      g.append("text").attr("x",plotW).attr("y",plotH+68)
+        .attr("text-anchor","end")
+        .attr("font-size",Math.max(12,Math.round(vfs(11)))).attr("fill","#94a3b8")
+        .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — total project cost under $5,000 or not recorded.");
+    }
+
+    // Habitat color legend — only show colors actually used
+    var usedHabs={};
+    validSites.forEach(function(d){
+      if(d.habitats&&d.habitats[0]){
+        var key=d.habitats[0].toLowerCase().replace(/\s+/g," ").trim();
+        usedHabs[d.habitats[0]]=habColor(key);
+      }
+    });
+    var legItems=Object.keys(usedHabs).slice(0,8);
+    if(legItems.length>1){
+      var legX=0, legY=plotH+48;
+      var legFs=Math.max(12,Math.round(vfs(11)));
+      legItems.forEach(function(hab,i){
+        var lx=legX+i*Math.floor(plotW/legItems.length);
+        g.append("circle").attr("cx",lx+6).attr("cy",legY).attr("r",5)
+          .attr("fill",usedHabs[hab]).attr("fill-opacity",0.85);
+        g.append("text").attr("x",lx+14).attr("y",legY)
+          .attr("dominant-baseline","middle")
+          .attr("font-size",legFs).attr("fill","#475569")
+          .text(hab.length>18?hab.slice(0,16)+"\u2026":hab);
+      });
+    }
   }
   function drawSiteChart(){
     var mode=window._siteSortMode||"all";
@@ -823,10 +830,16 @@ function drawTreemap() {
     var siteMap={};
     funded.forEach(function(row){
       var site=row.site_name_long_term_project_nam.trim();
-      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,titles:new Set()};
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,titles:new Set(),habitats:[]};
       siteMap[site].titles.add(row.nru_project_title||"");
       siteMap[site].award+=(row.gbep_award_amount||0);
       siteMap[site].totalCost+=(row.total_cost_of_project||0);
+      if(row.project_landscape_type){
+        row.project_landscape_type.split(",").forEach(function(h){
+          h=normHab(h.trim());
+          if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
+        });
+      }
     });
     Object.keys(siteMap).forEach(function(s){
       siteMap[s].count=siteMap[s].titles.size;
@@ -834,7 +847,8 @@ function drawTreemap() {
 
     var sites=Object.keys(siteMap).map(function(s){
       return{label:s,count:siteMap[s].count,
-             award:siteMap[s].award,totalCost:siteMap[s].totalCost};
+             award:siteMap[s].award,totalCost:siteMap[s].totalCost,
+             habitats:siteMap[s].habitats};
     }).filter(function(d){return d.award>0;});
 
     drawScatterChart(sites,"site-chart");
