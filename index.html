@@ -655,6 +655,7 @@ function drawTreemap() {
   function drawOrgChart(){
     var el=document.getElementById("org-chart");
     if(!el||el.clientWidth<10)return;
+    var width=el.clientWidth||600;
 
     var funded=filteredData.filter(function(d){
       return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";
@@ -663,78 +664,108 @@ function drawTreemap() {
     var orgMap={};
     funded.forEach(function(row){
       var org=normalizeOrg(row.lead_organization_name);
-      if(!orgMap[org])orgMap[org]=0;
-      orgMap[org]++;
+      if(!orgMap[org])orgMap[org]={count:0,award:0};
+      orgMap[org].count++;
+      orgMap[org].award+=(row.gbep_award_amount||0);
     });
 
     var total=funded.length||1;
     var sorted=Object.keys(orgMap).map(function(org){
-      return{label:org,count:orgMap[org]};
+      return{label:org,count:orgMap[org].count,award:orgMap[org].award};
     }).sort(function(a,b){
       var m=window._orgSortMode||"count";
       if(m==="az")return a.label.localeCompare(b.label);
       return b.count!==a.count?b.count-a.count:a.label.localeCompare(b.label);
     });
     if(!sorted.length)return;
-    var maxCount=d3.max(sorted,function(d){return d.count;})||1;
 
-    el.style.overflowY="auto";
-    el.style.overflowX="hidden";
+    var maxCount=d3.max(sorted,function(d){return d.count;})||1;
+    var totalAward=d3.sum(sorted,function(d){return d.award;});
+    var avgCount=(total/sorted.length).toFixed(1);
+
+    // ── Layout: list left ~65%, stat panel right ~35% ─────────────────────
+    var PANEL_W=Math.min(220,Math.round(width*0.30));
+    var LIST_W=width-PANEL_W-16;
+
+    el.style.overflow="hidden";
     el.innerHTML="";
 
-    // 3-column card grid
-    var grid=document.createElement("div");
-    grid.style.cssText=
-      "display:grid;"+
-      "grid-template-columns:repeat(3,1fr);"+
-      "gap:8px;"+
-      "padding:4px 2px;"+
-      "width:100%;box-sizing:border-box;";
+    var wrap=document.createElement("div");
+    wrap.style.cssText="display:flex;gap:16px;height:100%;width:100%;box-sizing:border-box;";
+
+    // ── Left: ranked rows ──────────────────────────────────────────────────
+    var listEl=document.createElement("div");
+    listEl.style.cssText="flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;";
 
     sorted.forEach(function(d,i){
-      var pct=Math.round((d.count/total)*100);
-      var barPct=Math.round((d.count/maxCount)*100);
+      var pct=(d.count/maxCount)*100;
+      var row=document.createElement("div");
+      row.style.cssText=
+        "display:flex;align-items:center;gap:10px;padding:7px 8px;"+
+        "border-radius:6px;margin-bottom:3px;position:relative;"+
+        "transition:background .12s;cursor:default;";
+      row.onmouseenter=function(){this.style.background="#f0f7ff";};
+      row.onmouseleave=function(){this.style.background="";};
 
-      var card=document.createElement("div");
-      card.style.cssText=
-        "background:white;border:1px solid #e2e8f0;border-radius:8px;"+
-        "padding:12px 14px;display:flex;flex-direction:column;gap:8px;"+
-        "transition:box-shadow .15s,border-color .15s;cursor:default;"+
-        "box-sizing:border-box;";
-      card.onmouseenter=function(){
-        this.style.borderColor="#93c5fd";
-        this.style.boxShadow="0 2px 8px rgba(22,119,188,.12)";
-      };
-      card.onmouseleave=function(){
-        this.style.borderColor="#e2e8f0";
-        this.style.boxShadow="none";
-      };
+      row.innerHTML=
+        // Fill bar behind content
+        '<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;'+
+          'background:rgba(22,119,188,0.09);border-radius:6px;pointer-events:none;"></div>'+
+        // Rank
+        '<span style="position:relative;min-width:22px;height:22px;border-radius:50%;'+
+          'background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:900;'+
+          'display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">'+(i+1)+'</span>'+
+        // Org name — full width, no truncation
+        '<span style="position:relative;flex:1;font-size:14px;font-weight:600;'+
+          'color:#1a2332;line-height:1.3;min-width:0;">'+d.label+'</span>'+
+        // Count pill
+        '<span style="position:relative;font-size:16px;font-weight:900;color:#1677bc;'+
+          'flex-shrink:0;">'+d.count+'</span>';
 
-      card.innerHTML=
-        // Top row: rank + count
-        '<div style="display:flex;align-items:center;justify-content:space-between;">'+
-          '<span style="width:22px;height:22px;border-radius:50%;background:#f1f5f9;'+
-            'color:#94a3b8;font-size:11px;font-weight:900;display:inline-flex;'+
-            'align-items:center;justify-content:center;flex-shrink:0;">'+(i+1)+'</span>'+
-          '<span style="font-size:22px;font-weight:900;color:#1677bc;line-height:1;">'+d.count+
-            '<span style="font-size:12px;font-weight:500;color:#94a3b8;margin-left:3px;">projects</span>'+
-          '</span>'+
-        '</div>'+
-        // Org name
-        '<div style="font-size:14px;font-weight:700;color:#1a2332;line-height:1.3;'+
-          'min-height:38px;display:flex;align-items:center;">'+d.label+'</div>'+
-        // Bar showing share of total
-        '<div style="background:#f1f5f9;border-radius:3px;height:5px;overflow:hidden;">'+
-          '<div style="width:'+barPct+'%;height:100%;background:#1677bc;border-radius:3px;'+
-            'background:linear-gradient(to right,#1677bc,#54a9ad);"></div>'+
-        '</div>'+
-        // % of total
-        '<div style="font-size:12px;color:#94a3b8;">'+pct+'% of all funded projects</div>';
-
-      grid.appendChild(card);
+      listEl.appendChild(row);
     });
+    wrap.appendChild(listEl);
 
-    el.appendChild(grid);
+    // ── Right: stat panel ──────────────────────────────────────────────────
+    var panel=document.createElement("div");
+    panel.style.cssText=
+      "width:"+PANEL_W+"px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;"+
+      "background:#f8fafc;border-radius:10px;padding:16px 14px;border:1px solid #e2e8f0;"+
+      "align-self:flex-start;";
+
+    function statBlock(label,value,sub){
+      return '<div style="text-align:center;padding:10px 0;border-bottom:1px solid #e2e8f0;">'+
+        '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;'+
+          'letter-spacing:.06em;margin-bottom:6px;">'+label+'</div>'+
+        '<div style="font-size:22px;font-weight:900;color:#1677bc;line-height:1;">'+value+'</div>'+
+        (sub?'<div style="font-size:12px;color:#94a3b8;margin-top:3px;">'+sub+'</div>':'')+
+      '</div>';
+    }
+
+    function fmt$(v){
+      if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";
+      if(v>=1e3)return"$"+Math.round(v/1e3)+"K";
+      return"$"+Math.round(v);
+    }
+
+    var topOrg=sorted[0];
+    panel.innerHTML=
+      '<div style="font-size:13px;font-weight:700;color:#1a2332;margin-bottom:4px;'+
+        'text-align:center;">Summary</div>'+
+      statBlock("Lead Orgs",sorted.length,"distinct organizations")+
+      statBlock("Total Projects",total,"across all orgs")+
+      statBlock("Total Awarded",fmt$(totalAward),"")+
+      statBlock("Avg per Org",avgCount,"projects per org")+
+      '<div style="text-align:center;padding:10px 0;">'+
+        '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;'+
+          'letter-spacing:.06em;margin-bottom:6px;">Top Organization</div>'+
+        '<div style="font-size:13px;font-weight:700;color:#1a2332;line-height:1.3;">'+topOrg.label+'</div>'+
+        '<div style="font-size:20px;font-weight:900;color:#1677bc;margin-top:4px;">'+topOrg.count+
+          ' <span style="font-size:12px;font-weight:500;color:#94a3b8;">projects</span></div>'+
+      '</div>';
+
+    wrap.appendChild(panel);
+    el.appendChild(wrap);
   }
 
   
