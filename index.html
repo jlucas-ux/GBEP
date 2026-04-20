@@ -67,7 +67,7 @@
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site</div>
       <div class="chart-subtitle" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;">
-        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. Hover for details.</span>
+        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. The dashed 1:1 line marks where GBEP fully funded the project — sites above it had additional co-funding from other sources (leverage). Hover for details.</span>
         <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
           <span style="width:12px;height:12px;border-radius:50%;background:#ac4341;display:inline-block;flex-shrink:0;"></span>
           <span>Land Acquisition</span>
@@ -673,7 +673,7 @@ function drawTreemap() {
     var rScale=d3.scaleSqrt().domain([1,maxCount]).range([rMin,rMax]);
 
     var fs=Math.max(12,Math.round(vfs(12)));
-    var axFs=Math.max(12,Math.round(vfs(13)));
+    var axFs=Math.max(14,Math.round(vfs(15)));
     var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
     var yTickCount=Math.max(3,Math.min(5,Math.floor(plotH/55)));
 
@@ -731,14 +731,14 @@ function drawTreemap() {
       xAxisG.call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
       xAxisG.select(".domain").attr("stroke","#e2e8f0");
       xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-      xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+      xAxisG.selectAll("text").attr("font-size",Math.max(13,Math.round(vfs(14)))).attr("fill","#475569")
         .attr("text-anchor","end").attr("transform","rotate(-35)")
         .attr("dx","-0.4em").attr("dy","0.3em");
 
       yAxisG.call(d3.axisLeft(yScale).ticks(yTickCount).tickFormat(fmt$));
       yAxisG.select(".domain").attr("stroke","#e2e8f0");
       yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-      yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+      yAxisG.selectAll("text").attr("font-size",Math.max(13,Math.round(vfs(14)))).attr("fill","#475569");
     }
     drawAxes();
 
@@ -754,7 +754,14 @@ function drawTreemap() {
       .text("Total GBEP Award");
 
     // Draw bubbles into bubbleG
-    validSites.slice().sort(function(a,b){return b.count-a.count;})
+    // Sort: largest first (bottom), then land acquisition on top
+    validSites.slice().sort(function(a,b){
+      // Land acquisition always on top — sort last
+      var aLand=(a.landCount===a.count&&a.landCount>0)?1:0;
+      var bLand=(b.landCount===b.count&&b.landCount>0)?1:0;
+      if(aLand!==bLand)return aLand-bLand; // non-land first, land last (renders on top)
+      return b.count-a.count; // within group: larger first
+    })
       .forEach(function(d){
         var cx=xScale(d.totalCost), cy=yScale(d.award), r=rScale(d.count);
         var landFrac=(d.count>0?d.landCount/d.count:0);
@@ -851,13 +858,13 @@ function drawTreemap() {
         xAxisG.call(d3.axisBottom(newX).ticks(xTickCount).tickFormat(fmt$));
         xAxisG.select(".domain").attr("stroke","#e2e8f0");
         xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-        xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+        xAxisG.selectAll("text").attr("font-size",Math.max(13,Math.round(vfs(14)))).attr("fill","#475569")
           .attr("text-anchor","end").attr("transform","rotate(-35)")
           .attr("dx","-0.4em").attr("dy","0.3em");
         yAxisG.call(d3.axisLeft(newY).ticks(yTickCount).tickFormat(fmt$));
         yAxisG.select(".domain").attr("stroke","#e2e8f0");
         yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
-        yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+        yAxisG.selectAll("text").attr("font-size",Math.max(13,Math.round(vfs(14)))).attr("fill","#475569");
         // Transform bubble group
         bubbleG.attr("transform","translate("+t.x+","+t.y+") scale("+t.k+")");
       });
