@@ -898,7 +898,7 @@ function drawTreemap() {
       var c=row.total_cost_of_project||0;
       if(a>rowsByTitle[key].award)rowsByTitle[key].award=a;
       if(c>rowsByTitle[key].totalCost)rowsByTitle[key].totalCost=c;
-      var goalsRaw=row.broad_project_goals;
+      var goalsRaw=row.edited_broad_project_goals||row.broad_project_goals;
       if(goalsRaw)rowsByTitle[key].goals.push(String(goalsRaw).toLowerCase());
       if(row.project_landscape_type){
         row.project_landscape_type.split(",").forEach(function(h){
@@ -945,6 +945,21 @@ function drawTreemap() {
       countEl.textContent=sites.length+" site"+(sites.length!==1?"s":"")+
         ", "+Object.keys(rowsByTitle).length+" project"+(Object.keys(rowsByTitle).length!==1?"s":"");
     }
+    // Debug: show goal data so we can verify land acquisition detection
+    console.log("=== SITE CHART DEBUG ===");
+    console.log("Total sites:", sites.length);
+    var landSites=sites.filter(function(s){return s.landCount===s.count;});
+    var otherSites=sites.filter(function(s){return s.landCount===0;});
+    var mixedSites=sites.filter(function(s){return s.landCount>0&&s.landCount<s.count;});
+    console.log("All land acquisition:",landSites.length, landSites.map(function(s){return s.label.slice(0,20);}));
+    console.log("No land acquisition:",otherSites.length);
+    console.log("Mixed (should be pies):",mixedSites.length, mixedSites.map(function(s){return s.label.slice(0,20)+' '+s.landCount+'/'+s.count;}));
+    // Show goal values for first 5 projects to verify field is populated
+    var keys=Object.keys(rowsByTitle).slice(0,5);
+    keys.forEach(function(k){
+      var p=rowsByTitle[k];
+      console.log("Project goals sample:",p.site.slice(0,25),"→",p.goals.slice(0,1));
+    });
     drawScatterChart(sites,"site-chart");
   }
 
