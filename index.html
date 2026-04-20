@@ -960,8 +960,9 @@ function drawTreemap() {
     // Update count indicator
     var countEl=document.getElementById("site-count");
     if(countEl){
+      var totalRows=allRecords.length;
       countEl.textContent=sites.length+" site"+(sites.length!==1?"s":"")+
-        ", "+Object.keys(rowsByTitle).length+" project"+(Object.keys(rowsByTitle).length!==1?"s":"");
+        ", "+totalRows+" project"+(totalRows!==1?"s":"");
     }
     // Debug: show goal data so we can verify land acquisition detection
     console.log("=== SITE CHART DEBUG ===");
@@ -972,12 +973,7 @@ function drawTreemap() {
     console.log("All land acquisition:",landSites.length, landSites.map(function(s){return s.label.slice(0,20);}));
     console.log("No land acquisition:",otherSites.length);
     console.log("Mixed (should be pies):",mixedSites.length, mixedSites.map(function(s){return s.label.slice(0,20)+' '+s.landCount+'/'+s.count;}));
-    // Show goal values for first 5 projects to verify field is populated
-    var keys=Object.keys(rowsByTitle).slice(0,5);
-    keys.forEach(function(k){
-      var p=rowsByTitle[k];
-      console.log("Project goals sample:",p.site.slice(0,25),"→",p.goals.slice(0,1));
-    });
+
     drawScatterChart(sites,"site-chart");
   }
 
