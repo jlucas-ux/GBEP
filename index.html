@@ -773,7 +773,7 @@ function drawTreemap() {
         var landFrac=(d.count>0?d.landCount/d.count:0);
         var leverage=d.totalCost>0?(d.totalCost/d.award).toFixed(1):"—";
         var coFunding=d.totalCost>d.award?d.totalCost-d.award:0;
-        ttHtml=
+        var ttHtml=
           "<strong>"+d.label+"</strong><br>"+
           d.count+" project"+(d.count!==1?"s":"")+"<br>"+
           "GBEP Award: "+fmt$(d.award)+"<br>"+
