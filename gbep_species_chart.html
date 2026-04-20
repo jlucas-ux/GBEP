@@ -45,6 +45,8 @@ var SPECIES_LABELS={
   "state_listed_species_species_of":"State Listed Species/Species of Greatest Conservation Need",
   "state listed species species of":"State Listed Species/Species of Greatest Conservation Need",
   "state_listed_species":"State Listed Species/Species of Greatest Conservation Need",
+  "state listed species/species of":"State Listed Species/Species of Greatest Conservation Need",
+  "state listed species/species":  "State Listed Species/Species of Greatest Conservation Need",
   "endangered_threatened_species":"Endangered/Threatened Species",
   "endangered threatened species":"Endangered/Threatened Species",
   "endangered/threatened species":"Endangered/Threatened Species",
@@ -59,7 +61,13 @@ function normalizeSpecies(s){
   var clean=String(s).replace(/_/g," ").replace(/\s+/g," ").trim();
   var key=clean.toLowerCase();
   if(SPECIES_LABELS[key])return SPECIES_LABELS[key];
-  for(var k in SPECIES_LABELS){if(key.indexOf(k)===0||k.indexOf(key)===0)return SPECIES_LABELS[k];}
+  // Also try with slashes normalized to spaces for lookup
+  var keyNoSlash=key.replace(/[/\\]/g," ").replace(/\s+/g," ").trim();
+  if(SPECIES_LABELS[keyNoSlash])return SPECIES_LABELS[keyNoSlash];
+  for(var k in SPECIES_LABELS){
+    var kNoSlash=k.replace(/[/\\]/g," ").replace(/\s+/g," ").trim();
+    if(keyNoSlash.indexOf(kNoSlash)===0||kNoSlash.indexOf(keyNoSlash)===0)return SPECIES_LABELS[k];
+  }
   return clean.replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
 
