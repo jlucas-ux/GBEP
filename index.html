@@ -219,7 +219,7 @@
 
   async function fetchData(){
     var ppFields=[];for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
-    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals"];
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","what_were_the_main_physical_goa"];
     var url=LAYER_URL+"?where=1%3D1&outFields="+base.concat(ppFields).join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
@@ -918,8 +918,9 @@ function drawTreemap() {
       siteMap[site].award+=proj.award;        // 0 if not recorded — that's fine
       siteMap[site].totalCost+=proj.totalCost; // 0 if not recorded
       var isLand=proj.goals.some(function(g){
-        return g.indexOf("land acquisition")>-1||g.indexOf("land_acquisition")>-1||
-               g.indexOf("land acqui")>-1;
+        // Flag as land acquisition if it appears anywhere in the goals string
+        var norm=g.replace(/_/g," ").toLowerCase();
+        return norm.indexOf("land acqui")>-1;
       });
       if(isLand)siteMap[site].landCount++;
       proj.habitats.forEach(function(h){
