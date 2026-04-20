@@ -3,305 +3,302 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <title>GBEP Projects by Focal Species</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;max-height:100vh;overflow:hidden;background:white;font-family:'Roboto',sans-serif;}
-#wrap{position:absolute;inset:0;display:flex;flex-direction:column;padding:12px 14px 8px;overflow:auto;}
-.chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;}
-.chart-subtitle{font-size:13px;color:#64748b;margin-bottom:8px;}
-#species-chart{flex:1;min-height:200px;position:relative;}
+#wrap{position:absolute;inset:0;display:flex;flex-direction:column;padding:10px 12px 6px;overflow:hidden;}
+.chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;flex-shrink:0;}
+.chart-subtitle{font-size:12px;color:#64748b;margin-bottom:6px;flex-shrink:0;}
+#species-chart{flex:1;min-height:0;position:relative;overflow:hidden;}
 #tooltip{position:fixed;background:rgba(26,35,50,.92);color:white;padding:7px 10px;border-radius:6px;
-  font-size:12px;font-family:'Roboto',sans-serif;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
+  font-size:12px;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
 </style>
 </head>
 <body>
 <div id="wrap">
   <div class="chart-title">Projects by Focal Species</div>
-  <div class="chart-subtitle">Each band represents the share of funded projects targeting that focal species. Hover for details.</div>
+  <div class="chart-subtitle">Each band represents the share of funded projects targeting that focal species.</div>
   <div id="species-chart"></div>
 </div>
 <div id="tooltip"></div>
 <script>
-var FONT="'Roboto',sans-serif";
-var SPE_PALETTE=["#1677bc","#0C6E56","#1D9E75","#006994","#00695c","#0d47a1","#1b5e20","#27ae60","#8e44ad","#e67e22"];
-var URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+var URL_DATA="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 var tip=document.getElementById("tooltip");
-function showTooltip(e,html){tip.innerHTML=html;tip.style.display="block";tip.style.left=(e.clientX+12)+"px";tip.style.top=(e.clientY-8)+"px";}
-function hideTooltip(){tip.style.display="none";}
+function showTip(e,h){tip.innerHTML=h;tip.style.display="block";tip.style.left=(e.clientX+14)+"px";tip.style.top=(e.clientY-10)+"px";}
+function hideTip(){tip.style.display="none";}
 
 var SPECIES_LABELS={
-  "invasive_species_control_eradic":  "Invasive Species Control/Eradication",
-  "invasive species control eradic":  "Invasive Species Control/Eradication",
-  "invasive species control/eradic":  "Invasive Species Control/Eradication",
-  "invasive_species_control":         "Invasive Species Control/Eradication",
-  "state_listed_species_species_of":  "State Listed Species/Species of Greatest Conservation Need",
-  "state listed species species of":  "State Listed Species/Species of Greatest Conservation Need",
-  "state_listed_species":             "State Listed Species/Species of Greatest Conservation Need",
-  "state listed species/species of":  "State Listed Species/Species of Greatest Conservation Need",
-  "state listed species/species":     "State Listed Species/Species of Greatest Conservation Need",
-  "endangered_threatened_species":    "Endangered/Threatened Species",
-  "endangered threatened species":    "Endangered/Threatened Species",
-  "endangered/threatened species":    "Endangered/Threatened Species",
-  "nongame_wildlife":                 "Nongame Wildlife",
-  "nongame wildlife":                 "Nongame Wildlife",
-  "no_focal_species_during_planning": "No Focal Species During Planning",
-  "no focal species during planning": "No Focal Species During Planning",
-  "no focal species":                 "No Focal Species During Planning"
+  "invasive_species_control_eradic":"Invasive Species Control/Eradication",
+  "invasive species control eradic":"Invasive Species Control/Eradication",
+  "invasive species control/eradic":"Invasive Species Control/Eradication",
+  "invasive_species_control":"Invasive Species Control/Eradication",
+  "state_listed_species_species_of":"State Listed Species/Species of Greatest Conservation Need",
+  "state listed species species of":"State Listed Species/Species of Greatest Conservation Need",
+  "state_listed_species":"State Listed Species/Species of Greatest Conservation Need",
+  "state listed species/species of":"State Listed Species/Species of Greatest Conservation Need",
+  "state listed species/species":"State Listed Species/Species of Greatest Conservation Need",
+  "endangered_threatened_species":"Endangered/Threatened Species",
+  "endangered threatened species":"Endangered/Threatened Species",
+  "endangered/threatened species":"Endangered/Threatened Species",
+  "nongame_wildlife":"Nongame Wildlife",
+  "nongame wildlife":"Nongame Wildlife",
+  "no_focal_species_during_planning":"No Focal Species During Planning",
+  "no focal species during planning":"No Focal Species During Planning",
+  "no focal species":"No Focal Species During Planning"
 };
 
-// Icons as SVG path data (simple, readable at small sizes)
+// Phosphor icon classes for each category
 var SPECIES_ICONS={
-  "Nongame Wildlife":
-    "M12,2C9,2 7,4 7,7c0,1.5 0.6,2.8 1.5,3.8L6,18h12l-2.5-7.2C16.4,9.8 17,8.5 17,7c0-3-2-5-5-5z M10,7.5c0-1.1 0.9-2 2-2s2,0.9 2,2-0.9,2-2,2-2-0.9-2-2z",
-  "Endangered/Threatened Species":
-    "M12,1L3,5v6c0,5.5 3.8,10.7 9,12 5.2-1.3 9-6.5 9-12V5L12,1z M12,11h-1V7h2v4h-1z M12,15h-1v-2h2v2h-1z",
-  "Invasive Species Control/Eradication":
-    "M19,6.4L17.6,5 12,10.6 6.4,5 5,6.4 10.6,12 5,17.6 6.4,19 12,13.4 17.6,19 19,17.6 13.4,12z",
-  "State Listed Species/Species of Greatest Conservation Need":
-    "M12,2l2.4,7.4H22l-6.2,4.5 2.4,7.4L12,17 5.8,21.3l2.4-7.4L2,9.4h7.6z",
-  "No Focal Species During Planning":
-    "M12,2C6.5,2 2,6.5 2,12s4.5,10 10,10 10-4.5 10-10S17.5,2 12,2z M13,17h-2v-6h2V17z M13,9h-2V7h2V9z"
+  "Nongame Wildlife":"ph-bird",
+  "Endangered/Threatened Species":"ph-shield-star",
+  "Invasive Species Control/Eradication":"ph-prohibit",
+  "State Listed Species/Species of Greatest Conservation Need":"ph-list-checks",
+  "No Focal Species During Planning":"ph-minus-circle",
+  "Other":"ph-question"
 };
 
-function getIcon(label){
-  for(var key in SPECIES_ICONS){
-    if(label.toLowerCase().indexOf(key.toLowerCase().split(" ")[0])>-1||
-       label.toLowerCase().indexOf(key.toLowerCase().split("/")[0].trim())>-1){
-      return SPECIES_ICONS[key];
-    }
+function iconFor(label){
+  for(var k in SPECIES_ICONS){
+    if(label.indexOf(k.split(" ")[0])>-1)return SPECIES_ICONS[k];
   }
-  // Default leaf icon
-  return "M17,8C8,10 5.9,16.2 3.2,21L4.7,22l1-1.8C6.9,19.4 8.3,19 9.5,19c2,0 3.5,1.5 6.5,1.5 2.6,0 5.1-1.3 6-4.9-1.1,0.5-2.3,0.8-3.5,0.8-3,0-4-1.3-7-1.3-1,0-1.9,0.2-2.7,0.5C10,13.5 12,10 17,8z";
+  return "ph-leaf";
 }
 
-function normalizeSpecies(s){
-  var clean=String(s).replace(/_/g," ").replace(/\s+/g," ").trim();
-  var key=clean.toLowerCase();
-  if(SPECIES_LABELS[key])return SPECIES_LABELS[key];
-  var keyNoSlash=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-  if(SPECIES_LABELS[keyNoSlash])return SPECIES_LABELS[keyNoSlash];
-  for(var k in SPECIES_LABELS){
-    var kNoSlash=k.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-    if(keyNoSlash.indexOf(kNoSlash)===0||kNoSlash.indexOf(keyNoSlash)===0)return SPECIES_LABELS[k];
+function normSpecies(s){
+  var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim();
+  var k=c.toLowerCase();
+  if(SPECIES_LABELS[k])return SPECIES_LABELS[k];
+  var kns=k.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
+  if(SPECIES_LABELS[kns])return SPECIES_LABELS[kns];
+  for(var key in SPECIES_LABELS){
+    var kkey=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
+    if(kns.indexOf(kkey)===0||kkey.indexOf(kns)===0)return SPECIES_LABELS[key];
   }
-  return clean.replace(/\b\w/g,function(c){return c.toUpperCase();});
+  return c.replace(/\b\w/g,function(ch){return ch.toUpperCase();});
 }
 
-function drawChart(data){
+// Gradient: light teal → mid blue → navy (matches reference)
+var GRADIENT=["#29b6d3","#1e8ec4","#1565c0","#0d47a1","#1b3a6b","#112d5c"];
+
+function draw(data){
   var el=document.getElementById("species-chart");
   el.innerHTML="";
-  var W=el.clientWidth||400, H=el.clientHeight||300;
-  if(W<10||H<10)return;
+  var W=el.clientWidth||500, H=el.clientHeight||340;
+  if(W<50||H<50)return;
 
   // ── Data ─────────────────────────────────────────────────────────────────
-  var funded=data.filter(function(d){
-    return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim()!=="";
-  });
-  var sKey={},sLabel={};
+  var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim();});
+  var sk={},sl={};
   funded.forEach(function(row){
     row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(Boolean)
     .forEach(function(raw){
-      var norm=normalizeSpecies(raw);
+      var norm=normSpecies(raw);
       var key=norm.toLowerCase().trim();
       if(key==="other"||key.indexOf("other targeted")===0||key.indexOf("other_targeted")===0){
         var desc=(row.targeted_focal_species_other||"").trim().replace(/_/g," ");
-        var label=desc?"Other: "+desc:"Other";
-        var lk=label.toLowerCase();
-        sKey[lk]=(sKey[lk]||0)+1; sLabel[lk]=label;
-      } else {
-        sKey[key]=(sKey[key]||0)+1; sLabel[key]=norm;
-      }
+        var lbl=desc?"Other: "+desc:"Other";
+        var lk=lbl.toLowerCase();
+        sk[lk]=(sk[lk]||0)+1;sl[lk]=lbl;
+      } else {sk[key]=(sk[key]||0)+1;sl[key]=norm;}
     });
   });
-  var counts=Object.keys(sKey).map(function(k){return{label:sLabel[k],count:sKey[k]};})
+  var counts=Object.keys(sk).map(function(k){return{label:sl[k],count:sk[k]};})
     .sort(function(a,b){return b.count-a.count;});
   if(!counts.length)return;
   var total=d3.sum(counts,function(d){return d.count;});
   var N=counts.length;
 
-  // ── Layout ───────────────────────────────────────────────────────────────
-  // Arm extension on each side
-  var ARM_W=Math.min(W*0.28,130);  // horizontal arm length beyond drop
-  var BUBBLE_R=Math.min(ARM_W*0.2,22); // percentage circle radius
-  // Drop sits in the center horizontally
-  var dropMaxW=Math.min(W*0.22,100);  // half-width of drop at widest
-  var r=dropMaxW;
-  var cx=W/2;
-  var topY=8;
-  var bottomCy=H-r-8;
-  var dropTotalH=bottomCy+r-topY;
+  // ── Layout ────────────────────────────────────────────────────────────────
+  // Drop geometry — rounder shape (reference has ~60% circular, 40% triangular)
+  var ARM_W = Math.min(W*0.32, 160);   // arm extension length
+  var CIRC_R = Math.min(ARM_W*0.22, 32); // end circle radius
+  var DROP_PAD = ARM_W + CIRC_R*2 + 10;  // space needed each side for arms
 
-  // Helper: horizontal half-width of drop at given Y
-  function dropHW(y){
-    if(y>bottomCy){
-      var dy=y-bottomCy;
-      return Math.sqrt(Math.max(0,r*r-dy*dy));
-    }
-    return r*(y-topY)/(bottomCy-topY);
+  // Drop sits centered, arms use side space
+  var dropMaxR = Math.min((W - DROP_PAD*2) * 0.42, H*0.28, 95);
+  if(dropMaxR < 30){dropMaxR=Math.min((W*0.25), H*0.28, 95);}
+  var cx = W/2;
+  var dropR = dropMaxR; // radius of bottom circle
+  var topY = 10;
+  var bottomCy = H - dropR - 10; // center of bottom circle
+  var dropH = bottomCy + dropR - topY;
+
+  // Width of drop at given Y
+  function hw(y){
+    if(y >= bottomCy) return Math.sqrt(Math.max(0, dropR*dropR - (y-bottomCy)*(y-bottomCy)));
+    // triangular section widens from 0 at tip to dropR at bottomCy
+    return dropR * (y - topY) / (bottomCy - topY);
   }
 
-  // SVG
+  // Drop path
+  var dp="M"+cx+","+topY+" L"+(cx+dropR)+","+bottomCy+" A"+dropR+","+dropR+" 0 0,1 "+(cx-dropR)+","+bottomCy+" Z";
+
+  // ── SVG ───────────────────────────────────────────────────────────────────
   var svg=d3.select("#species-chart").append("svg")
     .attr("width",W).attr("height",H)
-    .style("font-family",FONT).style("overflow","visible");
+    .style("font-family","'Roboto',sans-serif")
+    .style("overflow","visible");
 
   var defs=svg.append("defs");
 
-  // Drop shadow filter
-  var filter=defs.append("filter").attr("id","drop-shadow")
-    .attr("x","-20%").attr("y","-10%").attr("width","140%").attr("height","120%");
-  filter.append("feDropShadow")
-    .attr("dx",6).attr("dy",8).attr("stdDeviation",8)
-    .attr("flood-color","rgba(22,119,188,0.25)");
+  // Drop clip
+  defs.append("clipPath").attr("id","dclip")
+    .append("path").attr("d",dp);
 
-  // Drop clip path
-  var dropPath="M "+cx+","+topY+
-    " L "+(cx+r)+","+bottomCy+
-    " A "+r+","+r+" 0 0,1 "+(cx-r)+","+bottomCy+" Z";
-  defs.append("clipPath").attr("id","drop-clip")
-    .append("path").attr("d",dropPath);
+  // Gradient per band (defined inline as colors array)
+  // Shadow drop - offset and blurred
+  svg.append("path").attr("d",dp)
+    .attr("transform","translate(8,10)")
+    .attr("fill","rgba(13,71,161,0.22)")
+    .style("filter","url(#dshadow)");
+  var flt=defs.append("filter").attr("id","dshadow").attr("x","-30%").attr("y","-20%").attr("width","160%").attr("height","160%");
+  flt.append("feGaussianBlur").attr("in","SourceGraphic").attr("stdDeviation","10").attr("result","blur");
 
-  // Compute layer geometry
+  // ── Compute bands ─────────────────────────────────────────────────────────
   var layers=[];
-  var cur=bottomCy+r; // start from bottom
+  var cur=bottomCy+dropR;
   counts.forEach(function(c,i){
     var pct=c.count/total;
-    var lh=pct*dropTotalH;
+    var lh=pct*dropH;
     var lt=cur-lh;
     var midY=lt+lh/2;
     layers.push({
       label:c.label, count:c.count, pct:pct,
-      top:lt, bottom:cur, midY:midY,
-      hw:dropHW(midY), // half-width of drop at midY
-      color:SPE_PALETTE[i%SPE_PALETTE.length],
-      goesRight:(i%2===0) // alternate arms L/R
+      top:lt, bot:cur, midY:midY,
+      hw:hw(midY),
+      color:GRADIENT[i%GRADIENT.length],
+      right:(i%2===0)  // alternate: 0=right, 1=left, etc.
     });
     cur=lt;
   });
 
-  // ── Draw shadow raindrop (slightly offset) ────────────────────────────────
-  svg.append("path").attr("d",dropPath)
-    .attr("fill","rgba(22,119,188,0.18)")
-    .attr("transform","translate(7,9)")
-    .style("filter","blur(8px)");
-
-  // ── Draw banded layers ────────────────────────────────────────────────────
+  // ── Draw banded drop ──────────────────────────────────────────────────────
   layers.forEach(function(lay){
-    // Fill band inside drop (clipped)
     svg.append("rect")
-      .attr("x",cx-r-2).attr("y",lay.top)
-      .attr("width",(r+2)*2).attr("height",Math.max(lay.bottom-lay.top,0.5))
+      .attr("x",cx-dropR-4).attr("y",lay.top)
+      .attr("width",(dropR+4)*2).attr("height",Math.max(lay.bot-lay.top,1))
       .attr("fill",lay.color)
-      .attr("clip-path","url(#drop-clip)");
-    // White divider line
-    if(lay.top>topY+2){
+      .attr("clip-path","url(#dclip)");
+    // Divider
+    if(lay.top > topY+2){
       svg.append("line")
-        .attr("x1",cx-r-2).attr("x2",cx+r+2)
+        .attr("x1",cx-dropR-4).attr("x2",cx+dropR+4)
         .attr("y1",lay.top).attr("y2",lay.top)
-        .attr("stroke","white").attr("stroke-width",1.5)
-        .attr("clip-path","url(#drop-clip)");
+        .attr("stroke","rgba(255,255,255,0.5)").attr("stroke-width",2)
+        .attr("clip-path","url(#dclip)");
     }
   });
 
-  // Drop outline
-  svg.append("path").attr("d",dropPath)
-    .attr("fill","none")
-    .attr("stroke","white").attr("stroke-width",2.5);
+  // Drop white outline
+  svg.append("path").attr("d",dp).attr("fill","none")
+    .attr("stroke","white").attr("stroke-width",3);
 
-  // ── Draw arms + labels + bubbles ─────────────────────────────────────────
-  var fs=Math.max(11,Math.min(13,Math.floor(dropTotalH/(N*1.8))));
+  // ── Phosphor icons inside drop ─────────────────────────────────────────────
+  layers.forEach(function(lay){
+    var bandH=lay.bot-lay.top;
+    var iconSz=Math.max(14,Math.min(bandH*0.55,28));
+    // Use foreignObject to embed an <i> Phosphor icon
+    var fo=svg.append("foreignObject")
+      .attr("x",cx-iconSz/2).attr("y",lay.midY-iconSz/2)
+      .attr("width",iconSz).attr("height",iconSz);
+    fo.append("xhtml:i")
+      .attr("class","ph-bold "+iconFor(lay.label))
+      .style("font-size",iconSz+"px")
+      .style("color","rgba(255,255,255,0.9)")
+      .style("display","block")
+      .style("line-height","1");
+  });
+
+  // ── Arms + circles ─────────────────────────────────────────────────────────
+  var armFs=Math.max(11,Math.min(13,Math.floor(H/(N*2.2))));
+  var armH=Math.max(20,Math.min((H/N)*0.62,44));
 
   layers.forEach(function(lay){
-    var edgeX=lay.goesRight ? cx+lay.hw : cx-lay.hw;
-    var armEndX=lay.goesRight ? cx+lay.hw+ARM_W : cx-lay.hw-ARM_W;
-    var bubCx=lay.goesRight ? armEndX+BUBBLE_R+2 : armEndX-BUBBLE_R-2;
     var midY=lay.midY;
-    var armH=Math.max(Math.min((lay.bottom-lay.top)*0.7,28),14);
-    var halfH=armH/2;
-
-    // Arm rectangle (extends from drop edge outward)
-    var armX=lay.goesRight ? edgeX : armEndX;
+    var edgeX=lay.right ? cx+lay.hw : cx-lay.hw;
+    // Arm rect
+    var armX=lay.right ? edgeX : edgeX-ARM_W;
+    var rx=4;
     svg.append("rect")
-      .attr("x",armX).attr("y",midY-halfH)
+      .attr("x",armX).attr("y",midY-armH/2)
       .attr("width",ARM_W).attr("height",armH)
-      .attr("fill",lay.color).attr("rx",2);
+      .attr("fill",lay.color).attr("rx",rx);
 
-    // Arm label (species name, shortened to fit)
-    var maxChars=Math.floor((ARM_W-8)/(fs*0.55));
-    var labelText=lay.label.length>maxChars ? lay.label.slice(0,maxChars-1)+"\u2026" : lay.label;
-    svg.append("text")
-      .attr("x",lay.goesRight ? edgeX+ARM_W/2 : armEndX+ARM_W/2)
-      .attr("y",midY)
-      .attr("text-anchor","middle")
-      .attr("dominant-baseline","middle")
-      .attr("font-size",fs).attr("font-weight","700")
-      .attr("fill","white")
-      .style("pointer-events","none")
-      .text(labelText);
+    // Tapered connection from drop edge to arm
+    // (small triangle connecting band edge to arm)
+    if(lay.right){
+      svg.append("polygon")
+        .attr("points",
+          (cx+lay.hw)+ ","+(midY-Math.min(lay.bot-lay.top,armH)/2)+" "+
+          (cx+lay.hw)+ ","+(midY+Math.min(lay.bot-lay.top,armH)/2)+" "+
+          armX+","+(midY+armH/2)+" "+
+          armX+","+(midY-armH/2))
+        .attr("fill",lay.color);
+    } else {
+      svg.append("polygon")
+        .attr("points",
+          (cx-lay.hw)+ ","+(midY-Math.min(lay.bot-lay.top,armH)/2)+" "+
+          (cx-lay.hw)+ ","+(midY+Math.min(lay.bot-lay.top,armH)/2)+" "+
+          (armX+ARM_W)+","+(midY+armH/2)+" "+
+          (armX+ARM_W)+","+(midY-armH/2))
+        .attr("fill",lay.color);
+    }
 
-    // Percentage bubble
-    svg.append("circle")
-      .attr("cx",bubCx).attr("cy",midY).attr("r",BUBBLE_R)
-      .attr("fill",lay.color)
-      .attr("stroke","white").attr("stroke-width",2);
-    var pctText=Math.round(lay.pct*100)+"%";
+    // Arm text: species name (shortened)
+    var maxCh=Math.floor((ARM_W-8)/(armFs*0.52));
+    var labelShort=lay.label.length>maxCh ? lay.label.slice(0,maxCh-1)+"\u2026" : lay.label;
     svg.append("text")
-      .attr("x",bubCx).attr("y",midY)
+      .attr("x",armX+ARM_W/2).attr("y",midY)
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",Math.max(9,BUBBLE_R*0.7)).attr("font-weight","900")
+      .attr("font-size",armFs).attr("font-weight","700")
+      .attr("fill","white").style("pointer-events","none")
+      .text(labelShort);
+
+    // End circle (white bg, colored border, % inside)
+    var circX=lay.right ? armX+ARM_W+CIRC_R+4 : armX-CIRC_R-4;
+    // White circle
+    svg.append("circle").attr("cx",circX).attr("cy",midY).attr("r",CIRC_R)
       .attr("fill","white")
-      .style("pointer-events","none")
-      .text(pctText);
+      .attr("stroke",lay.color).attr("stroke-width",3)
+      .attr("filter","url(#circ-shadow)");
+    // Percentage text
+    var pctStr=Math.round(lay.pct*100)+"%";
+    svg.append("text").attr("x",circX).attr("y",midY)
+      .attr("text-anchor","middle").attr("dominant-baseline","middle")
+      .attr("font-size",Math.max(10,CIRC_R*0.65)).attr("font-weight","900")
+      .attr("fill",lay.color).style("pointer-events","none")
+      .text(pctStr);
 
-    // Connector line from drop edge to arm
-    svg.append("line")
-      .attr("x1",edgeX).attr("y1",midY)
-      .attr("x2",armX+(lay.goesRight?0:ARM_W)).attr("y2",midY)
-      .attr("stroke",lay.color).attr("stroke-width",1.5)
-      .attr("opacity",0.6);
-
-    // Icon inside raindrop band
-    var iconSize=Math.max(12,Math.min(armH*0.7,22));
-    var iconX=cx+(lay.goesRight ? -iconSize/2-4 : iconSize/2+4);
-    svg.append("g")
-      .attr("transform","translate("+(iconX-12)+","+(midY-12)+") scale("+iconSize/24+")")
-      .append("path")
-      .attr("d",getIcon(lay.label))
-      .attr("fill","rgba(255,255,255,0.85)");
-
-    // Hover rect
+    // Hover zone
+    var hx=lay.right ? cx-lay.hw : circX-CIRC_R;
+    var hw2=lay.right ? circX+CIRC_R-(cx-lay.hw) : (cx+lay.hw)-(circX-CIRC_R);
     svg.append("rect")
-      .attr("x",Math.min(bubCx-BUBBLE_R,cx-lay.hw)-2)
-      .attr("y",midY-halfH-2)
-      .attr("width",Math.abs(bubCx-(cx-lay.hw))+BUBBLE_R*2+4)
-      .attr("height",armH+4)
-      .attr("fill","transparent")
-      .style("cursor","pointer")
-      .on("mousemove",function(event){
-        showTooltip(event,
-          "<strong>"+lay.label+"</strong><br>"+
-          Math.round(lay.pct*100)+"% of projects<br>"+
-          lay.count+" project"+(lay.count!==1?"s":""));
+      .attr("x",hx).attr("y",midY-armH/2-4)
+      .attr("width",Math.max(0,hw2)).attr("height",armH+8)
+      .attr("fill","transparent").style("cursor","pointer")
+      .on("mousemove",function(ev){
+        showTip(ev,"<strong>"+lay.label+"</strong><br>"+Math.round(lay.pct*100)+"% of projects — "+lay.count+" project"+(lay.count!==1?"s":""));
       })
-      .on("mouseleave",hideTooltip);
+      .on("mouseleave",hideTip);
   });
+
+  // Circle shadow filter
+  var csf=defs.append("filter").attr("id","circ-shadow").attr("x","-20%").attr("y","-20%").attr("width","140%").attr("height","140%");
+  csf.append("feDropShadow").attr("dx",1).attr("dy",2).attr("stdDeviation",3).attr("flood-color","rgba(0,0,0,0.18)");
 }
 
 async function init(){
-  var res=await fetch(URL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=*&f=json&resultRecordCount=2000");
+  var res=await fetch(URL_DATA+"?where=gbep_award_amount+IS+NOT+NULL&outFields=*&f=json&resultRecordCount=2000");
   var d=await res.json();
-  window._data=d.features.map(function(f){return f.attributes;});
-  requestAnimationFrame(function(){
-    requestAnimationFrame(function(){drawChart(window._data);});
-  });
+  window._spdata=d.features.map(function(f){return f.attributes;});
+  requestAnimationFrame(function(){requestAnimationFrame(function(){draw(window._spdata);});});
 }
-if(document.readyState==="loading"){
-  document.addEventListener("DOMContentLoaded",init);
-}else{init();}
-window.addEventListener("resize",function(){if(window._data)drawChart(window._data);});
+document.readyState==="loading"?document.addEventListener("DOMContentLoaded",init):init();
+window.addEventListener("resize",function(){if(window._spdata)draw(window._spdata);});
 </script>
 </body>
 </html>
