@@ -665,9 +665,15 @@ function drawTreemap() {
     var orgMap={};
     funded.forEach(function(row){
       var org=normalizeOrg(row.lead_organization_name);
-      if(!orgMap[org])orgMap[org]={count:0,award:0};
+      if(!orgMap[org])orgMap[org]={count:0,award:0,acres:0,years:{}};
       orgMap[org].count++;
       orgMap[org].award+=(row.gbep_award_amount||0);
+      orgMap[org].acres=(orgMap[org].acres||0)+(row.numeric_approximate_project_siz||0);
+      if(row.fiscal_year_awarded){
+        var fy=String(row.fiscal_year_awarded).slice(0,4);
+        orgMap[org].years=orgMap[org].years||{};
+        orgMap[org].years[fy]=(orgMap[org].years[fy]||0)+1;
+      }
     });
 
     var total=funded.length||1;
@@ -683,6 +689,15 @@ function drawTreemap() {
     var totalAward=d3.sum(sorted,function(d){return d.award;});
     var avgCount=(total/sorted.length).toFixed(1);
     var topOrg=sorted.slice().sort(function(a,b){return b.count-a.count;})[0];
+    var totalAcres=Object.values(orgMap).reduce(function(s,o){return s+(o.acres||0);},0);
+    var yearTotals={};
+    funded.forEach(function(row){
+      if(row.fiscal_year_awarded){
+        var fy=String(row.fiscal_year_awarded).slice(0,4);
+        yearTotals[fy]=(yearTotals[fy]||0)+1;
+      }
+    });
+    var bestYear=Object.keys(yearTotals).sort(function(a,b){return yearTotals[b]-yearTotals[a];})[0]||"—";
 
     // ── Responsive sizing ─────────────────────────────────────────────────
     // Panel takes 26% of width, min 180px
@@ -696,9 +711,9 @@ function drawTreemap() {
     var rankSz=Math.max(20,Math.min(Math.round(ROW_H*0.55),30));
     var rankFs=Math.max(11,Math.round(rankSz*0.50));
     // Stat panel font
-    var statLabelFs=Math.max(12,Math.round(vfs(13)));
+    var statLabelFs=Math.max(13,Math.round(vfs(14)));
     var statValueFs=Math.max(18,Math.round(vfs(28)));
-    var statSubFs=Math.max(12,Math.round(vfs(13)));
+    var statSubFs=Math.max(13,Math.round(vfs(14)));
     var panelTitleFs=Math.max(14,Math.round(vfs(16)));
 
     el.style.overflow="auto";
@@ -750,10 +765,10 @@ function drawTreemap() {
 
     function statBlock(label,value,sub){
       return '<div style="text-align:center;padding:10px 0;border-bottom:1px solid #e2e8f0;">'+
-        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#94a3b8;'+
+        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#64748b;'+
           'text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">'+label+'</div>'+
         '<div style="font-size:'+statValueFs+'px;font-weight:900;color:#1677bc;line-height:1;">'+value+'</div>'+
-        (sub?'<div style="font-size:'+statSubFs+'px;color:#94a3b8;margin-top:3px;">'+sub+'</div>':'')+
+        (sub?'<div style="font-size:'+statSubFs+'px;color:#475569;font-weight:500;margin-top:4px;">'+sub+'</div>':'')+
       '</div>';
     }
 
@@ -770,13 +785,15 @@ function drawTreemap() {
       statBlock("Total Projects",total,"across all orgs")+
       statBlock("Total Awarded",fmt$(totalAward),"")+
       statBlock("Avg per Org",avgCount,"projects per org")+
+      statBlock("Total Acres",totalAcres>0?(totalAcres>=1000?Math.round(totalAcres/1000)+"K ac":Math.round(totalAcres)+" ac"):"—","approx. project area")+
+      statBlock("Peak Year",bestYear,yearTotals[bestYear]+" projects")+
       '<div style="text-align:center;padding:10px 0;">'+
-        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#94a3b8;'+
+        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#64748b;'+
           'text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Top Org</div>'+
         '<div style="font-size:'+Math.max(13,Math.round(vfs(14)))+'px;font-weight:700;'+
           'color:#1a2332;line-height:1.3;">'+topOrg.label+'</div>'+
         '<div style="font-size:'+statValueFs+'px;font-weight:900;color:#1677bc;margin-top:4px;">'+topOrg.count+
-          '<span style="font-size:'+statSubFs+'px;font-weight:500;color:#94a3b8;margin-left:4px;">projects</span></div>'+
+          '<span style="font-size:'+statSubFs+'px;font-weight:500;color:#475569;margin-left:4px;">projects</span></div>'+
       '</div>';
 
     wrap.appendChild(panel);
