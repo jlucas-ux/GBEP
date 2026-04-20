@@ -552,7 +552,7 @@ function populateFilters(){
   var stages=(function(){
     var seen={},out=[];
     allData.forEach(function(d){
-      var norm=normalizeVal(clean(d.current_project_stage));
+      var norm=normalizeVal(clean(d.project_current_stage));
       if(!norm)return;
       var key=norm.toLowerCase();
       if(!seen[key]){seen[key]=true;out.push(norm);}
@@ -616,7 +616,7 @@ function applyFilters(){
     if(scale&&normalizeVal(clean(d.project_scale))!==scale)return false;
     if(species){var sp=normalizeVal(clean(d.targeted_focal_species)||"");if(sp.toLowerCase().indexOf(species.toLowerCase())<0)return false;}
     if(goals){var g=normalizeVal(clean(d.broad_project_goals)||"");if(g.toLowerCase().indexOf(goals.toLowerCase())<0)return false;}
-    if(stage&&normalizeVal(clean(d.current_project_stage))!==stage)return false;
+    if(stage&&normalizeVal(clean(d.project_current_stage))!==stage)return false;
     if(impl&&normalizeVal(clean(d.lead_implementer_type))!==impl)return false;
     return true;
   });
@@ -723,7 +723,7 @@ function showDetail(d){
   if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=normalizeVal(h);tagsRow.appendChild(sp);}});}
   if(clean(d.project_scale)){var sp=document.createElement("span");var _sc=normalizeVal(clean(d.project_scale));var _st=_sc?scaleStyle(_sc):null;
     if(_st){sp.style.cssText="border-radius:10px;padding:2px 7px;font-size:13px;font-weight:500;line-height:1.4;"+_st;sp.textContent=_sc;}tagsRow.appendChild(sp);}
-  if(clean(d.current_project_stage)){var sp=document.createElement("span");sp.className="ptag";sp.style.cssText="background:#fef3c7;color:#92400e;";sp.textContent=clean(d.current_project_stage);tagsRow.appendChild(sp);}
+  if(clean(d.project_current_stage)){var sp=document.createElement("span");sp.className="ptag";sp.style.cssText="background:#fef3c7;color:#92400e;";sp.textContent=clean(d.project_current_stage);tagsRow.appendChild(sp);}
   // AP grouped bubbles in detail panel
   var apTags=getActionPlanTags(d);
   var apGroups=groupApTags(apTags);
@@ -812,7 +812,7 @@ function showDetail(d){
     ["Lead implementer type",     val(d.lead_implementer_type)],
     ["PI contact",                val(d.project_pi_contact_information)],
     ["Organization link",         val(d.pi_organization_link),"link"],
-    ["Current stage",             valOrOther(d.current_project_stage, d.project_current_stage_other)],
+    ["Current stage",             valOrOther(d.project_current_stage, d.project_current_stage_other)],
     ["Date status updated",       val(d.date_that_this_current_status_wa)],
     ["Part of larger project",    val(d.is_this_a_phase_part_of_a_larger)],
     ["Related projects",          val(d.if_project_is_part_of_a_phase_p)],
