@@ -66,19 +66,21 @@
     </div>
     <div class="chart-panel" id="panel-1">
       <div class="chart-title">NRU Projects by Site</div>
-      <div class="chart-subtitle" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;">
-        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. The dashed line shows where GBEP covered the full project cost. Sites below the line received additional funding from other sources — the further below, the more outside investment the project attracted. Hover any bubble for details.</span>
-        <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
-          <span style="width:12px;height:12px;border-radius:50%;background:#ac4341;display:inline-block;flex-shrink:0;"></span>
-          <span>Land Acquisition</span>
-        </span>
-        <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
-          <span style="width:12px;height:12px;border-radius:50%;background:#ea940d;display:inline-block;flex-shrink:0;"></span>
-          <span>Restoration, Stewardship &amp; Research</span>
-        </span>
-        <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
-          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;"><circle cx="6" cy="6" r="6" fill="#ea940d" opacity="0.82"/><path d="M6,6 L6,0 A6,6,0,0,1,12,6 Z" fill="#ac4341" opacity="0.88"/></svg>
-          <span>Mix of both</span>
+      <div class="chart-subtitle" style="display:flex;flex-direction:column;gap:5px;">
+        <span>Total project cost vs. GBEP award per long-term site. Bubble size = number of projects. The dashed line shows where GBEP covered the full project cost — sites below the line received additional funding from other sources, and the further below, the more outside investment the project attracted.</span>
+        <span style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;">
+          <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+            <span style="width:12px;height:12px;border-radius:50%;background:#ac4341;display:inline-block;flex-shrink:0;"></span>
+            <span>Land Acquisition</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+            <span style="width:12px;height:12px;border-radius:50%;background:#ea940d;display:inline-block;flex-shrink:0;"></span>
+            <span>Restoration, Stewardship &amp; Research</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+            <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;"><circle cx="6" cy="6" r="6" fill="#ea940d" opacity="0.82"/><path d="M6,6 L6,0 A6,6,0,0,1,12,6 Z" fill="#ac4341" opacity="0.88"/></svg>
+            <span>Mix of both</span>
+          </span>
         </span>
       </div>
       <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;">
@@ -219,7 +221,7 @@
 
   async function fetchData(){
     var ppFields=[];for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
-    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals"];
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","in_kind_leveraging_amount","cash_leveraging_amount"];
     var url=LAYER_URL+"?where=1%3D1&outFields="+base.concat(ppFields).join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
@@ -767,10 +769,10 @@ function drawTreemap() {
         var landFrac=(d.count>0?d.landCount/d.count:0);
         var leverage=d.totalCost>0?(d.totalCost/d.award).toFixed(1):"—";
         var ttHtml=
-          "<strong>"+d.label+"</strong><br>"+
+          "<strong>"+d.label+(d.incomplete?" <span style='color:#f9a825'>*incomplete cost data</span>":"")+"</strong><br>"+
           d.count+" project"+(d.count!==1?"s":"")+"<br>"+
           "GBEP Award: "+fmt$(d.award)+"<br>"+
-          "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
+          "Total Project Cost: "+fmt$(d.totalCost)+(d.incomplete?" (estimated)":"")+"<br>"+
           "Leverage: "+leverage+"x<br>"+
           (d.landCount>0?d.landCount+" land acquisition project"+(d.landCount!==1?"s":""):"No land acquisition projects");
 
@@ -838,6 +840,9 @@ function drawTreemap() {
       .attr("text-anchor","end")
       .attr("font-size",Math.max(12,Math.round(vfs(12)))).attr("font-weight","600").attr("fill","#64748b")
       .text("Bubble size = number of projects");
+    root.append("text").attr("x",0).attr("y",10)
+      .attr("font-size",Math.max(11,Math.round(vfs(11)))).attr("fill","#94a3b8")
+      .text("* Cost data incomplete or not yet recorded");
 
     if(excluded.length){
       root.append("text").attr("x",plotW).attr("y",plotH+52)
@@ -899,12 +904,16 @@ function drawTreemap() {
       var title=(row.nru_project_title||"").trim();
       var key=site+"|||"+title;
       if(!rowsByTitle[key])rowsByTitle[key]={site:site,title:title,
-        award:0,totalCost:0,goals:[],habitats:[]};
-      // Take max non-zero award/cost across rows for this title
+        award:0,totalCost:0,inkind:0,cash:0,goals:[],habitats:[]};
+      // Take max non-zero award/cost/leverage across all rows for this title
       var a=row.gbep_award_amount||0;
       var c=row.total_cost_of_project||0;
+      var inkind=row.in_kind_leveraging_amount||0;
+      var cash=row.cash_leveraging_amount||0;
       if(a>rowsByTitle[key].award)rowsByTitle[key].award=a;
       if(c>rowsByTitle[key].totalCost)rowsByTitle[key].totalCost=c;
+      if(inkind>rowsByTitle[key].inkind)rowsByTitle[key].inkind=inkind;
+      if(cash>rowsByTitle[key].cash)rowsByTitle[key].cash=cash;
       var goalsRaw=row.edited_broad_project_goals||row.broad_project_goals;
       if(goalsRaw)rowsByTitle[key].goals.push(String(goalsRaw).toLowerCase());
       if(row.project_landscape_type){
@@ -920,10 +929,17 @@ function drawTreemap() {
     Object.keys(rowsByTitle).forEach(function(key){
       var proj=rowsByTitle[key];
       var site=proj.site;
-      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,habitats:[]};
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,landCount:0,habitats:[],incomplete:false};
       siteMap[site].count++;
-      siteMap[site].award+=proj.award;        // 0 if not recorded — that's fine
-      siteMap[site].totalCost+=proj.totalCost; // 0 if not recorded
+      siteMap[site].award+=proj.award;
+      // Use total_cost if available; fallback to award+leverage; fallback to award alone
+      if(proj.totalCost>0){
+        siteMap[site].totalCost+=proj.totalCost;
+      } else {
+        var leverageCost=proj.award+(proj.inkind||0)+(proj.cash||0);
+        siteMap[site].totalCost+=leverageCost;
+        if(leverageCost===proj.award)siteMap[site].incomplete=true;
+      }
       var isLand=proj.goals.some(function(g){
         // Flag as land acquisition if it appears anywhere in the goals string
         var norm=g.replace(/_/g," ").toLowerCase();
@@ -939,12 +955,14 @@ function drawTreemap() {
     // If no totalCost recorded, use award as proxy
     var sites=Object.keys(siteMap).map(function(s){
       var sm=siteMap[s];
-      return{label:s,
+      return{label:sm.incomplete?s+' *':s,
+             labelBase:s,
              count:sm.count,
              award:sm.award,
-             totalCost:sm.totalCost||sm.award,  // fallback for log scale
+             totalCost:Math.max(sm.totalCost,sm.award), // never less than award
              landCount:sm.landCount||0,
-             habitats:sm.habitats||[]};
+             habitats:sm.habitats||[],
+             incomplete:sm.incomplete||false};
     }).filter(function(d){return d.award>0;});  // must have some award to plot
 
     // Update count indicator
