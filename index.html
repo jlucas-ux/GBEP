@@ -738,11 +738,9 @@ function drawTreemap() {
       .attr("fill","#475569")
       .text("GBEP Share ↑");
 
-    // Sort: land acquisition on top
+    // Sort: largest bubbles first (render behind), smallest last (render on top)
+    // If a large red bubble fully covers a small one, the small one stays visible on top
     var sorted=validSites.slice().sort(function(a,b){
-      var aL=(a.landCount===a.count&&a.landCount>0)?1:0;
-      var bL=(b.landCount===b.count&&b.landCount>0)?1:0;
-      if(aL!==bL)return aL-bL;
       return b.count-a.count;
     });
 
