@@ -143,15 +143,14 @@ function draw(data){
   // ══ LAYER 1: Arms from center to box edge (behind drop) ════════════════════
   layers.forEach(function(lay){
     var midY=lay.midY;
-    // Arms end flush at circle edge (circle sits just outside arm end)
-    var circGap=4; // small gap between arm end and circle
+    // Arms stop at circle centerpoint
     if(lay.right){
-      var armEnd=W-CR*2-circGap;
+      var armEnd=W-CR-4; // right circle centre X
       svg.append("rect").attr("x",cx).attr("y",midY-ARM_H/2)
         .attr("width",Math.max(0,armEnd-cx)).attr("height",ARM_H)
         .attr("fill",lay.color).attr("rx",3);
     } else {
-      var armStart=CR*2+circGap;
+      var armStart=CR+4; // left circle centre X
       svg.append("rect").attr("x",armStart).attr("y",midY-ARM_H/2)
         .attr("width",Math.max(0,cx-armStart)).attr("height",ARM_H)
         .attr("fill",lay.color).attr("rx",3);
