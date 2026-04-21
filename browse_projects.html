@@ -638,6 +638,7 @@ function applyFilters(){
   var goals=document.getElementById("f-goals").value;
   var stage=document.getElementById("f-stage").value;
   var impl=document.getElementById("f-impl").value;
+  var county=document.getElementById("f-county") ? document.getElementById("f-county").value : "";
   var sort=document.getElementById("sort-sel").value;
 
   filtered=allData.filter(function(d){
@@ -663,8 +664,7 @@ function applyFilters(){
     if(county){
       var cRaw=String(d.county_counties_impacted||"");
       var cParts=cRaw.split(",").map(function(c){
-        return c.replace(/_/g," ").replace(/\s+/g," ").trim()
-          .replace(/\w/g,function(ch){return ch.toUpperCase();});
+        return c.replace(/_/g," ").replace(/[ ]+/g," ").trim();
       });
       if(cParts.map(function(c){return c.toLowerCase();}).indexOf(county.toLowerCase())<0)return false;
     }
@@ -873,8 +873,7 @@ function showDetail(d){
     if(!raw) return null;
     var seen = {};
     return String(raw).split(',').map(function(c){
-      return c.replace(/_/g,' ').replace(/\s+/g,' ').trim()
-        .replace(/\w/g,function(ch){return ch.toUpperCase();});
+      return c.replace(/_/g,' ').replace(/[ ]+/g,' ').trim();
     }).filter(function(c){
       if(!c || seen[c.toLowerCase()]) return false;
       seen[c.toLowerCase()] = true;
