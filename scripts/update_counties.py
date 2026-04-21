@@ -6,8 +6,8 @@ Environment variables set via GitHub Secrets + workflow YAML
 import os, sys, json, urllib.request, urllib.parse, ssl
 
 # ── Config ────────────────────────────────────────────────────────────────────
-AGOL_USERNAME     = os.environ["AGOL_USERNAME"]
-AGOL_PASSWORD     = os.environ["AGOL_PASSWORD"]
+ARCGIS_USERNAME     = os.environ["ARCGIS_USERNAME"]
+ARCGIS_PASSWORD     = os.environ["ARCGIS_PASSWORD"]
 COUNTY_LAYER_URL  = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/Texas_Counties_Summary_Statistics/FeatureServer/0"
 COUNTY_NAME_FIELD = "CNTY_NM"
 
@@ -35,8 +35,8 @@ print("Authenticating with ArcGIS Online...")
 token_resp = fetch(
     "https://www.arcgis.com/sharing/rest/generateToken",
     data=urllib.parse.urlencode({
-        "username": AGOL_USERNAME,
-        "password": AGOL_PASSWORD,
+        "username": ARCGIS_USERNAME,
+        "password": ARCGIS_PASSWORD,
         "referer":  "https://www.arcgis.com",
         "f":        "json"
     }).encode()
