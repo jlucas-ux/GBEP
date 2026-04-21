@@ -50,28 +50,19 @@ var SLABELS={
   "no focal species during planning":"No Focal Species During Planning",
   "no focal species":"No Focal Species During Planning"
 };
-var SICONS={
-  "Nongame Wildlife":"ph-bird",
-  "Endangered/Threatened Species":"ph-shield-star",
-  "Invasive Species Control/Eradication":"ph-prohibit",
-  "State Listed Species/Species of Greatest Conservation Need":"ph-list-checks",
-  "No Focal Species During Planning":"ph-minus-circle"
-};
-function getIcon(lbl){
-  for(var k in SICONS)if(lbl.toLowerCase().indexOf(k.split(" ")[0].toLowerCase())>-1)return SICONS[k];
-  return "ph-leaf";
-}
+var SICONS={"Nongame Wildlife":"ph-bird","Endangered/Threatened Species":"ph-shield-star",
+  "Invasive Species Control/Eradication":"ph-prohibit","State Listed Species/Species of Greatest Conservation Need":"ph-list-checks",
+  "No Focal Species During Planning":"ph-minus-circle"};
+function getIcon(lbl){for(var k in SICONS)if(lbl.toLowerCase().indexOf(k.split(" ")[0].toLowerCase())>-1)return SICONS[k];return "ph-leaf";}
 function normS(s){
-  var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim();
-  var k=c.toLowerCase();
+  var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim(),k=c.toLowerCase();
   if(SLABELS[k])return SLABELS[k];
   var kns=k.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
   if(SLABELS[kns])return SLABELS[kns];
   for(var key in SLABELS){var kk=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();if(kns.indexOf(kk)===0||kk.indexOf(kns)===0)return SLABELS[key];}
   return c.replace(/\b\w/g,function(ch){return ch.toUpperCase();});
 }
-
-var COLORS=["#29b6d3","#1e8ec4","#1565c0","#0d47a1","#1b3a6b","#112d5c"];
+var COLORS=["#1565c0","#1e8ec4","#29b6d3","#4dd0e1","#80deea","#b2ebf2"];
 
 function draw(data){
   var el=document.getElementById("sc");
@@ -79,6 +70,7 @@ function draw(data){
   var W=el.clientWidth||500,H=el.clientHeight||340;
   if(W<50||H<50)return;
 
+  // ── Data ───────────────────────────────────────────────────────────────────
   var funded=data.filter(function(d){return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim();});
   var sk={},sl={};
   funded.forEach(function(row){
@@ -96,141 +88,146 @@ function draw(data){
   var total=d3.sum(counts,function(d){return d.count;}),N=counts.length;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
-  var ARM=Math.min(W*0.30,145);   // arm length beyond drop edge
-  var CR=Math.min(ARM*0.22,30);   // end circle radius
-  var PAD=ARM+CR*2+12;            // total side space needed
-  var DR=Math.min((W-PAD*2)*0.44,H*0.30,90); // drop radius
-  var cx=W/2, topY=12;
-  var bCy=H-DR-12;                // bottom circle centre Y
-  var dropH=bCy+DR-topY;
+  var ARM   = Math.min(W*0.29, 140);  // arm length
+  var CR    = Math.min(ARM*0.23, 32); // end circle radius
+  var PAD   = ARM + CR*2 + 16;        // side clearance
+  // Drop: larger circle bottom, shorter tip — more like reference
+  var DR    = Math.min((W-PAD*2)*0.46, H*0.32, 95);
+  var cx    = W/2;
+  var topY  = Math.max(8, H*0.03);
+  // Make circle centre higher so bottom circle is dominant
+  var bCy   = H - DR - 10;
+  var dropH = bCy + DR - topY;
 
+  // Width of drop at Y
   function hw(y){
-    if(y>=bCy)return Math.sqrt(Math.max(0,DR*DR-(y-bCy)*(y-bCy)));
+    if(y>=bCy) return Math.sqrt(Math.max(0, DR*DR - (y-bCy)*(y-bCy)));
     return DR*(y-topY)/(bCy-topY);
   }
+  // Drop SVG path
   var dp="M"+cx+","+topY+" L"+(cx+DR)+","+bCy+" A"+DR+","+DR+" 0 0,1 "+(cx-DR)+","+bCy+" Z";
 
   var svg=d3.select("#sc").append("svg").attr("width",W).attr("height",H)
     .style("font-family","'Roboto',sans-serif").style("overflow","visible");
   var defs=svg.append("defs");
-  defs.append("clipPath").attr("id","dc").append("path").attr("d",dp);
 
-  // ── Compute bands ──────────────────────────────────────────────────────────
+  // Clip to drop shape
+  defs.append("clipPath").attr("id","dc4").append("path").attr("d",dp);
+
+  // ── Band geometry ──────────────────────────────────────────────────────────
   var layers=[];
   var cur=bCy+DR;
   counts.forEach(function(c,i){
-    var pct=c.count/total,lh=pct*dropH,lt=cur-lh,midY=lt+lh/2;
-    layers.push({label:c.label,count:c.count,pct:pct,top:lt,bot:cur,midY:midY,
-      edgeHW:hw(midY),color:COLORS[i%COLORS.length],right:i%2===0});
+    var pct=c.count/total, lh=pct*dropH, lt=cur-lh, midY=lt+lh/2;
+    layers.push({label:c.label, count:c.count, pct:pct,
+      top:lt, bot:cur, midY:midY, edgeHW:hw(midY),
+      color:COLORS[i%COLORS.length], right:i%2===0});
     cur=lt;
   });
 
-  var armH=Math.max(18,Math.min(H/(N*1.4),42));
+  // Arm height proportional to band but capped
+  var armH = Math.max(22, Math.min(dropH/(N*1.1), 48));
+  // Minimum drop width at midY for an arm to make visual sense
+  var MIN_ARM_W = 14;
 
-  // ══ LAYER 1: Draw arms (behind drop) ════════════════════════════════════════
+  // ══ LAYER 1: Arms ══════════════════════════════════════════════════════════
   layers.forEach(function(lay){
-    var midY=lay.midY;
-    var ex=lay.right ? cx+lay.edgeHW : cx-lay.edgeHW;
-    var armX=lay.right ? ex : ex-ARM;
-
-    // Arm rectangle — starts flush at drop edge
+    if(lay.edgeHW < MIN_ARM_W) return; // skip arm if band is at the narrow tip
+    var midY = lay.midY;
+    var ex   = lay.right ? cx+lay.edgeHW : cx-lay.edgeHW;
+    // Arm overlaps DROP EDGE by 6px to ensure seamless flush join
+    var OVERLAP = 6;
+    var armX = lay.right ? ex-OVERLAP : ex-ARM+OVERLAP;
     svg.append("rect").attr("x",armX).attr("y",midY-armH/2)
       .attr("width",ARM).attr("height",armH)
-      .attr("fill",lay.color).attr("rx",3);
-
-    // Fill the notch between band height and arm height at the junction
-    // so the arm appears to grow directly out of the drop
-    var bandH=Math.max(lay.bot-lay.top,1);
-    if(lay.right){
-      svg.append("rect").attr("x",ex-2).attr("y",midY-bandH/2)
-        .attr("width",4).attr("height",bandH)
-        .attr("fill",lay.color);
-    } else {
-      svg.append("rect").attr("x",ex-2).attr("y",midY-bandH/2)
-        .attr("width",4).attr("height",bandH)
-        .attr("fill",lay.color);
-    }
+      .attr("fill",lay.color).attr("rx",3)
+      .attr("ry",3);
   });
 
-  // ══ LAYER 2: Drop shadow — renders OVER the arm edges, creates 3D lift ══════
-  // Darker offset copy of drop shape
-  svg.append("path").attr("d",dp)
-    .attr("transform","translate(7,8)")
-    .attr("fill","rgba(10,50,120,0.28)")
-    .style("filter","blur(8px)");
+  // ══ LAYER 2: Drop shadow — casts OVER arm junctions ═══════════════════════
+  // Two-pass: blurred dark fill, then slightly smaller crisp dark fill
+  // This creates the "raised" look where drop shadow falls on the arms
+  var shadowG=svg.append("g").attr("transform","translate(8,10)");
+  shadowG.append("path").attr("d",dp)
+    .attr("fill","rgba(8,40,100,0.30)")
+    .style("filter","blur(10px)");
 
-  // ══ LAYER 3: Drop bands (clipped to drop shape) ══════════════════════════════
-  layers.forEach(function(lay,i){
-    svg.append("rect").attr("x",cx-DR-4).attr("y",lay.top)
+  // ══ LAYER 3: Drop bands (clipped) ══════════════════════════════════════════
+  layers.forEach(function(lay){
+    svg.append("rect")
+      .attr("x",cx-DR-4).attr("y",lay.top)
       .attr("width",(DR+4)*2).attr("height",Math.max(lay.bot-lay.top,1))
-      .attr("fill",lay.color).attr("clip-path","url(#dc)");
-    // Divider
-    if(lay.top>topY+3){
-      svg.append("line").attr("x1",cx-DR).attr("x2",cx+DR)
+      .attr("fill",lay.color)
+      .attr("clip-path","url(#dc4)");
+    // White band divider
+    if(lay.top > topY+2){
+      svg.append("line")
+        .attr("x1",cx-DR).attr("x2",cx+DR)
         .attr("y1",lay.top).attr("y2",lay.top)
-        .attr("stroke","rgba(255,255,255,0.45)").attr("stroke-width",2)
-        .attr("clip-path","url(#dc)");
+        .attr("stroke","rgba(255,255,255,0.5)").attr("stroke-width",2)
+        .attr("clip-path","url(#dc4)");
     }
   });
 
-  // ══ LAYER 4: Drop outline ════════════════════════════════════════════════════
+  // ══ LAYER 4: Drop outline ══════════════════════════════════════════════════
   svg.append("path").attr("d",dp).attr("fill","none")
     .attr("stroke","white").attr("stroke-width",3);
 
-  // ══ LAYER 5: Phosphor icons inside drop ══════════════════════════════════════
+  // ══ LAYER 5: Icons inside drop ═════════════════════════════════════════════
   layers.forEach(function(lay){
-    var bandH=lay.bot-lay.top;
-    var sz=Math.max(16,Math.min(bandH*0.62,28));
-    var fo=svg.append("foreignObject")
-      .attr("x",cx-sz/2-2).attr("y",lay.midY-sz/2-2)
-      .attr("width",sz+8).attr("height",sz+8);
-    // Phosphor bold: class is 'ph-bold ph-bird' etc.
-    fo.append("xhtml:i")
-      .attr("class","ph-bold "+getIcon(lay.label))
-      .style("font-size",sz+"px")
-      .style("color","rgba(255,255,255,0.90)")
-      .style("display","flex")
-      .style("align-items","center")
-      .style("justify-content","center")
-      .style("width",sz+"px")
-      .style("height",sz+"px");
+    var bandH = lay.bot-lay.top;
+    var sz = Math.max(16, Math.min(bandH*0.62, 30));
+    svg.append("foreignObject")
+      .attr("x", cx-sz/2).attr("y", lay.midY-sz/2)
+      .attr("width", sz+4).attr("height", sz+4)
+      .append("xhtml:i")
+        .attr("class","ph-bold "+getIcon(lay.label))
+        .style("font-size",sz+"px")
+        .style("color","rgba(255,255,255,0.92)")
+        .style("display","flex")
+        .style("align-items","center")
+        .style("justify-content","center")
+        .style("width",(sz+4)+"px")
+        .style("height",(sz+4)+"px");
   });
 
-  // ══ LAYER 6: Arm labels + end circles ════════════════════════════════════════
-  var aFs=Math.max(11,Math.min(13,Math.floor(H/(N*2.0))));
-
+  // ══ LAYER 6: Arm labels + circles ══════════════════════════════════════════
+  var aFs = Math.max(11, Math.min(13, Math.floor(H/(N*2.1))));
   layers.forEach(function(lay){
-    var midY=lay.midY;
-    var ex=lay.right ? cx+lay.edgeHW : cx-lay.edgeHW;
-    var armX=lay.right ? ex : ex-ARM;
+    if(lay.edgeHW < MIN_ARM_W) return;
+    var midY = lay.midY;
+    var ex   = lay.right ? cx+lay.edgeHW : cx-lay.edgeHW;
+    var OVERLAP=6;
+    var armX = lay.right ? ex-OVERLAP : ex-ARM+OVERLAP;
 
-    // Species label on arm
-    var maxCh=Math.floor((ARM-8)/(aFs*0.53));
-    var lbl=lay.label.length>maxCh ? lay.label.slice(0,maxCh-1)+"\u2026" : lay.label;
-    svg.append("text").attr("x",armX+ARM/2).attr("y",midY)
+    // Species label on arm (leave space for icon area near drop)
+    var labelX  = lay.right ? armX+ARM*0.5+10 : armX+ARM*0.5-10;
+    var maxCh   = Math.floor((ARM*0.72)/(aFs*0.53));
+    var lbl     = lay.label.length>maxCh ? lay.label.slice(0,maxCh-1)+"\u2026" : lay.label;
+    svg.append("text").attr("x",labelX).attr("y",midY)
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
       .attr("font-size",aFs).attr("font-weight","700").attr("fill","white")
       .style("pointer-events","none").text(lbl);
 
-    // End circle: white bg, colored ring, bold % inside
-    var cX=lay.right ? armX+ARM+CR+4 : armX-CR-4;
-    // Shadow behind circle
-    svg.append("circle").attr("cx",cX+2).attr("cy",midY+2).attr("r",CR)
-      .attr("fill","rgba(0,0,0,0.15)").style("filter","blur(4px)");
-    // White filled circle
+    // End circle
+    var cX = lay.right ? armX+ARM+CR+4 : armX-CR-4;
+    // Drop shadow on circle
+    svg.append("circle").attr("cx",cX+2).attr("cy",midY+3).attr("r",CR)
+      .attr("fill","rgba(0,0,0,0.14)").style("filter","blur(4px)");
+    // White circle with colored ring
     svg.append("circle").attr("cx",cX).attr("cy",midY).attr("r",CR)
       .attr("fill","white").attr("stroke",lay.color).attr("stroke-width",3);
-    // % text
     svg.append("text").attr("x",cX).attr("y",midY)
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",Math.max(10,Math.round(CR*0.65))).attr("font-weight","900")
+      .attr("font-size",Math.max(11,Math.round(CR*0.7))).attr("font-weight","900")
       .attr("fill",lay.color).style("pointer-events","none")
       .text(Math.round(lay.pct*100)+"%");
 
     // Hover zone
-    var hLeft=lay.right ? cx-DR : cX-CR;
-    var hRight=lay.right ? cX+CR : cx+DR;
-    svg.append("rect").attr("x",hLeft).attr("y",midY-armH/2-4)
+    var hLeft  = lay.right ? cx-DR   : cX-CR;
+    var hRight = lay.right ? cX+CR   : cx+DR;
+    svg.append("rect")
+      .attr("x",hLeft).attr("y",midY-armH/2-4)
       .attr("width",Math.max(0,hRight-hLeft)).attr("height",armH+8)
       .attr("fill","transparent").style("cursor","pointer")
       .on("mousemove",function(ev){
