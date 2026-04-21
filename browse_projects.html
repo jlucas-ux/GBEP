@@ -159,6 +159,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <select id="f-goals"   onchange="applyFilters()"><option value="">All project goals</option></select>
     <select id="f-stage"   onchange="applyFilters()"><option value="">All stages</option></select>
     <select id="f-impl"    onchange="applyFilters()"><option value="">All implementer types</option></select>
+    <select id="f-county"  onchange="applyFilters()"><option value="">All counties</option></select>
     <button id="clear-btn" onclick="clearFilters()">Clear all</button>
     <span id="result-count"></span>
   </div>
@@ -606,8 +607,24 @@ function populateFilters(){
     var w=sel.offsetWidth;
     sel.style.width=Math.min(Math.max(w,180),300)+"px";
   }
+  var counties=(function(){
+    var seen={},out=[];
+    allData.forEach(function(d){
+      if(!d.county_counties_impacted)return;
+      String(d.county_counties_impacted).split(',').forEach(function(c){
+        var norm=c.replace(/_/g,' ').replace(/\s+/g,' ').trim()
+          .replace(/\b\w/g,function(ch){return ch.toUpperCase();});
+        if(!norm)return;
+        var key=norm.toLowerCase();
+        if(!seen[key]){seen[key]=true;out.push(norm);}
+      });
+    });
+    return out.sort();
+  })();
+
   fill("f-org",orgs); fill("f-hab",habs); fill("f-fy",fys); fill("f-scale",scales);
   fill("f-species",species); fill("f-goals",goals); fill("f-stage",stages); fill("f-impl",impls);
+  fill("f-county",counties);
 
 }
 
@@ -643,6 +660,14 @@ function applyFilters(){
     if(goals){var g=normalizeVal(clean(d.broad_project_goals)||"");if(g.toLowerCase().indexOf(goals.toLowerCase())<0)return false;}
     if(stage&&normalizeVal(clean(d.project_current_stage))!==stage)return false;
     if(impl&&normalizeVal(clean(d.lead_implementer_type))!==impl)return false;
+    if(county){
+      var cRaw=String(d.county_counties_impacted||"");
+      var cParts=cRaw.split(",").map(function(c){
+        return c.replace(/_/g," ").replace(/\s+/g," ").trim()
+          .replace(/\w/g,function(ch){return ch.toUpperCase();});
+      });
+      if(cParts.map(function(c){return c.toLowerCase();}).indexOf(county.toLowerCase())<0)return false;
+    }
     return true;
   });
 
@@ -708,6 +733,8 @@ function renderCards(){
           habList.map(function(h){return '<span class="ptag ptag-hab">'+h+'</span>';}).join('')+
           (function(){var sc=normalizeVal(clean(d.project_scale));var st=sc?scaleStyle(sc):null;return st?'<span class="ptag" style="'+st+'">'+sc+'</span>':'';})()+
           (function(){var g=String(d.edited_broad_project_goals||d.broad_project_goals||'').replace(/_/g,' ').toLowerCase();return g.indexOf('land acqui')>-1?'<span class="ptag" style="background:#fde8e8;color:#ac4341;border:1px solid #f5b7b7;font-weight:600;">Land Acquisition</span>':'';})()+
+          (function(){if(!d.county_counties_impacted)return '';return String(d.county_counties_impacted).split(',').map(function(c){var n=c.replace(/_/g,' ').replace(/[ ]+/g,' ').trim().replace(/\b\w/g,function(ch){return ch.toUpperCase();});return n?'<span class="ptag" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;font-size:11px;">'+n+'</span>':'';}).join('');})()+
+
         '</div>'+
       '</div>';
 
@@ -840,6 +867,21 @@ function showDetail(d){
 
   // Expands "other" tokens in a field using its companion description field
   // e.g. valWithOther(d.broad_project_goals, d.broad_project_goals_other)
+  // Normalize a comma-delimited county field — clean underscores, trim,
+  // capitalize each word, deduplicate, never abbreviate
+  function normalizeCounty(raw){
+    if(!raw) return null;
+    var seen = {};
+    return String(raw).split(',').map(function(c){
+      return c.replace(/_/g,' ').replace(/\s+/g,' ').trim()
+        .replace(/\w/g,function(ch){return ch.toUpperCase();});
+    }).filter(function(c){
+      if(!c || seen[c.toLowerCase()]) return false;
+      seen[c.toLowerCase()] = true;
+      return true;
+    }).join(', ');
+  }
+
   function valWithOther(mainField, otherField){
     var list = dedupList(mainField);
     if(!list.length) return null;
@@ -894,6 +936,7 @@ function showDetail(d){
   }
 
   section("Project details",[
+    ["Counties impacted",         d.county_counties_impacted?normalizeCounty(d.county_counties_impacted):null],
     ["General location",          val(d.general_project_location)],
     ["Lead organization",         val(d.lead_organization_name)],
     ["Lead implementer type",     val(d.lead_implementer_type)],
