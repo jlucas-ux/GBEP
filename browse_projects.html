@@ -765,9 +765,9 @@ async function downloadProject(){
     combined += "--- CSV ---\n" + csvText + "\n\n";
     if(geojsonText) combined += "--- GeoJSON ---\n" + geojsonText + "\n\n";
 
-    // Show direct ArcGIS URL download links (not blocked by sandbox)
+    // Use window.open — bypasses iframe sandbox
     var projRow = allData.filter(function(r){ return r._id===activeId; });
-    showDownloadLinks(projRow, "selected project");
+    downloadProjectData(projRow);
 
   } catch(err){
     alert("Download error: "+err.message);
@@ -1083,8 +1083,8 @@ function downloadCSV(useAll){
       return s.indexOf(",")>-1||s.indexOf('"')>-1||s.indexOf("\n")>-1?'"'+s+'"':s;
     }).join(","));
   });
-  // Use direct ArcGIS URL — not blocked by sandbox
-  showDownloadLinks(rows, useAll?"full dataset":"filtered");
+  // Use window.open approach — bypasses iframe sandbox
+  downloadProjectData(rows);
 }
 
 async function downloadGeoJSON(useAll){
@@ -1107,8 +1107,8 @@ async function downloadGeoJSON(useAll){
     var geojson=await res.text(); // keep as text to preserve precision
     var blob=new Blob([geojson],{type:"application/geo+json;charset=utf-8;"});
     var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".geojson";
-    // Show direct ArcGIS URL modal — not blocked by sandbox
-    showDownloadLinks(rows, useAll?"full dataset":"filtered");
+    // Use window.open approach — bypasses iframe sandbox
+    downloadProjectData(rows);
   }catch(err){
     alert("GeoJSON export failed: "+err.message);
   }finally{
@@ -1152,113 +1152,151 @@ function triggerDownload(blob, filename){
 }
 
 // Show data in a copy-paste modal (guaranteed to work everywhere)
-// ── Direct ArcGIS URL download — works in ALL iframe sandbox contexts ──────────
-// Instead of client-side file generation, we build direct ArcGIS REST query URLs
-// that the user opens with a click (not a programmatic download = not blocked)
+// ── Download via new window (bypasses iframe sandbox) ─────────────────────────
+// ESRI sandbox includes allow-popups, so window.open() works.
+// The new window is NOT sandboxed, so downloads work there.
 
-function buildArcGISDownloadURL(rows, format){
-  // Build OBJECTID list from current filtered rows
-  var ids = rows.map(function(r){
-    return r.OBJECTID || r.objectid || r.ObjectID;
-  }).filter(Boolean);
-
-  var where = ids.length > 0
-    ? "OBJECTID+IN+(" + ids.join(",") + ")"
-    : "1%3D1";
-
-  var base = LAYER_URL.replace("/query","");
-  if(format === "csv"){
-    return base + "/query?where=" + where + "&outFields=*&f=csv&resultRecordCount=2000";
+function openWindowDownload(text, filename, mimeType){
+  var win = window.open('about:blank', '_blank');
+  if(!win){
+    // Popup blocked — show copy modal
+    showCopyModal(text, filename);
+    return;
   }
-  if(format === "geojson"){
-    return base + "/query?where=" + where + "&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=2000";
-  }
-  return null;
+  // Write a self-contained page that triggers the download immediately
+  var escaped = text.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+  var page = '<!DOCTYPE html><html><head><title>Downloading...</title></head><body>' +
+    '<p style="font-family:sans-serif;padding:20px;color:#334155;">Preparing <strong>' + filename + '</strong>...' +
+    ' If download does not start automatically, <a id="dl" style="color:#1565c0;">click here</a>.</p>' +
+    '<script>' +
+    'var data=`' + escaped + '`;' +
+    'var blob=new Blob([data],{type:' + JSON.stringify(mimeType) + '});' +
+    'var url=URL.createObjectURL(blob);' +
+    'var a=document.getElementById("dl");' +
+    'a.href=url;a.download=' + JSON.stringify(filename) + ';' +
+    'setTimeout(function(){a.click();},200);' +
+    '<\/script></body></html>';
+  win.document.write(page);
+  win.document.close();
 }
 
-function showDownloadLinks(rows, context){
-  var existing = document.getElementById('dl-modal');
+// Build CSV from a rows array
+function rowsToCSV(rows){
+  if(!rows.length)return "";
+  var cols=Object.keys(rows[0]).filter(function(k){return k!=="geometry"&&k!=="_id";});
+  var lines=[cols.map(function(c){return '"'+c+'"';}).join(",")];
+  rows.forEach(function(row){
+    lines.push(cols.map(function(c){
+      var v=row[c];
+      if(v===null||v===undefined)return "";
+      var s=String(v).replace(/"/g,'""');
+      return s.indexOf(",")>-1||s.indexOf('"')>-1||s.indexOf("\n")>-1?'"'+s+'"':s;
+    }).join(","));
+  });
+  return lines.join("\n");
+}
+
+// Build GeoJSON from rows + geometry fetched from ArcGIS
+async function rowsToGeoJSON(rows){
+  var ids=rows.map(function(r){return r.OBJECTID||r.objectid||r.ObjectID;}).filter(Boolean);
+  if(!ids.length)return null;
+  var where=encodeURIComponent("OBJECTID IN ("+ids.join(",")+")");
+  var url=LAYER_URL+"?where="+where+"&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000";
+  var res=await fetch(url);
+  if(!res.ok)throw new Error("HTTP "+res.status);
+  var data=await res.json();
+  // Convert Esri JSON to GeoJSON
+  var features=(data.features||[]).map(function(f){
+    var geom=f.geometry;
+    var geoGeom=null;
+    if(geom){
+      if(geom.x!==undefined){
+        geoGeom={type:"Point",coordinates:[geom.x,geom.y]};
+      } else if(geom.rings){
+        geoGeom={type:"Polygon",coordinates:geom.rings};
+      } else if(geom.paths){
+        geoGeom={type:"MultiLineString",coordinates:geom.paths};
+      }
+    }
+    return{type:"Feature",geometry:geoGeom,properties:f.attributes};
+  });
+  return JSON.stringify({type:"FeatureCollection",features:features},null,2);
+}
+
+// Copy-paste modal (last resort if popup blocked)
+function showCopyModal(text, filename){
+  var existing=document.getElementById('dl-modal');
   if(existing) document.body.removeChild(existing);
-
-  var csvURL     = buildArcGISDownloadURL(rows, "csv");
-  var geojsonURL = buildArcGISDownloadURL(rows, "geojson");
-  var n          = rows.length;
-
-  var overlay = document.createElement('div');
-  overlay.id = 'dl-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
-
-  var box = document.createElement('div');
-  box.style.cssText = 'background:white;border-radius:12px;padding:24px;width:min(520px,92vw);display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 40px rgba(0,0,0,0.3);';
-
-  // Header
-  var hdr = document.createElement('div');
-  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;';
-  var ttl = document.createElement('div');
-  ttl.innerHTML = '<strong style="font-size:15px;color:#1a2332;">Download Data</strong><br>' +
-    '<span style="font-size:12px;color:#64748b;">' + n + ' ' + (context||'filtered') + ' project' + (n!==1?'s':'') + ' · Click a link below to download</span>';
-  var xBtn = document.createElement('button');
-  xBtn.textContent = '×';
-  xBtn.style.cssText = 'background:none;border:none;font-size:24px;cursor:pointer;color:#64748b;line-height:1;flex-shrink:0;';
-  xBtn.onclick = function(){ document.body.removeChild(overlay); };
-  hdr.appendChild(ttl); hdr.appendChild(xBtn);
-
-  // Info note
-  var note = document.createElement('p');
-  note.style.cssText = 'font-size:12px;color:#64748b;margin:0;background:#f8fafc;padding:10px 12px;border-radius:6px;border-left:3px solid #1677bc;line-height:1.5;';
-  note.textContent = 'These are direct links to the ArcGIS feature service. Your browser will download the file when you click. If prompted, choose Save As.';
-
-  // Download link buttons
-  function makeLink(url, label, sublabel, color){
-    var wrap = document.createElement('a');
-    wrap.href = url;
-    wrap.target = '_blank';
-    wrap.rel = 'noopener';
-    wrap.style.cssText = 'display:flex;align-items:center;gap:14px;padding:14px 16px;background:'+color+';border-radius:8px;text-decoration:none;color:white;transition:opacity .15s;';
-    wrap.onmouseover = function(){ wrap.style.opacity='0.88'; };
-    wrap.onmouseout  = function(){ wrap.style.opacity='1'; };
-    var icon = document.createElement('span');
-    icon.style.cssText = 'font-size:24px;line-height:1;flex-shrink:0;';
-    icon.textContent = '↓';
-    var txt = document.createElement('div');
-    var lbl = document.createElement('div');
-    lbl.style.cssText = 'font-weight:700;font-size:14px;';
-    lbl.textContent = label;
-    var sub = document.createElement('div');
-    sub.style.cssText = 'font-size:11px;opacity:.85;margin-top:2px;';
-    sub.textContent = sublabel;
-    txt.appendChild(lbl); txt.appendChild(sub);
-    wrap.appendChild(icon); wrap.appendChild(txt);
-    return wrap;
-  }
-
-  var csvLink     = makeLink(csvURL,     "Download CSV",     "Spreadsheet — opens in Excel or Google Sheets",          "#1565c0");
-  var geojsonLink = makeLink(geojsonURL, "Download GeoJSON", "Geographic data with coordinates — for GIS applications", "#0d47a1");
-
-  // Close button
-  var clBtn = document.createElement('button');
-  clBtn.textContent = 'Close';
-  clBtn.style.cssText = 'padding:9px;background:white;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer;color:#64748b;font-family:inherit;width:100%;';
-  clBtn.onclick = function(){ document.body.removeChild(overlay); };
-
-  box.appendChild(hdr); box.appendChild(note);
-  box.appendChild(csvLink); box.appendChild(geojsonLink);
-  box.appendChild(clBtn);
+  var overlay=document.createElement('div');
+  overlay.id='dl-modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  var box=document.createElement('div');
+  box.style.cssText='background:white;border-radius:12px;padding:20px;width:min(560px,92vw);max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 40px rgba(0,0,0,0.3);';
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;';
+  var ttl=document.createElement('strong');
+  ttl.style.cssText='font-size:14px;color:#1a2332;';
+  ttl.textContent='Copy Data — '+filename;
+  var xBtn=document.createElement('button');
+  xBtn.textContent='×';
+  xBtn.style.cssText='background:none;border:none;font-size:24px;cursor:pointer;color:#64748b;';
+  xBtn.onclick=function(){document.body.removeChild(overlay);};
+  hdr.appendChild(ttl);hdr.appendChild(xBtn);
+  var p=document.createElement('p');
+  p.style.cssText='font-size:12px;color:#64748b;margin:0;';
+  p.textContent='Your browser blocked the popup. Copy the data below and paste into a text editor, then save as '+filename;
+  var ta=document.createElement('textarea');
+  ta.style.cssText='flex:1;min-height:180px;font-family:monospace;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;padding:8px;resize:vertical;';
+  ta.readOnly=true; ta.value=text;
+  var cpBtn=document.createElement('button');
+  cpBtn.style.cssText='padding:9px;background:#1565c0;color:white;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;';
+  cpBtn.textContent='Copy to Clipboard';
+  cpBtn.onclick=function(){
+    ta.select();
+    if(navigator.clipboard){navigator.clipboard.writeText(ta.value).then(function(){cpBtn.textContent='Copied!';setTimeout(function(){cpBtn.textContent='Copy to Clipboard';},2000);});}
+    else{document.execCommand('copy');cpBtn.textContent='Copied!';setTimeout(function(){cpBtn.textContent='Copy to Clipboard';},2000);}
+  };
+  var clBtn=document.createElement('button');
+  clBtn.style.cssText='padding:9px 16px;background:white;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer;color:#64748b;font-family:inherit;';
+  clBtn.textContent='Close';
+  clBtn.onclick=function(){document.body.removeChild(overlay);};
+  var bRow=document.createElement('div');
+  bRow.style.cssText='display:flex;gap:8px;';
+  bRow.appendChild(cpBtn);bRow.appendChild(clBtn);
+  box.appendChild(hdr);box.appendChild(p);box.appendChild(ta);box.appendChild(bRow);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  overlay.addEventListener('click', function(e){ if(e.target===overlay) document.body.removeChild(overlay); });
+  overlay.addEventListener('click',function(e){if(e.target===overlay)document.body.removeChild(overlay);});
 }
 
-// Keep showDownloadModal as alias for backward compat (used in downloadProject)
-function showDownloadModal(text, filename){
-  // For individual project download, show link-based modal instead
-  var rows = allData.filter(function(r){ return r._id === activeId; });
-  if(rows.length) showDownloadLinks(rows, "selected");
+function showDownloadModal(text,filename){showCopyModal(text,filename);}
+function showDownloadLinks(rows,context){downloadProjectData(rows);}
+function downloadCSVWithFallback(text,filename){openWindowDownload(text,filename,'text/csv;charset=utf-8;');}
+
+async function downloadProjectData(rows){
+  if(!rows||!rows.length){alert("No data selected.");return;}
+  var n=rows.length;
+  var date=new Date().toISOString().slice(0,10);
+  var label=n===1?(rows[0].nru_project_title||"project").replace(/[^a-z0-9]/gi,"_").slice(0,30):"filtered_"+n+"_projects";
+  // CSV — immediately available
+  var csvText=rowsToCSV(rows);
+  openWindowDownload(csvText,"GBEP_"+label+"_"+date+".csv","text/csv;charset=utf-8;");
+  // GeoJSON — needs geometry fetch
+  var btn=document.getElementById("project-dl-btn");
+  if(btn){btn.disabled=true;btn.innerHTML='<span style="font-size:15px;">⏳</span> Fetching GeoJSON…';}
+  try{
+    var gj=await rowsToGeoJSON(rows);
+    if(gj){
+      setTimeout(function(){
+        openWindowDownload(gj,"GBEP_"+label+"_"+date+".geojson","application/geo+json;charset=utf-8;");
+      },600);
+    }
+  }catch(e){console.warn("GeoJSON fetch failed:",e);}
+  finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<span style="font-size:15px;line-height:1;">↓</span> Download Project';}
+  }
 }
 
-function downloadCSVWithFallback(text, filename){
-  // Replaced by direct ArcGIS URL approach — no-op kept for safety
-}
 
 
 
