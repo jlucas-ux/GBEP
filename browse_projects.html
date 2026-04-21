@@ -1013,8 +1013,9 @@ document.addEventListener("click",function(e){
 });
 
 function downloadCSV(useAll){
+  document.getElementById("dl-menu").style.display="none";
   var rows=useAll?allData:filtered;
-  if(!rows.length)return;
+  if(!rows.length){alert("No data to download.");return;}
   // Build column list from first row keys, excluding internal _id
   var cols=Object.keys(rows[0]).filter(function(k){return k!=="geometry"&&k!=="_id";});
   var lines=[cols.map(function(c){return '"'+c+'"';}).join(",")];
@@ -1060,11 +1061,28 @@ async function downloadGeoJSON(useAll){
 }
 
 function triggerDownload(blob,filename){
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement("a");
-  a.href=url;a.download=filename;
-  document.body.appendChild(a);a.click();
-  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},200);
+  // Try createObjectURL first; fall back to FileReader data URI for sandboxed iframes
+  try{
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url; a.download=filename; a.style.display="none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},300);
+  }catch(e){
+    // Fallback: FileReader converts blob to base64 data URI
+    var reader=new FileReader();
+    reader.onload=function(){
+      try{
+        var a=document.createElement("a");
+        a.href=reader.result; a.download=filename; a.style.display="none";
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){document.body.removeChild(a);},300);
+      }catch(e2){
+        window.open(reader.result,"_blank");
+      }
+    };
+    reader.readAsDataURL(blob);
+  }
 }
 
 async function init(){
