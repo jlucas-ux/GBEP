@@ -1,296 +1,1243 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<title>GBEP Focal Species</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;max-height:100vh;overflow:hidden;background:white;font-family:'Roboto',sans-serif;}
-#wrap{position:absolute;inset:0;display:flex;flex-direction:column;padding:10px 12px 6px;}
-.chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;flex-shrink:0;}
-.chart-subtitle{font-size:12px;color:#64748b;margin-bottom:6px;flex-shrink:0;}
-#sc{flex:1;min-height:0;position:relative;overflow:hidden;}
-#tooltip{position:fixed;background:rgba(26,35,50,.92);color:white;padding:7px 10px;border-radius:6px;
-  font-size:12px;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: 'Roboto', sans-serif; }
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+    #nav { display: flex; align-items: center; justify-content: center; gap: clamp(4px,0.5vw,8px); padding: clamp(6px,0.8vw,12px) clamp(8px,1vw,16px); background: white; border-bottom: 2px solid #e8f0fe; flex-shrink: 0; flex-wrap: wrap; }
+    .nav-btn { padding: clamp(5px,0.5vw,10px) clamp(10px,1.2vw,24px); border: 2px solid #1677bc; border-radius: 20px; background: white; color: #1677bc; font-family: 'Roboto', sans-serif; font-size: clamp(11px,0.95vw,16px); font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+    .nav-btn:hover { background: #e8f4fb; }
+    .nav-btn.active { background: #1677bc; color: white; box-shadow: 0 2px 8px rgba(22,119,188,0.55); }
+    #charts { flex: 1; overflow: hidden; position: relative; }
+    .chart-panel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; display: none; padding: clamp(8px,1vw,16px) clamp(10px,1.2vw,20px); background: #f8fafc; }
+    .chart-panel.active { display: flex; flex-direction: column; }
+    .chart-title { font-size: clamp(13px,1.15vw,19px); font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
+    .chart-subtitle { font-size: clamp(13px,0.95vw,16px); color: #888; margin-bottom: 8px; flex-shrink: 0; line-height: 1.5; }
+    .chart-subtitle strong { color: #1677bc; font-weight: 700; }
+    .chart-subtitle strong.green { color: #009988; }
+    .chart-area { flex: 1; overflow: auto; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
+    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; width: 100%; height: 100%; }
+    .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
+    .grid-cell-title { font-size: clamp(9px,0.75vw,13px); font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
+    .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
+    svg { display: block; }
+    #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
+    .tooltip { position: absolute; background: rgba(15,23,42,0.92); color: white; padding: 8px 12px; border-radius: 7px; font-size: clamp(11px,0.9vw,14px); pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 300px; line-height: 1.5; z-index: 999; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    #date-filter { font-size: clamp(11px,0.9vw,15px); }
+    #date-filter select { font-size: clamp(11px,0.9vw,15px); padding: clamp(4px,0.4vw,6px) clamp(8px,0.8vw,12px); }
+    #date-filter button { font-size: clamp(10px,0.8vw,14px); padding: clamp(4px,0.4vw,6px) clamp(10px,1vw,16px); }
+    #pp-definitions { font-size: clamp(10px,0.8vw,14px); }
+    #pp-definitions .pp-def-title { font-size: clamp(11px,0.85vw,15px); }
+  </style>
 </head>
 <body>
-<div id="wrap">
-  <div class="chart-title">Projects by Focal Species</div>
-  <div class="chart-subtitle">Each band represents the share of funded projects targeting that focal species. Hover for details.</div>
-  <div id="sc"></div>
+<div id="loading">Loading data…</div>
+<div id="tooltip" class="tooltip"></div>
+<div id="app" style="display:none">
+  <div id="date-filter" style="display:flex;align-items:center;justify-content:center;gap:clamp(6px,0.8vw,12px);padding:clamp(6px,0.6vw,10px) clamp(8px,1vw,16px);background:white;border-bottom:1px solid #e8f0fe;flex-shrink:0;font-family:'Roboto',sans-serif;flex-wrap:wrap;">
+    <span style="font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
+    <select id="year-from" onchange="applyYearFilter()" style="border:2px solid #1677bc;border-radius:20px;font-family:'Roboto',sans-serif;color:#1677bc;background:white;cursor:pointer;outline:none;"><option value="">From</option></select>
+    <span style="color:#888;">—</span>
+    <select id="year-to" onchange="applyYearFilter()" style="border:2px solid #1677bc;border-radius:20px;font-family:'Roboto',sans-serif;color:#1677bc;background:white;cursor:pointer;outline:none;"><option value="">To</option></select>
+    <button onclick="clearYearFilter()" style="border:2px solid #aaa;border-radius:20px;font-family:'Roboto',sans-serif;color:#888;background:white;cursor:pointer;">Clear</button>
+    <span id="filter-count" style="color:#aaa;"></span>
+  </div>
+  <div id="nav">
+    <button class="nav-btn active" onclick="showChart(0)">Habitat Types</button>
+    <button class="nav-btn" onclick="showChart(1)">Projects by Site</button>
+    <button class="nav-btn" onclick="showChart(2)">Projects by Organization</button>
+    <button class="nav-btn" onclick="showChart(3)">Plan Priorities</button>
+    <button class="nav-btn" onclick="showChart(4)">Projects by Fiscal Year</button>
+    <button class="nav-btn" onclick="showChart(5)">Org × Priority</button>
+    <button class="nav-btn" onclick="showChart(6)">Habitat Share</button>
+  </div>
+  <div id="charts">
+    <div class="chart-panel active" id="panel-0">
+      <div class="chart-title">Project Habitat Type Combinations</div>
+      <div class="chart-subtitle">How to read: Each <strong>column</strong> represents a unique set of habitat types. The <strong>bar</strong> height above shows how many projects have that exact combination. <strong class="green">Filled dots</strong> show which habitats are included. The <strong class="green">green bars</strong> on the right show each habitat's total project count across all combinations. <strong>Scroll to zoom, drag to pan.</strong></div>
+      <div style="flex-shrink:0;margin-bottom:6px;"><button onclick="resetZoom('upset-chart')" style="padding:5px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:clamp(10px,0.8vw,13px);">Reset zoom</button></div>
+      <div class="chart-area" id="upset-chart" style="cursor:grab;"></div>
+    </div>
+    <div class="chart-panel" id="panel-1">
+      <div class="chart-title">NRU Projects by Site</div>
+      <div class="chart-subtitle" style="display:flex;flex-direction:column;gap:5px;">
+        <span>Total project cost (x) vs. GBEP's share of that cost (y) per long-term site. Bubbles in the upper portion are projects where GBEP provided most or all of the funding. Bubbles near the bottom represent projects where GBEP's contribution was a smaller share of a larger investment from multiple funders. Bubble size = number of projects.</span>
+        <span style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;">
+          <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+            <span style="width:12px;height:12px;border-radius:50%;background:#ac4341;display:inline-block;flex-shrink:0;"></span>
+            <span>Land Acquisition</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+            <span style="width:12px;height:12px;border-radius:50%;background:#ea940d;display:inline-block;flex-shrink:0;"></span>
+            <span>Restoration, Stewardship &amp; Research</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
+            <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0;"><circle cx="6" cy="6" r="6" fill="#ea940d" opacity="0.82"/><path d="M6,6 L6,0 A6,6,0,0,1,12,6 Z" fill="#ac4341" opacity="0.88"/></svg>
+            <span>Mix of both</span>
+          </span>
+        </span>
+      </div>
+      <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;">
+        <button id="site-all" onclick="setSiteMode('all')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">All Projects</button>
+        <button id="site-physical" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects Only</button>
+        <button id="site-large" onclick="setSiteMode('large')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Large Scale Only</button>
+        <span id="site-count" style="font-size:12px;color:#64748b;margin-left:6px;align-self:center;"></span>
+      </div>
+      <div class="chart-area" id="site-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-2">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:6px;">
+        <div>
+          <div class="chart-title">Projects by Lead Organization</div>
+          <div class="chart-subtitle">Count of GBEP-funded projects per lead organization. Each bar reflects that organization's share of all funded projects.</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button id="org-sort-count" onclick="setOrgSort('count')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Count ↓</button>
+          <button id="org-sort-az" onclick="setOrgSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">A–Z</button>
+        </div>
+      </div>
+      <div class="chart-area" id="org-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-3">
+      <div class="chart-title">GBEP Projects by Plan Priority</div>
+      <div class="chart-subtitle">All of the projects featured in this database support Plan Priority 2 through the NRU subcommittee. Many projects support more than one priority through their associated action plans. This graphic illustrates the action plans also supported by the NRU projects and can be filtered by fiscal year at the top.</div>
+      <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;">
+        <div class="grid-2x2">
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#2e7d32">Plan Priority 2 — Habitat, Stewardship &amp; Field Work</div><div class="grid-chart" id="pp2-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#6a1b9a">Plan Priority 3 — Outreach, Education &amp; Partnerships</div><div class="grid-chart" id="pp3-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Restoration, Sustainability &amp; Capacity</div><div class="grid-chart" id="pp4-chart"></div></div>
+        </div>
+        <div id="pp-definitions" style="background:white;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.07);padding:clamp(8px,0.8vw,14px) clamp(10px,1.2vw,20px);margin-top:8px;font-family:'Roboto',sans-serif;flex-shrink:0;">
+          <div class="pp-def-title" style="font-weight:700;color:#333;margin-bottom:6px;">Category Definitions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px 20px;line-height:1.5;">
+            <span><strong style="color:#1565c0">NPS</strong> — Improve water quality through nonpoint source pollution abatement.</span>
+            <span><strong style="color:#1565c0">PS</strong> — Improve water quality through point source pollution abatement.</span>
+            <span><strong style="color:#1565c0">PHA</strong> — Promote public health and awareness.</span>
+            <span><strong style="color:#1b5e20">HC</strong> — Support habitat conservation.</span>
+            <span><strong style="color:#1b5e20">SC</strong> — Support species conservation.</span>
+            <span><strong style="color:#1b5e20">FWI</strong> — Sustain freshwater inflows.</span>
+            <span><strong style="color:#6a1b9a">SPO</strong> — Preserve Galveston Bay through stakeholder and partner outreach.</span>
+            <span><strong style="color:#6a1b9a">PEA</strong> — Support public education and awareness initiatives.</span>
+            <span><strong style="color:#bf360c">RES</strong> — Collaborate with research institutions to support focus area applied research and monitoring.</span>
+            <span><strong style="color:#bf360c">ACS</strong> — Increase access to Galveston Bay ecosystem information.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-panel" id="panel-4">
+      <div class="chart-title">GBEP Projects by Fiscal Year</div>
+      <div class="chart-subtitle" id="fy-subtitle">Number of GBEP-funded projects per fiscal year.</div>
+      <div class="chart-area" id="fy-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-5">
+      <div class="chart-title">Lead Organization × Plan Priority</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:6px;margin-top:2px;">
+        <div class="chart-subtitle">Number of projects per organization per plan priority. Darker = more projects. Hover for count and dollar total.</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button id="heat-sort-count" onclick="setHeatSort('count')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Count ↓</button>
+          <button id="heat-sort-az" onclick="setHeatSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">A–Z</button>
+        </div>
+      </div>
+      <div class="chart-area" id="heatmap-chart"></div>
+    </div>
+    <div class="chart-panel" id="panel-6">
+      <div class="chart-title">Percent of Projects by Habitat Type</div>
+      <div class="chart-subtitle" id="treemap-subtitle">Share of GBEP-funded projects that included each habitat type. Values are independent — one project may count toward multiple habitats.</div>
+      <div class="chart-area" id="treemap-chart"></div>
+    </div>
+  </div>
 </div>
-<div id="tooltip"></div>
 <script>
-var SURL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
-var tip=document.getElementById("tooltip");
-function showTip(e,h){tip.innerHTML=h;tip.style.display="block";tip.style.left=(e.clientX+14)+"px";tip.style.top=(e.clientY-10)+"px";}
-function hideTip(){tip.style.display="none";}
+  var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+  var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
+  var FONT="Roboto, sans-serif";
+  var PALETTE=[C1,C2,C3,C4,"#90caf9","#b2ebf2","#80deea","#4dd0e1","#006994","#0288d1","#29b6f6","#81d4fa","#0097a7","#00acc1","#00bcd4","#4fc3f7","#039be5","#0277bd","#01579b","#26c6da"];
 
-var SLABELS={
-  "invasive_species_control_eradic":"Invasive Species Control",
-  "invasive species control eradic":"Invasive Species Control",
-  "invasive species control/eradic":"Invasive Species Control",
-  "invasive_species_control":"Invasive Species Control",
-  "state_listed_species_species_of":"State Listed / SGC Need",
-  "state listed species species of":"State Listed / SGC Need",
-  "state_listed_species":"State Listed / SGC Need",
-  "state listed species/species of":"State Listed / SGC Need",
-  "state listed species/species":"State Listed / SGC Need",
-  "endangered_threatened_species":"Endangered / Threatened",
-  "endangered threatened species":"Endangered / Threatened",
-  "endangered/threatened species":"Endangered / Threatened",
-  "nongame_wildlife":"Nongame Wildlife",
-  "nongame wildlife":"Nongame Wildlife",
-  "no_focal_species_during_planning":"No Focal Species",
-  "no focal species during planning":"No Focal Species",
-  "no focal species":"No Focal Species"
-};
-var SICONS={
-  "Nongame Wildlife":"ph-bird",
-  "Endangered / Threatened":"ph-shield-star",
-  "Invasive Species Control":"ph-prohibit",
-  "State Listed / SGC Need":"ph-list-checks",
-  "No Focal Species":"ph-minus-circle"
-};
-function getIcon(lbl){
-  for(var k in SICONS)
-    if(lbl.toLowerCase().indexOf(k.split(" ")[0].toLowerCase())>-1)return SICONS[k];
-  return "ph-leaf";
-}
-function normS(s){
-  var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim(), k=c.toLowerCase();
-  if(SLABELS[k])return SLABELS[k];
-  var kns=k.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-  if(SLABELS[kns])return SLABELS[kns];
-  for(var key in SLABELS){
-    var kk=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-    if(kns.indexOf(kk)===0||kk.indexOf(kns)===0)return SLABELS[key];
+  function vfs(base) {
+    var ratio = Math.min(1, Math.max(0.6, window.innerWidth / 1600));
+    return Math.round(base * ratio);
   }
-  return c.replace(/\b\w/g,function(ch){return ch.toUpperCase();});
+
+  var PP_PALETTES={
+    1:["#1565c0","#1976d2","#1e88e5","#42a5f5","#90caf9","#bbdefb","#e3f2fd","#1677bc","#0d47a1","#2196f3","#64b5f6","#b3e5fc"],
+    2:["#1b5e20","#2e7d32","#388e3c","#43a047","#66bb6a","#a5d6a7","#c8e6c9","#4caf50","#81c784"],
+    3:["#4a148c","#6a1b9a","#7b1fa2","#8e24aa","#ab47bc","#ce93d8","#e1bee7","#9c27b0","#ba68c8"],
+    4:["#bf360c","#d84315","#e64a19","#f4511e","#ff7043","#ffab91","#fbe9e7","#ff5722","#ff8a65","#ffccbc","#e65100"]
+  };
+
+  var PLAN_DEFS={
+    1:[{field:"nps_1",group:"NPS",label:"NPS-1"},{field:"nps_2",group:"NPS",label:"NPS-2"},{field:"nps_3",group:"NPS",label:"NPS-3"},{field:"nps_4",group:"NPS",label:"NPS-4"},{field:"ps_1",group:"PS",label:"PS-1"},{field:"ps_2",group:"PS",label:"PS-2"},{field:"ps_3",group:"PS",label:"PS-3"},{field:"pha_1",group:"PHA",label:"PHA-1"},{field:"pha_2",group:"PHA",label:"PHA-2"},{field:"pha_3",group:"PHA",label:"PHA-3"},{field:"pha_4",group:"PHA",label:"PHA-4"},{field:"pha_5",group:"PHA",label:"PHA-5"}],
+    2:[{field:"hc_1",group:"HC",label:"HC-1"},{field:"hc_2",group:"HC",label:"HC-2"},{field:"hc_3",group:"HC",label:"HC-3"},{field:"sc_1",group:"SC",label:"SC-1"},{field:"sc_2",group:"SC",label:"SC-2"},{field:"fwi_1",group:"FWI",label:"FWI-1"},{field:"fwi_2",group:"FWI",label:"FWI-2"},{field:"fwi_3",group:"FWI",label:"FWI-3"}],
+    3:[{field:"spo_1",group:"SPO",label:"SPO-1"},{field:"spo_2",group:"SPO",label:"SPO-2"},{field:"spo_3",group:"SPO",label:"SPO-3"},{field:"spo_4",group:"SPO",label:"SPO-4"},{field:"pea_1",group:"PEA",label:"PEA-1"},{field:"pea_2",group:"PEA",label:"PEA-2"},{field:"pea_3",group:"PEA",label:"PEA-3"}],
+    4:[{field:"res_1",group:"RES",label:"RES-1"},{field:"res_2",group:"RES",label:"RES-2"},{field:"res_3",group:"RES",label:"RES-3"},{field:"res_4",group:"RES",label:"RES-4"},{field:"res_5",group:"RES",label:"RES-5"},{field:"res_6",group:"RES",label:"RES-6"},{field:"res_7",group:"RES",label:"RES-7"},{field:"res_8",group:"RES",label:"RES-8"},{field:"acs_1",group:"ACS",label:"ACS-1"},{field:"acs_2",group:"ACS",label:"ACS-2"},{field:"acs_3",group:"ACS",label:"ACS-3"}]
+  };
+
+  var PP_FIELD_MAP={
+    "PP1":["nps_1","nps_2","nps_3","nps_4","ps_1","ps_2","ps_3","pha_1","pha_2","pha_3","pha_4","pha_5"],
+    "PP2":["hc_1","hc_2","hc_3","sc_1","sc_2","fwi_1","fwi_2","fwi_3"],
+    "PP3":["spo_1","spo_2","spo_3","spo_4","pea_1","pea_2","pea_3"],
+    "PP4":["res_1","res_2","res_3","res_4","res_5","res_6","res_7","res_8","acs_1","acs_2","acs_3"]
+  };
+
+  var allData=[],filteredData=[],chartDrawn=[false,false,false,false,false,false,false];
+  var tooltip=document.getElementById("tooltip");
+
+  function getYear(d){var fy=d.fiscal_year_awarded;if(!fy)return null;if(String(fy).length===4)return parseInt(fy);var p=new Date(fy);if(!isNaN(p))return p.getFullYear();return parseInt(String(fy).slice(0,4));}
+  function populateYearDropdowns(){var years=Array.from(new Set(allData.map(getYear).filter(Boolean))).sort();var fromSel=document.getElementById("year-from");var toSel=document.getElementById("year-to");years.forEach(function(y){var o1=document.createElement("option");o1.value=y;o1.textContent=y;fromSel.appendChild(o1);var o2=document.createElement("option");o2.value=y;o2.textContent=y;toSel.appendChild(o2);});toSel.value=years[years.length-1]||"";}
+  function applyYearFilter(){var from=parseInt(document.getElementById("year-from").value)||null;var to=parseInt(document.getElementById("year-to").value)||null;filteredData=allData.filter(function(d){var y=getYear(d);if(!y)return true;if(from&&y<from)return false;if(to&&y>to)return false;return true;});document.getElementById("filter-count").textContent=filteredData.filter(function(d){return d.gbep_award_amount;}).length+" funded projects";redrawAll();}
+  function clearYearFilter(){document.getElementById("year-from").value="";document.getElementById("year-to").value="";filteredData=allData.slice();document.getElementById("filter-count").textContent="";redrawAll();}
+  function redrawAll(){chartDrawn=[false,false,false,false,false,false,false];var active=document.querySelector(".chart-panel.active");if(active){var idx=parseInt(active.id.replace("panel-",""));chartDrawn[idx]=false;showChart(idx);}}
+  function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.pageX+14)+"px";tooltip.style.top=(evt.pageY-32)+"px";}
+  function hideTooltip(){tooltip.style.opacity=0;}
+  function isYes(v){if(v===null||v===undefined)return false;if(v===true||v===1)return true;var s=String(v).toLowerCase().trim();return s==="1"||s==="true"||s==="yes"||s==="y";}
+  function fmtDollars(v){if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";return "$"+Math.round(v);}
+
+  function showChart(i){
+    document.querySelectorAll('.chart-panel').forEach(function(p,j){p.classList.toggle('active',i===j);});
+    document.querySelectorAll('.nav-btn').forEach(function(b,j){b.classList.toggle('active',i===j);});
+    if(!chartDrawn[i]&&filteredData.length>0){
+      setTimeout(function(){
+        if(i===0)drawUpset(filteredData,"upset-chart");
+        if(i===1)requestAnimationFrame(function(){
+          requestAnimationFrame(function(){drawSiteChart();});
+        });
+        if(i===2)drawOrgChart();
+        if(i===3)drawAllPlanPriorities();
+        if(i===4)drawFiscalYear();
+        if(i===5)drawHeatmap();
+        if(i===6)drawTreemap();
+        chartDrawn[i]=true;
+      },50);
+    }
+  }
+
+  var resizeTimer;
+  window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){requestAnimationFrame(function(){redrawAll();});},200);});
+
+  async function fetchData(){
+    var ppFields=[];for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","in_kind_leveraging_amount","cash_leveraging_amount"];
+    var url=LAYER_URL+"?where=1%3D1&outFields="+base.concat(ppFields).join(",")+"&f=json&resultRecordCount=2000";
+    var res=await fetch(url);var json=await res.json();
+    return json.features.map(function(f){return f.attributes;});
+  }
+
+// ── drawTreemap() v3 — stats panel floats INSIDE the chart area ─────────────
+// Everything else is self-contained below.
+
+var PHOSPHOR_ICONS = [
+  { match:["estuarine wetland"],                        cls:"ph-shrimp"        },
+  { match:["estuarine shoreline"],                      cls:"ph-waves"         },
+  { match:["coastal prairie","prairie"],                cls:"custom-grass"     },
+  { match:["open bay","water column","estuarine water"],cls:"ph-fish"          },
+  { match:["freshwater"],                               cls:"ph-drop-half"     },
+  { match:["riparian"],                                 cls:"ph-tree"          },
+  { match:["living shoreline"],                         cls:"ph-anchor-simple" },
+  { match:["forested wetland"],                         cls:"ph-tree-evergreen"},
+  { match:["urban","park"],                             cls:"ph-buildings"     },
+  { match:["forest","woodland"],                        cls:"ph-tree-structure"},
+  { match:["agri","ranch","farm"],                      cls:"ph-wheat"         },
+  { match:["beach","dune"],                             cls:"ph-sun-horizon"   },
+  { match:["seagrass","sav","submerged"],               cls:"ph-leaf"          },
+  { match:["intertidal","reef"],                        cls:"ph-anchor"        },
+  { match:["research","none"],                          cls:"ph-flask"         },
+];
+
+function getPhosphorIcon(name) {
+  var n = name.toLowerCase();
+  for (var i = 0; i < PHOSPHOR_ICONS.length; i++) {
+    var e = PHOSPHOR_ICONS[i];
+    for (var j = 0; j < e.match.length; j++) {
+      if (n.indexOf(e.match[j]) > -1) return e.cls;
+    }
+  }
+  return "ph-question";
 }
-var COLORS=["#0d47a1","#1565c0","#1e8ec4","#29b6d3","#4dd0e1","#80deea","#b2ebf2"];
 
-function draw(data){
-  var el=document.getElementById("sc");
-  el.innerHTML="";
-  var W=el.clientWidth||500, H=el.clientHeight||340;
-  if(W<50||H<50)return;
+var HAB_LABELS={
+    "submerged aquatic vegetation":         "Submerged Aquatic Vegetation (SAV)",
+    "submerged aquatic veg":                "Submerged Aquatic Vegetation (SAV)",
+    "sav (submerged":                       "Submerged Aquatic Vegetation (SAV)",
+    "sav":                                  "Submerged Aquatic Vegetation (SAV)",
+    "estuarine water column open bay":      "Estuarine Water Column/Open Bay",
+    "estuarine water column open":          "Estuarine Water Column/Open Bay",
+    "estuarine water column":               "Estuarine Water Column/Open Bay",
+    "living shoreline":                     "Living Shoreline",
+    "forested wetland":                     "Forested Wetland",
+    "estuarine wetland":                    "Estuarine Wetland",
+    "estuarine shoreline":                  "Estuarine Shoreline",
+    "coastal prairie":                      "Coastal Prairie",
+    "freshwater marsh":                     "Freshwater Marsh",
+    "riparian":                             "Riparian",
+    "urban suburban":                       "Urban/Suburban",
+    "forest woodland":                      "Forest/Woodland",
+    "intertidal reef":                      "Intertidal/Reef",
+    "rookery island":                       "Rookery Island",
+    "agriculture ranch":                    "Agriculture/Ranch",
+    "agriculture ranching":                 "Agriculture/Ranch",
+    "beach dune":                           "Beach/Dune",
+  };
+  function normHab(s) {
+    var cleaned = String(s).replace(/_/g," ").replace(/\s+/g," ").trim()
+      .replace(/^[\s\-]+|[\s\-]+$/g,"")
+      .replace(/none\s*[-]*\s*this project was research/i,"Research only");
+    var key = cleaned.toLowerCase().replace(/[/\\]/g," ").replace(/\s+/g," ").trim();
+    for(var k in HAB_LABELS){
+      if(key===k||key.indexOf(k)===0)return HAB_LABELS[k];
+    }
+    return cleaned.replace(/\b\w/g,function(c){return c.toUpperCase();});
+  }
 
-  // ── Data ───────────────────────────────────────────────────────────────────
-  var funded=data.filter(function(d){
-    return d.gbep_award_amount&&d.targeted_focal_species&&d.targeted_focal_species.trim();
+function drawTreemap() {
+  var el = document.getElementById("treemap-chart");
+  el.innerHTML = "";
+  el.style.position = "relative"; // needed for absolute children
+
+  // ── NORMALIZE & COUNT ────────────────────────────────────────────────────
+  // Lookup map for truncated Survey123 habitat type coded values
+
+
+  var funded = filteredData.filter(function(d){
+    return d.project_landscape_type && String(d.project_landscape_type).trim();
   });
-  var sk={},sl={};
+  var totalProjects = funded.length;
+
+  var habitatCount = {}, canonMap = {};
   funded.forEach(function(row){
-    row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(Boolean)
-    .forEach(function(raw){
-      var norm=normS(raw), key=norm.toLowerCase().trim();
-      if(key==="other"||key.indexOf("other targeted")===0||key.indexOf("other_targeted")===0){
-        var desc=(row.targeted_focal_species_other||"").trim().replace(/_/g," ");
-        var lbl=desc?"Other: "+desc:"Other", lk=lbl.toLowerCase();
-        sk[lk]=(sk[lk]||0)+1; sl[lk]=lbl;
-      } else { sk[key]=(sk[key]||0)+1; sl[key]=norm; }
+    var seen = {};
+    String(row.project_landscape_type).split(",").forEach(function(s){
+      var norm = normHab(s.trim());
+      var key  = norm.toLowerCase();
+      if (!norm || seen[key]) return;
+      seen[key] = true;
+      if (!canonMap[key]) canonMap[key] = norm;
+      habitatCount[canonMap[key]] = (habitatCount[canonMap[key]]||0) + 1;
     });
   });
-  var counts=Object.keys(sk).map(function(k){return{label:sl[k],count:sk[k]};})
-    .sort(function(a,b){return b.count-a.count;});
-  if(!counts.length)return;
-  var total=d3.sum(counts,function(d){return d.count;}), N=counts.length;
 
-  // ── Layout ─────────────────────────────────────────────────────────────────
-  // Circle radius at end of arms
-  var CR   = Math.min(Math.floor(W*0.065), 34);
-  // Drop radius — takes up centre third of width
-  var DR   = Math.min(Math.floor((W - CR*4)*0.22), Math.floor(H*0.30), 90);
-  var cx   = W/2;
-  var topY = Math.max(8, CR);       // top tip of drop — leave room for top circle
-  var bCy  = H - DR - Math.max(8, CR); // centre of bottom semicircle
-  var dropH= bCy + DR - topY;
+  var uniqueTypes = Object.keys(habitatCount).length;
+  var totalTags   = Object.keys(habitatCount).reduce(function(s,k){return s+habitatCount[k];},0);
+  var avgPerProj  = totalProjects ? (totalTags/totalProjects).toFixed(1) : "0";
 
-  // Arm height — thick enough to hold two lines of text comfortably
-  var FS   = Math.max(11, Math.min(14, Math.floor(H/(N*2.3))));
-  var ARM_H= Math.max(FS*2.6, Math.min(dropH/(N*0.9), 56));
-
-  // Available width each side for arm (cx to edge minus circle)
-  var ARM_W_L = cx - CR*2 - 8;   // left arm usable text width
-  var ARM_W_R = W - cx - CR*2 - 8;
-
-  // Drop path
-  function hw(y){
-    if(y>=bCy) return Math.sqrt(Math.max(0, DR*DR-(y-bCy)*(y-bCy)));
-    return Math.max(0, DR*(y-topY)/(bCy-topY));
+  // Update subtitle
+  var subtitleEl = document.getElementById("treemap-subtitle");
+  if (subtitleEl && totalProjects) {
+    var years = filteredData.map(function(d){
+      var y=d.fiscal_year_awarded; if(!y)return null;
+      var s=String(y); return s.length===4?parseInt(s):new Date(y).getFullYear()||null;
+    }).filter(Boolean);
+    subtitleEl.textContent =
+      "Percent of "+totalProjects+" GBEP-funded projects that included each habitat type"+
+      (years.length?", "+Math.min.apply(null,years)+"–"+Math.max.apply(null,years):"")+
+      ". Values are independent — one project may count toward multiple habitats.";
   }
-  var dp="M"+cx+","+topY+" L"+(cx+DR)+","+bCy+" A"+DR+","+DR+" 0 0,1 "+(cx-DR)+","+bCy+" Z";
 
-  var svg=d3.select("#sc").append("svg").attr("width",W).attr("height",H)
-    .style("font-family","'Roboto',sans-serif").style("overflow","visible");
-  var defs=svg.append("defs");
-  defs.append("clipPath").attr("id","dc6").append("path").attr("d",dp);
+  if (!totalProjects) return;
 
-  // ── Band geometry ──────────────────────────────────────────────────────────
-  var layers=[];
-  var cur=bCy+DR;
-  counts.forEach(function(c,i){
-    var pct=c.count/total, lh=pct*dropH, lt=cur-lh, midY=lt+lh/2;
-    layers.push({
-      label:c.label, count:c.count, pct:pct,
-      top:lt, bot:cur, midY:midY, bandH:lh,
-      edgeHW:hw(midY),
-      color:COLORS[i%COLORS.length], right:i%2===0
+  // ── SORT & GROUP ─────────────────────────────────────────────────────────
+  var leaves = Object.keys(habitatCount).map(function(k){
+    return {name:k, count:habitatCount[k], pct:Math.round(habitatCount[k]/totalProjects*100)};
+  }).sort(function(a,b){return b.count-a.count;});
+
+  var TOP_N = 6, main = leaves.slice(0,TOP_N), rest = leaves.slice(TOP_N);
+  if (rest.length > 0) {
+    var otherSet = {};
+    funded.forEach(function(row){
+      var topKeys = main.map(function(d){return d.name.toLowerCase();});
+      var types = String(row.project_landscape_type).split(",")
+        .map(function(s){return normHab(s.trim()).toLowerCase();});
+      if (types.some(function(t){return t && topKeys.indexOf(t)===-1;})) {
+        otherSet[row.OBJECTID||row.objectid||JSON.stringify(row)] = true;
+      }
     });
-    cur=lt;
+    var otherCount = Object.keys(otherSet).length;
+    main.push({
+      name:"Other ("+rest.length+" types)",
+      count:otherCount,
+      pct:Math.round(otherCount/totalProjects*100),
+      isOther:true,
+      stackedSegments: rest  // pass the individual types for stacking
+    });
+  }
+
+  // ── SIZING ───────────────────────────────────────────────────────────────
+  var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#78909c"];
+  var N      = main.length;
+  var availW = el.clientWidth  || 600;
+  var availH = el.clientHeight || 280;
+  availH = Math.max(availH, 220);
+
+  // Reserve right side for stat panel if wide enough
+  var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.24, 300)) : 0;
+  var chartW   = availW - STAT_W - (STAT_W > 0 ? 12 : 0);
+  var GAP      = Math.max(6, Math.round(chartW * 0.007));
+  var Y_PAD    = 28; // left padding for y-axis labels
+  var colW     = Math.floor((chartW - GAP*(N-1) - Y_PAD) / N);
+
+  var nameFontPx = Math.max(12, Math.min(Math.round(colW*0.10), 16));
+  var pctFontPx  = Math.max(13, Math.min(Math.round(colW*0.12), 22));
+
+  // ── WRAPPER (chart + stat panel side by side) ─────────────────────────────
+  var wrapper = document.createElement("div");
+  wrapper.style.cssText =
+    "display:flex;align-items:flex-start;gap:"+(STAT_W>0?12:0)+"px;"+
+    "height:"+availH+"px;width:100%;box-sizing:border-box;";
+
+  // ── BAR CHART ─────────────────────────────────────────────────────────────
+  var chart = document.createElement("div");
+  chart.style.cssText =
+    "display:flex;align-items:flex-end;gap:"+GAP+"px;"+
+    "height:"+availH+"px;flex-shrink:0;"+
+    "border-bottom:2px solid rgba(0,0,0,0.15);"+
+    "position:relative;width:"+chartW+"px;box-sizing:border-box;"+
+    "padding-left:"+Y_PAD+"px;";
+
+  // Gridlines + y-labels
+  [0,25,50,75,100].forEach(function(v){
+    var gl = document.createElement("div");
+    gl.style.cssText =
+      "position:absolute;left:0;right:0;bottom:"+(v/100*availH)+"px;"+
+      "border-top:"+(v===0?"2px solid rgba(0,0,0,0.18)":"1px dashed rgba(0,0,0,0.1)")+";"+
+      "pointer-events:none;z-index:0;";
+    chart.appendChild(gl);
+    var lbl = document.createElement("div");
+    lbl.style.cssText =
+      "position:absolute;left:0;bottom:"+(v/100*availH-7)+"px;"+
+      "font-size:12px;color:rgba(0,0,0,0.35);font-family:'Roboto',sans-serif;"+
+      "pointer-events:none;z-index:0;width:24px;text-align:right;";
+    lbl.textContent = v+"%";
+    chart.appendChild(lbl);
   });
 
-  // ══ LAYER 1: Arms from CENTER of drop to box edge ══════════════════════════
-  // Each arm is a full-width rect from cx (center) outward to the edge
-  // The drop shadow + fill will cover the inner half, revealing only the outer arm
-  layers.forEach(function(lay){
-    var midY=lay.midY, aH=ARM_H;
-    if(lay.right){
-      // From center to right edge
-      svg.append("rect")
-        .attr("x", cx).attr("y", midY-aH/2)
-        .attr("width", W-cx).attr("height", aH)
-        .attr("fill", lay.color).attr("rx", 3);
+  // Bars
+  main.forEach(function(d,i){
+    var color  = d.isOther ? "#78909c" : COLORS[i%COLORS.length];
+    var fillH  = Math.max(4, Math.round((d.pct/100)*availH));
+    var emptyH = availH - fillH;
+    var iconSz = Math.max(18, Math.round(Math.min(colW*0.55, fillH*0.55)));
+
+    var col = document.createElement("div");
+    col.style.cssText =
+      "flex:1;min-width:0;height:"+availH+"px;"+
+      "display:flex;flex-direction:column;position:relative;z-index:1;";
+
+    var emptyArea = document.createElement("div");
+    emptyArea.style.cssText =
+      "height:"+emptyH+"px;min-height:0;overflow:hidden;"+
+      "display:flex;flex-direction:column;align-items:center;justify-content:center;"+
+      "padding:4px 2px;box-sizing:border-box;";
+
+    var nameEl = document.createElement("div");
+    nameEl.style.cssText =
+      "font-size:"+nameFontPx+"px;font-weight:700;color:"+color+";"+
+      "text-align:center;line-height:1.25;font-family:'Roboto',sans-serif;word-break:break-word;";
+    nameEl.textContent = d.name;
+
+    var pctEl = document.createElement("div");
+    pctEl.style.cssText =
+      "font-size:"+pctFontPx+"px;font-weight:900;color:"+color+";"+
+      "letter-spacing:-0.5px;font-family:'Roboto',sans-serif;line-height:1;margin-top:3px;";
+    pctEl.textContent = d.pct+"%";
+
+    emptyArea.appendChild(nameEl);
+    emptyArea.appendChild(pctEl);
+
+    var fill = document.createElement("div");
+
+    // For "Other" — render as a stacked bar showing individual types
+    if (d.isOther && d.stackedSegments && d.stackedSegments.length > 0) {
+      fill.style.cssText =
+        "flex:0 0 "+fillH+"px;border-radius:6px 6px 0 0;"+
+        "display:flex;flex-direction:column-reverse;overflow:hidden;"+
+        "cursor:pointer;box-sizing:border-box;position:relative;";
+      // Coordinated with main COLORS palette — muted blues/teals/greens
+      var STACK_COLORS=["#1a6b8a","#1e7d6b","#2d6a8f","#3a7d5c","#0d5c80","#2e6b5e","#1f5f7a","#306b70","#1b7055","#2a5f8a","#3d7a68","#1e6875","#2b7060"];
+      var totalStackPct = d.stackedSegments.reduce(function(s,seg){return s+seg.pct;},0) || 1;
+      d.stackedSegments.forEach(function(seg,si){
+        var segH = Math.max(1, Math.round((seg.pct / totalStackPct) * fillH));
+        var segDiv = document.createElement("div");
+        segDiv.style.cssText =
+          "flex:0 0 "+segH+"px;background:"+STACK_COLORS[si%STACK_COLORS.length]+";"+
+          "display:flex;align-items:center;justify-content:center;overflow:hidden;"+
+          "border-top:1px solid rgba(255,255,255,0.2);box-sizing:border-box;";
+        if (segH >= 14) {
+          var segLabel = document.createElement("div");
+          var labelText = seg.name.length > 16 ? seg.name.slice(0,14)+"…" : seg.name;
+          segLabel.style.cssText = "font-size:"+Math.min(10,Math.max(8,Math.round(segH*0.45)))+"px;color:rgba(255,255,255,0.88);font-family:'Roboto',sans-serif;font-weight:600;text-align:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;";
+          segLabel.textContent = labelText+" "+seg.pct+"%";
+          segDiv.appendChild(segLabel);
+        }
+        (function(s){
+          segDiv.addEventListener("mousemove",function(evt){
+            showTooltip(evt,"<strong>"+s.name+"</strong><br>"+s.pct+"% of projects<br>"+s.count+" project"+(s.count!==1?"s":""));
+          });
+          segDiv.addEventListener("mouseleave",hideTooltip);
+        })(seg);
+        fill.appendChild(segDiv);
+      });
     } else {
-      // From left edge to center
-      svg.append("rect")
-        .attr("x", 0).attr("y", midY-aH/2)
-        .attr("width", cx).attr("height", aH)
-        .attr("fill", lay.color).attr("rx", 3);
-    }
-  });
-
-  // ══ LAYER 2: Drop shadow — renders OVER arms creating 3D lift ══════════════
-  svg.append("path").attr("d",dp)
-    .attr("transform","translate(7,9)")
-    .attr("fill","rgba(8,40,120,0.28)")
-    .style("filter","blur(9px)");
-
-  // ══ LAYER 3: Drop bands clipped to drop ════════════════════════════════════
-  layers.forEach(function(lay){
-    svg.append("rect")
-      .attr("x",cx-DR-4).attr("y",lay.top)
-      .attr("width",(DR+4)*2).attr("height",Math.max(lay.bot-lay.top,1))
-      .attr("fill",lay.color).attr("clip-path","url(#dc6)");
-    if(lay.top>topY+2){
-      svg.append("line")
-        .attr("x1",cx-DR).attr("x2",cx+DR)
-        .attr("y1",lay.top).attr("y2",lay.top)
-        .attr("stroke","rgba(255,255,255,0.45)").attr("stroke-width",2)
-        .attr("clip-path","url(#dc6)");
-    }
-  });
-
-  // ══ LAYER 4: Drop white outline ════════════════════════════════════════════
-  svg.append("path").attr("d",dp).attr("fill","none")
-    .attr("stroke","white").attr("stroke-width",3);
-
-  // ══ LAYER 5: Icons inside drop (only when band tall enough) ════════════════
-  var MIN_ICON=26;
-  layers.forEach(function(lay){
-    if(lay.bandH<MIN_ICON)return;
-    var sz=Math.max(16,Math.min(lay.bandH*0.58,28));
-    svg.append("foreignObject")
-      .attr("x",cx-sz/2).attr("y",lay.midY-sz/2)
-      .attr("width",sz+4).attr("height",sz+4)
-      .append("xhtml:i")
-        .attr("class","ph-bold "+getIcon(lay.label))
-        .style("font-size",sz+"px")
-        .style("color","rgba(255,255,255,0.92)")
-        .style("display","flex")
-        .style("align-items","center")
-        .style("justify-content","center")
-        .style("width",(sz+4)+"px")
-        .style("height",(sz+4)+"px");
-  });
-
-  // ══ LAYER 6: Arm text + end circles ════════════════════════════════════════
-  layers.forEach(function(lay){
-    var midY=lay.midY;
-    var edgeX=lay.edgeHW; // drop half-width at this band's midY
-
-    // Text region: from drop edge outward, leaving room for circle
-    var textPad=8;
-    var textLeft, textRight, textW;
-    if(lay.right){
-      textLeft  = cx + edgeX + textPad;
-      textRight = W - CR*2 - 12;
-      textW     = textRight - textLeft;
-    } else {
-      textLeft  = CR*2 + 12;
-      textRight = cx - edgeX - textPad;
-      textW     = textRight - textLeft;
+      fill.style.cssText =
+        "flex:0 0 "+fillH+"px;background:"+color+";border-radius:6px 6px 0 0;"+
+        "display:flex;align-items:flex-end;justify-content:center;"+
+        "padding-bottom:"+Math.max(6,Math.round(fillH*0.07))+"px;"+
+        "cursor:pointer;overflow:hidden;box-sizing:border-box;";
     }
 
-    // Wrap label to fit available width
-    var words=lay.label.split(/\s+/);
-    var lines=[], cur2="";
-    var chPerLine=Math.max(4,Math.floor(textW/(FS*0.56)));
-    words.forEach(function(w){
-      var test=cur2?cur2+" "+w:w;
-      if(test.length>chPerLine&&cur2){lines.push(cur2);cur2=w;}
-      else cur2=test;
+    if (!d.isOther && iconSz >= 18 && fillH >= iconSz+8) {
+      var iconCls = d.isOther ? "ph-question" : getPhosphorIcon(d.name);
+      var iconWrap = document.createElement("div");
+      iconWrap.style.cssText = "position:relative;line-height:1;display:flex;align-items:center;justify-content:center;width:"+iconSz+"px;height:"+iconSz+"px;";
+      var icon;
+      if(iconCls === "custom-grass"){
+        icon = document.createElementNS("http://www.w3.org/2000/svg","svg");
+        icon.setAttribute("viewBox","60 0 390 490");
+        icon.setAttribute("width",iconSz);
+        icon.setAttribute("height",iconSz);
+        icon.style.cssText = "display:block;fill:rgba(255,255,255,0.88);";
+        [
+          "M196.832,302.479c-0.225-22.92-15.482-66.853-36.727-88.086c-21.245-21.234-65.598-32.276-88.061-36.708c-3.154-0.623-6.408,0.376-8.661,2.644c-2.286,2.272-3.28,5.521-2.64,8.667c4.414,22.484,15.451,66.852,36.695,88.077c15.611,15.62,43.707,25.693,66.436,31.708v161.981c0,9.103,7.366,16.481,16.477,16.481c9.109,0,16.48-7.38,16.48-16.481C196.832,470.763,196.894,309.612,196.832,302.479z",
+          "M262.751,124.978c-0.13-22.921-15.481-66.852-36.727-88.088C204.78,15.655,160.426,4.614,137.96,0.182c-3.154-0.623-6.404,0.376-8.657,2.644c-2.286,2.272-3.284,5.521-2.64,8.666c4.409,22.486,15.451,66.853,36.695,88.079c15.607,15.621,43.707,25.694,66.43,31.708v339.483c0,9.103,7.372,16.481,16.482,16.481c9.108,0,16.479-7.38,16.479-16.481C262.751,470.763,262.813,136.902,262.751,124.978z",
+          "M426.514,139.555c0.614-3.146-0.386-6.395-2.64-8.666c-2.285-2.268-5.533-3.266-8.657-2.644c-22.499,4.432-66.854,15.473-88.097,36.708c-21.24,21.235-36.658,63.929-36.688,88.086c-0.031,15.634-0.031,217.723-0.031,217.723c0,9.103,7.371,16.481,16.478,16.481c9.108,0,16.479-7.38,16.479-16.481V259.34c22.754-6.013,50.854-16.086,66.468-31.707C411.063,206.406,422.104,162.04,426.514,139.555z"
+        ].forEach(function(d){
+          var p=document.createElementNS("http://www.w3.org/2000/svg","path");
+          p.setAttribute("d",d);
+          icon.appendChild(p);
+        });
+      } else {
+        icon = document.createElement("i");
+        icon.className = "ph-fill "+iconCls;
+        icon.style.cssText = "font-size:"+iconSz+"px;color:rgba(255,255,255,0.88);line-height:1;display:block;";
+      }
+      iconWrap.appendChild(icon);
+      // Emoji fallback — shown if Phosphor font fails to load
+      var EMOJI_MAP = {"ph-shrimp":"🦐","ph-waves":"🌊","ph-plant":"🌿","ph-fish":"🐟","ph-drop-half":"💧","ph-tree":"🌳","ph-anchor-simple":"⚓","ph-tree-evergreen":"🌲","ph-buildings":"🏙️","ph-tree-structure":"🌲","ph-wheat":"🌾","ph-sun-horizon":"🌅","ph-leaf":"🍃","ph-anchor":"⚓","ph-flask":"🧪","ph-question":"❓"};
+      var emo = document.createElement("span");
+      emo.textContent = EMOJI_MAP[iconCls] || "•";
+      emo.style.cssText = "position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:"+Math.round(iconSz*0.75)+"px;opacity:0;";
+      emo.className = "icon-fallback";
+      iconWrap.appendChild(emo);
+      fill.appendChild(iconWrap);
+    }
+
+    if (!d.isOther) {
+      (function(hab){
+        fill.addEventListener("mousemove",function(evt){
+          showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":""));
+        });
+        fill.addEventListener("mouseleave",hideTooltip);
+      })(d);
+    }
+
+    col.appendChild(emptyArea);
+    col.appendChild(fill);
+    chart.appendChild(col);
+  });
+
+  wrapper.appendChild(chart);
+
+  // ── STAT PANEL (right side, inside chart area) ────────────────────────────
+  if (STAT_W > 0) {
+    var panel = document.createElement("div");
+    panel.style.cssText =
+      "width:"+STAT_W+"px;flex-shrink:0;height:"+availH+"px;overflow:hidden;"+
+      "display:flex;flex-direction:column;justify-content:center;gap:6px;"+
+      "padding:12px 10px;box-sizing:border-box;"+
+      "background:rgba(248,250,252,0.95);"+
+      "border-left:2px solid rgba(22,119,188,0.2);"+
+      "border-radius:0 8px 8px 0;";
+
+    var stats = [
+      {val:totalProjects, label:"funded projects",      color:"#0d47a1"},
+      {val:uniqueTypes,   label:"distinct habitat types",color:"#00695c"},
+      {val:totalTags,     label:"total habitat tags",    color:"#1677bc"},
+      {val:avgPerProj,    label:"habitats per project",  color:"#2e7d32"},
+    ];
+
+    stats.forEach(function(s,i){
+      var row = document.createElement("div");
+      row.style.cssText =
+        "display:flex;align-items:center;gap:8px;"+
+        (i < stats.length-1 ? "padding-bottom:6px;border-bottom:1px solid rgba(0,0,0,0.07);" : "");
+
+      // Number bubble
+      var bubble = document.createElement("div");
+      bubble.style.cssText =
+        "width:68px;height:68px;"+
+        "border-radius:50%;flex-shrink:0;"+
+        "background:"+s.color+"1a;"+ // 1a = ~10% opacity hex
+        "display:flex;align-items:center;justify-content:center;";
+      var valEl = document.createElement("div");
+      valEl.style.cssText =
+        "font-size:24px;font-weight:900;color:"+s.color+";"+
+        "line-height:1;letter-spacing:-0.5px;font-family:'Roboto',sans-serif;";
+      valEl.textContent = s.val;
+      bubble.appendChild(valEl);
+
+      var labelEl = document.createElement("div");
+      labelEl.style.cssText =
+        "font-size:13px;font-weight:600;color:"+s.color+";"+
+        "line-height:1.3;font-family:'Roboto',sans-serif;flex:1;min-width:0;";
+      labelEl.textContent = s.label;
+
+      row.appendChild(bubble);
+      row.appendChild(labelEl);
+      panel.appendChild(row);
     });
-    if(cur2)lines.push(cur2);
-    // Max 2 lines; truncate if more
-    if(lines.length>2){lines=lines.slice(0,2);lines[1]=lines[1].slice(0,-1)+"\u2026";}
 
-    var lh=FS*1.25;
-    var textCx=lay.right?(textLeft+textRight)/2:(textLeft+textRight)/2;
-    var startY=midY-((lines.length-1)*lh)/2;
-    lines.forEach(function(line,li){
-      svg.append("text")
-        .attr("x",textCx).attr("y",startY+li*lh)
-        .attr("text-anchor","middle").attr("dominant-baseline","middle")
-        .attr("font-size",FS).attr("font-weight","700").attr("fill","white")
-        .style("pointer-events","none")
-        .text(line);
-    });
+    // Reading guide at bottom
+    var guide = document.createElement("div");
+    guide.style.cssText =
+      "margin-top:8px;padding-top:8px;border-top:1px solid rgba(22,119,188,0.15);"+
+      "font-size:13px;color:rgba(0,0,0,0.65);"+
+      "line-height:1.6;font-family:'Roboto',sans-serif;";
+    guide.innerHTML =
+      "<strong style='color:#1677bc;'>How to read:</strong> "+
+      "Each bar = % of "+totalProjects+" projects in that habitat. "+
+      "Bars are <strong>independent</strong> — they won't add to 100% because "+
+      "projects average "+avgPerProj+" habitats each.";
+    panel.appendChild(guide);
 
-    // End circle at box edge
-    var cX=lay.right ? W-CR-4 : CR+4;
-    // Shadow
-    svg.append("circle").attr("cx",cX+2).attr("cy",midY+3).attr("r",CR)
-      .attr("fill","rgba(0,0,0,0.13)").style("filter","blur(4px)");
-    // White circle + colored ring
-    svg.append("circle").attr("cx",cX).attr("cy",midY).attr("r",CR)
-      .attr("fill","white").attr("stroke",lay.color).attr("stroke-width",3);
-    svg.append("text").attr("x",cX).attr("y",midY)
-      .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",Math.max(11,Math.round(CR*0.65))).attr("font-weight","900")
-      .attr("fill",lay.color).style("pointer-events","none")
-      .text(Math.round(lay.pct*100)+"%");
+    wrapper.appendChild(panel);
+  } else {
+    // Narrow screen: append reading guide below chart as text
+    var noteEl = document.createElement("div");
+    noteEl.style.cssText =
+      "font-size:13px;color:rgba(0,0,0,0.65);margin-top:6px;"+
+      "font-family:'Roboto',sans-serif;line-height:1.4;";
+    noteEl.textContent =
+      totalProjects+" funded projects · "+uniqueTypes+" habitat types · "+
+      totalTags+" total tags · "+avgPerProj+" habitats per project on average. "+
+      "Bars are independent — values won't add to 100%.";
+    el.appendChild(wrapper);
+    el.appendChild(noteEl);
+    return;
+  }
 
-    // Hover zone over outer arm only (outside the drop)
-    var hLeft =lay.right ? cx+edgeX      : cX-CR;
-    var hRight=lay.right ? cX+CR         : cx-edgeX;
-    svg.append("rect")
-      .attr("x",hLeft).attr("y",midY-ARM_H/2-4)
-      .attr("width",Math.max(0,hRight-hLeft)).attr("height",ARM_H+8)
-      .attr("fill","transparent").style("cursor","pointer")
-      .on("mousemove",function(ev){
-        showTip(ev,"<strong>"+lay.label+"</strong><br>"+
-          Math.round(lay.pct*100)+"% of projects — "+
-          lay.count+" project"+(lay.count!==1?"s":""));
-      })
-      .on("mouseleave",hideTip);
-  });
+  el.appendChild(wrapper);
 }
 
-async function init(){
-  var res=await fetch(SURL+"?where=gbep_award_amount+IS+NOT+NULL&outFields=*&f=json&resultRecordCount=2000");
-  var d=await res.json();
-  window._spd=d.features.map(function(f){return f.attributes;});
-  requestAnimationFrame(function(){requestAnimationFrame(function(){draw(window._spd);});});
-}
-document.readyState==="loading"?document.addEventListener("DOMContentLoaded",init):init();
-window.addEventListener("resize",function(){if(window._spd)draw(window._spd);});
+
+  function drawFiscalYear(){var el=document.getElementById("fy-chart");var width=el.clientWidth||window.innerWidth;var height=el.clientHeight||(window.innerHeight-100);var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});var byYear=d3.rollups(funded,function(v){return v.length;},function(d){var fy=d.fiscal_year_awarded;if(!fy)return null;if(String(fy).length===4)return parseInt(fy);var parsed=new Date(fy);if(!isNaN(parsed))return parsed.getFullYear();return parseInt(String(fy).slice(0,4));}).filter(function(r){return r[0]!==null;}).map(function(r){return{year:r[0],count:r[1]};}).sort(function(a,b){return a.year-b.year;});if(byYear.length===0)return;var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;var subtitleEl=document.getElementById("fy-subtitle");if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"\u2013"+maxY+".";el.style.overflowX="auto";el.style.overflowY="hidden";var minBarW=28,mL=Math.round(vfs(55)),mR=30,mT=20,mB=Math.round(vfs(85));var chartW=Math.max(width,byYear.length*minBarW+mL+mR),w=chartW-mL-mR,h=height-mT-mB;var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);var yMax=d3.max(byYear,function(d){return d.count;})||1;var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));d3.select("#fy-chart").select("svg").remove();var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d"))).call(function(ax){ax.select(".domain").remove();}).call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",vfs(13)).attr("fill","#666");});g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(32,mL-12)).attr("text-anchor","middle").attr("font-size",vfs(13)).attr("fill","#888").attr("font-weight","500").text("Projects");g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar").attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.count);}).attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.count);}).attr("fill",function(d){return colorScale(d.count);}).attr("rx",3).attr("opacity",0.9).on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label").attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("y",function(d){return yScale(d.count)-4;}).attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700").attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);})).call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});}
+
+  function drawHeatmap(){var el=document.getElementById("heatmap-chart");if(!el||el.clientWidth<10)return;var width=el.clientWidth||window.innerWidth;var height=Math.max(el.clientHeight||0,200);var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});var priorities=["PP1","PP2","PP3","PP4"],ppLabels={"PP1":"Priority 1","PP2":"Priority 2","PP3":"Priority 3","PP4":"Priority 4"},cellMap={},orgs=[],orgSet={};funded.forEach(function(row){var org=row.lead_organization_name.trim();if(!orgSet[org]){orgSet[org]=true;orgs.push(org);}priorities.forEach(function(pp){var hasAny=PP_FIELD_MAP[pp].some(function(f){return isYes(row[f]);});if(hasAny){var key=org+"||"+pp;cellMap[key]=(cellMap[key]||0)+1;}});});var heatSortMode=window._heatSortMode||'count';
+  orgs.sort(function(a,b){
+    if(heatSortMode==='az')return a.localeCompare(b);
+    var ta=priorities.reduce(function(s,pp){return s+(cellMap[a+"||"+pp]||0);},0);
+    var tb=priorities.reduce(function(s,pp){return s+(cellMap[b+"||"+pp]||0);},0);
+    return tb!==ta?tb-ta:a.localeCompare(b);
+  });var mL=Math.min(240,width*0.30),mR=20,mT=45,mB=20,w=width-mL-mR,h=height-mT-mB,cellW=w/priorities.length,cellH=h/orgs.length,maxVal=d3.max(Object.values(cellMap))||1;var ppColorScales={"PP1":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f4fb","#1565c0")),"PP2":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#e8f5e9","#1b5e20")),"PP3":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#f3e5f5","#4a148c")),"PP4":d3.scaleSequential().domain([0,maxVal]).interpolator(d3.interpolate("#fbe9e7","#bf360c"))};d3.select("#heatmap-chart").select("svg").remove();var svg=d3.select("#heatmap-chart").append("svg").attr("width",width).attr("height",height);var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");priorities.forEach(function(pp,pi){g.append("text").attr("x",pi*cellW+cellW/2).attr("y",-10).attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700").attr("fill",{"PP1":C1,"PP2":"#2e7d32","PP3":"#6a1b9a","PP4":"#e65100"}[pp]).text(ppLabels[pp]);});orgs.forEach(function(org,oi){var cleanOrg=org.replace(/_/g," "),fs=Math.min(vfs(12),Math.max(9,cellH*0.30)),maxCharsPerLine=Math.max(8,Math.floor((mL-14)/(fs*0.55))),words=cleanOrg.split(/\s+/).filter(Boolean),lines=[],cur="";words.forEach(function(w){var test=cur?cur+" "+w:w;if(test.length>maxCharsPerLine&&cur){lines.push(cur);cur=w;}else cur=test;});if(cur)lines.push(cur);var lineH=fs*1.18,maxLines=Math.max(1,Math.floor((cellH-2)/lineH));lines=lines.slice(0,maxLines);var totalH=lines.length*lineH,startY=oi*cellH+cellH/2-totalH/2+lineH*0.75,labelEl=g.append("text").attr("x",-6).attr("text-anchor","end").attr("font-size",fs).attr("fill","#333");lines.forEach(function(line,li){labelEl.append("tspan").attr("x",-6).attr("y",startY+li*lineH).text(line);});priorities.forEach(function(pp,pi){var val=cellMap[org+"||"+pp]||0,dollars=funded.filter(function(d){return d.lead_organization_name.trim()===org&&PP_FIELD_MAP[pp].some(function(f){return isYes(d[f]);});}).reduce(function(s,d){return s+d.gbep_award_amount;},0),x=pi*cellW,y=oi*cellH,pad=2;g.append("rect").attr("x",x+pad).attr("y",y+pad).attr("width",cellW-pad*2).attr("height",cellH-pad*2).attr("fill",val>0?ppColorScales[pp](val):"#f5f5f5").attr("rx",4).on("mousemove",function(event){showTooltip(event,val>0?"<strong>"+org+"</strong><br>"+ppLabels[pp]+"<br>"+val+" project"+(val!==1?"s":"")+"<br>"+fmtDollars(dollars):"<strong>"+org+"</strong><br>"+ppLabels[pp]+"<br>No projects");}).on("mouseleave",hideTooltip);if(val>0&&cellH>14){g.append("text").attr("x",x+cellW/2).attr("y",y+cellH/2).attr("text-anchor","middle").attr("dominant-baseline","middle").attr("font-size",Math.min(vfs(14),cellH*0.45)).attr("font-weight","600").attr("fill",val>maxVal*0.5?"white":{"PP1":"#1565c0","PP2":"#1b5e20","PP3":"#4a148c","PP4":"#bf360c"}[pp]).text(val);}});});}
+
+  function drawPlanPriority(data,priority,containerId){var el=document.getElementById(containerId);if(!el||el.clientWidth<10)return;var width=el.clientWidth||400,height=Math.max(el.clientHeight||0,120),items=PLAN_DEFS[priority],palette=PP_PALETTES[priority],totals={};items.forEach(function(it){totals[it.field]=0;});data.forEach(function(row){items.forEach(function(it){if(isYes(row[it.field]))totals[it.field]+=1;});});var groups=[],groupMap={};items.forEach(function(it){if(!groupMap[it.group]){groupMap[it.group]={group:it.group,subs:[]};groups.push(groupMap[it.group]);}groupMap[it.group].subs.push({label:it.label,field:it.field,value:totals[it.field]});});var mL=Math.round(vfs(40)),mR=8,mT=30,mB=26,cW=width-mL-mR,cH=height-mT-mB,groupW=cW/groups.length,barW=groupW*0.7,maxY=50,yScale=d3.scaleLinear().domain([0,50]).range([cH,0]);d3.select("#"+containerId).select("svg").remove();var svg=d3.select("#"+containerId).append("svg").attr("width",width).attr("height",height).style("font-family",FONT),g=svg.append("g").attr("transform","translate("+mL+","+mT+")");g.append("g").call(d3.axisLeft(yScale).ticks(4).tickFormat(d3.format("d"))).call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",cW).attr("stroke","#eee");ax.selectAll("text").attr("font-size",vfs(11));});groups.forEach(function(grp,gi){var x=gi*groupW+(groupW-barW)/2,yOff=cH;grp.subs.forEach(function(sub,si){var col=palette[(gi*4+si)%palette.length],bH=cH-yScale(sub.value);if(bH<0)bH=0;yOff-=bH;g.append("rect").attr("x",x).attr("y",yOff).attr("width",barW).attr("height",bH).attr("fill",col).attr("rx",1).on("mousemove",function(event){showTooltip(event,"<strong>"+sub.label+"</strong><br>"+sub.value+" project"+(sub.value!==1?"s":""));}).on("mouseleave",hideTooltip);});g.append("text").attr("x",x+barW/2).attr("y",cH+18).attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700").attr("fill","#333").text(grp.group);var total=d3.sum(grp.subs,function(s){return s.value;});if(total>0)g.append("text").attr("x",x+barW/2).attr("y",yScale(total)-4).attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","600").attr("fill","#555").text(total);});}
+  function drawAllPlanPriorities(){drawPlanPriority(filteredData,1,"pp1-chart");drawPlanPriority(filteredData,2,"pp2-chart");drawPlanPriority(filteredData,3,"pp3-chart");drawPlanPriority(filteredData,4,"pp4-chart");}
+
+  function drawScatterChart(sites,containerId){
+    var el=document.getElementById(containerId);
+    if(!el||!sites||!sites.length)return;
+    el.innerHTML="";
+    el.style.overflow="hidden";
+    el.style.position="relative";
+    var W=Math.max(el.clientWidth||el.offsetWidth||600,200);
+    var H=Math.max(el.clientHeight||el.offsetHeight||
+           (el.parentElement?el.parentElement.clientHeight-40:0)||300,150);
+
+    var mL=52,mR=20,mT=14,mB=62;
+    var plotW=W-mL-mR;
+    var plotH=H-mT-mB;
+    if(plotW<60||plotH<60)return;
+
+    function fmt$(v){
+      if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";
+      if(v>=1e3)return"$"+Math.round(v/1e3)+"K";
+      return"$"+Math.round(v);
+    }
+    function fmtAc(v){
+      if(v>=1000)return Math.round(v/1000)+"K ac";
+      return Math.round(v)+" ac";
+    }
+
+    var C_LAND="#ac4341";
+    var C_OTHER="#ea940d";
+    var MIN_VAL=1000;
+
+    var validSites=sites.filter(function(d){
+      return d.award>=MIN_VAL&&d.totalCost>0;
+    });
+    var excluded=sites.filter(function(d){
+      return d.award>0&&(!d.totalCost||d.totalCost<MIN_VAL);
+    });
+    if(!validSites.length)return;
+
+    validSites.forEach(function(d){
+      d.pctGbep=Math.min(100,Math.round((d.award/d.totalCost)*100));
+    });
+
+    var maxCost=d3.max(validSites,function(d){return d.totalCost;})||1;
+    var minCost=d3.min(validSites,function(d){return d.totalCost;})||1;
+    var maxCount=d3.max(validSites,function(d){return d.count;})||1;
+
+    var rMin=Math.max(14,plotW*0.018);
+    var rMax=Math.max(40,plotW*0.065);
+    var rScale=d3.scaleSqrt().domain([1,maxCount]).range([rMin,rMax]);
+
+    // Base scales
+    var xScaleBase=d3.scaleLog().domain([minCost*0.7,maxCost*1.3]).range([0,plotW]);
+    // Add padding so bubbles at 0% and 100% don't clip at edges
+    var yPad=rMax*1.1;
+    var yScale=d3.scaleLinear().domain([0,100]).range([plotH-yPad,yPad]);
+
+    var fs=Math.max(13,Math.round(vfs(14)));
+    var axFs=Math.max(14,Math.round(vfs(15)));
+    var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
+    var yTicks=[0,25,50,75,100];
+
+    var svg=d3.select("#"+containerId).append("svg")
+      .attr("width",W).attr("height",H)
+      .style("font-family",FONT).style("display","block");
+
+    svg.append("defs").append("clipPath").attr("id","scatter-clip")
+      .append("rect").attr("x",0).attr("y",0).attr("width",plotW).attr("height",plotH);
+
+    var root=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    var xGridG=root.append("g");
+    var yGridG=root.append("g");
+    var xAxisG=root.append("g").attr("transform","translate(0,"+plotH+")");
+    var yAxisG=root.append("g");
+    var bubbleLayer=root.append("g").attr("clip-path","url(#scatter-clip)");
+
+    // Draw Y grid once (linear, doesn't change)
+    yTicks.forEach(function(t){
+      yGridG.append("line").attr("x1",0).attr("x2",plotW)
+        .attr("y1",yScale(t)).attr("y2",yScale(t))
+        .attr("stroke",t===50?"#e2e8f0":"#f0f0f0")
+        .attr("stroke-width",t===50?1.5:1);
+    });
+
+    // Draw Y axis once
+    yAxisG.call(d3.axisLeft(yScale).tickValues(yTicks).tickFormat(function(d){return d+"%";}));
+    yAxisG.select(".domain").attr("stroke","#e2e8f0");
+    yAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+    yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
+
+    // Axis labels
+    root.append("text").attr("x",plotW/2).attr("y",plotH+50)
+      .attr("text-anchor","middle").attr("font-size",axFs)
+      .attr("font-weight","600").attr("fill","#475569")
+      .text("Total Project Cost (All Funding Sources)");
+    // Y axis label at top of axis line instead of rotated
+    root.append("text")
+      .attr("x",-4).attr("y",0)
+      .attr("text-anchor","end").attr("dominant-baseline","middle")
+      .attr("font-size",Math.max(12,Math.round(vfs(12)))).attr("font-weight","600")
+      .attr("fill","#475569")
+      .text("GBEP Share ↑");
+
+    // Sort: large bubbles behind, small land acquisition always on top
+    // Primary: larger count = behind (renders first)
+    // Secondary: land acquisition = on top within same size tier
+    var sorted=validSites.slice().sort(function(a,b){
+      var aLand=(a.landCount===a.count&&a.landCount>0)?1:0;
+      var bLand=(b.landCount===b.count&&b.landCount>0)?1:0;
+      if(b.count!==a.count)return b.count-a.count; // larger behind
+      return aLand-bLand; // same size: land acquisition on top
+    });
+
+    // Redraw everything that depends on X scale
+    var curX=xScaleBase;
+    function redraw(xScale){
+      curX=xScale;
+      // X grid
+      xGridG.selectAll("line").remove();
+      xScale.ticks(xTickCount).forEach(function(t){
+        xGridG.append("line").attr("x1",xScale(t)).attr("x2",xScale(t))
+          .attr("y1",0).attr("y2",plotH).attr("stroke","#f0f0f0").attr("stroke-width",1);
+      });
+
+      // X axis
+      xAxisG.call(d3.axisBottom(xScale).ticks(xTickCount).tickFormat(fmt$));
+      xAxisG.select(".domain").attr("stroke","#e2e8f0");
+      xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
+      xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
+        .attr("text-anchor","end").attr("transform","rotate(-35)")
+        .attr("dx","-0.4em").attr("dy","0.3em");
+
+      // Bubbles — repositioned using current xScale, Y unchanged
+      bubbleLayer.selectAll("g.bubble").remove();
+
+      sorted.forEach(function(d){
+        var cx=xScale(d.totalCost);
+        var cy=yScale(d.pctGbep);
+        var r=rScale(d.count);
+        var landFrac=(d.count>0?d.landCount/d.count:0);
+        var coFunding=d.totalCost-d.award;
+
+        var ttHtml=
+          "<strong>"+d.label+"</strong><br>"+
+          d.count+" project"+(d.count!==1?"s":"")+"<br>"+
+          "GBEP Award: "+fmt$(d.award)+"<br>"+
+          "Total Project Cost: "+fmt$(d.totalCost)+"<br>"+
+          (coFunding>0?"Outside co-funding: "+fmt$(coFunding):"All GBEP-funded")+"<br>"+
+          "GBEP share: "+d.pctGbep+"%<br>"+
+          (d.acres>0?"Approx. "+fmtAc(d.acres)+"<br>":"")+
+          (d.landCount>0?d.landCount+" land acquisition project"+(d.landCount!==1?"s":""):"No land acquisition projects");
+
+        var bG=bubbleLayer.append("g").attr("class","bubble")
+          .style("cursor","pointer")
+          .on("mousemove",function(event){showTooltip(event,ttHtml);})
+          .on("mouseleave",hideTooltip);
+
+        if(landFrac<=0){
+          bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
+            .attr("fill",C_OTHER).attr("fill-opacity",0.82)
+            .attr("stroke","white").attr("stroke-width",1.5);
+        } else if(landFrac>=1){
+          bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
+            .attr("fill",C_LAND).attr("fill-opacity",0.82)
+            .attr("stroke","white").attr("stroke-width",1.5);
+        } else {
+          bG.append("circle").attr("cx",cx).attr("cy",cy).attr("r",r)
+            .attr("fill",C_OTHER).attr("fill-opacity",0.82)
+            .attr("stroke","white").attr("stroke-width",1.5);
+          var sA=-Math.PI/2,eA=sA+(landFrac*2*Math.PI);
+          var x1=cx+r*Math.cos(sA),y1=cy+r*Math.sin(sA);
+          var x2=cx+r*Math.cos(eA),y2=cy+r*Math.sin(eA);
+          bG.append("path")
+            .attr("d","M "+cx+","+cy+" L "+x1+","+y1+" A "+r+","+r+" 0 "+(landFrac>0.5?1:0)+",1 "+x2+","+y2+" Z")
+            .attr("fill",C_LAND).attr("fill-opacity",0.88)
+            .attr("stroke","white").attr("stroke-width",0.5);
+        }
+
+        // Label inside bubble — fit text to available space
+        var availW=r*1.8;
+        var words=d.label.split(/\s+/);
+        // Try progressively smaller fonts until text fits
+        var lf=Math.round(vfs(12));
+        for(var fTry=lf;fTry>=10;fTry--){
+          var cplTry=Math.max(3,Math.floor(availW/(fTry*0.55)));
+          var linesCheck=[],curCheck="";
+          words.forEach(function(w){
+            var t=curCheck?curCheck+" "+w:w;
+            if(t.length>cplTry&&curCheck){linesCheck.push(curCheck);curCheck=w;}else curCheck=t;
+          });
+          if(curCheck)linesCheck.push(curCheck);
+          var lhCheck=fTry*1.2;
+          var maxLCheck=Math.floor((r*1.7)/lhCheck);
+          if(linesCheck.length<=Math.max(1,maxLCheck)){lf=fTry;break;}
+        }
+        lf=Math.max(10,lf);
+        var cpl=Math.max(3,Math.floor(availW/(lf*0.55)));
+        var lines=[],cur="";
+        words.forEach(function(w){
+          var test=cur?cur+" "+w:w;
+          if(test.length>cpl&&cur){lines.push(cur);cur=w;}else cur=test;
+        });
+        if(cur)lines.push(cur);
+        var isAllLand=(d.landCount===d.count&&d.landCount>0);
+        var acresStr=(isAllLand&&d.acres>0)?fmtAc(d.acres):null;
+        var lh=lf*1.2;
+        var mxL=Math.max(1,Math.floor((r*1.6)/lh));
+        var nameLines=acresStr?Math.max(1,mxL-1):mxL;
+        if(lines.length>nameLines){
+          lines=lines.slice(0,nameLines);
+          if(lines[nameLines-1].length>3)lines[nameLines-1]=lines[nameLines-1].slice(0,-1)+"\u2026";
+        }
+        if(acresStr)lines.push(acresStr);
+        // Only shift labels on large bubbles (small ones stay centered)
+        var labelShift=0;
+        var halfH=((lines.length)*lh)/2;
+        if(r>=rMin*2){ // only shift on bubbles at least twice the minimum size
+          sorted.forEach(function(other){
+            if(other===d)return;
+            var or_=rScale(other.count);
+            if(or_<=r)return;
+            var ocx=curX(other.totalCost), ocy=yScale(other.pctGbep);
+            var dx=cx-ocx, dy=cy-ocy;
+            var dist=Math.sqrt(dx*dx+dy*dy);
+            if(dist<r+or_*0.85){
+              var pushDir=cy<ocy?-1:1;
+              var push=Math.min(r*0.3,(r+or_*0.85-dist)*0.35)*pushDir;
+              if(Math.abs(push)>Math.abs(labelShift))labelShift=push;
+            }
+          });
+          var maxShift=Math.max(0,r*0.65-halfH);
+          labelShift=Math.max(-maxShift,Math.min(maxShift,labelShift));
+        }
+        var sy=cy+labelShift-((lines.length-1)*lh)/2;
+        lines.forEach(function(line,li){
+          var isAc=(acresStr&&li===lines.length-1);
+          bG.append("text").attr("x",cx).attr("y",sy+li*lh)
+            .attr("text-anchor","middle").attr("dominant-baseline","middle")
+            .attr("font-size",isAc?Math.max(11,lf-1):lf)
+            .attr("font-weight",isAc?"500":"700")
+            .attr("fill","white").attr("fill-opacity",isAc?0.85:1)
+            .style("pointer-events","none").text(line);
+        });
+      });
+    }
+
+    // Initial draw
+    redraw(xScaleBase);
+
+    // Notes
+    root.append("text").attr("x",plotW).attr("y",-2)
+      .attr("text-anchor","end")
+      .attr("font-size",Math.max(12,Math.round(vfs(12)))).attr("font-weight","600").attr("fill","#64748b")
+      .text("Bubble size = number of projects");
+
+    if(excluded.length){
+      root.append("text").attr("x",plotW).attr("y",plotH+52)
+        .attr("text-anchor","end")
+        .attr("font-size",Math.max(11,Math.round(vfs(11)))).attr("fill","#94a3b8")
+        .text(excluded.length+" site"+(excluded.length!==1?"s":"")+" excluded — cost data incomplete.");
+    }
+
+    // Auto-fit: compute initial zoom so all bubbles are visible
+    var xVals=validSites.map(function(d){return d.totalCost;});
+    var pad=rMax*1.2; // padding = max bubble radius
+    var xDataMin=d3.min(xVals), xDataMax=d3.max(xVals);
+    // Target range in pixel space with padding
+    var pxMin=xScaleBase(xDataMin)-pad;
+    var pxMax=xScaleBase(xDataMax)+pad;
+    var dataSpanPx=pxMax-pxMin;
+    var initK=dataSpanPx>0?plotW/dataSpanPx:1;
+    initK=Math.max(0.3,Math.min(initK,8));
+    var initTx=-pxMin*initK;
+    var initTransform=d3.zoomIdentity.translate(initTx,0).scale(initK);
+
+    // Zoom — X only, redraw on each event
+    var zoom=d3.zoom().scaleExtent([0.2,20])
+      .on("zoom",function(event){
+        var t=event.transform;
+        // Only use X translate and scale, ignore Y movement
+        var newX=t.rescaleX(xScaleBase);
+        redraw(newX);
+      });
+
+    svg.call(zoom).style("cursor","grab");
+    svg.call(zoom.transform,initTransform);
+    svg.on("dblclick.zoom",function(){
+      svg.transition().duration(400).call(zoom.transform,initTransform);
+    });
+
+    // Click: show tooltip listing ALL sites whose bubble contains the click point
+    svg.on("click",function(event){
+      var coords=d3.pointer(event,root.node());
+      var px=coords[0], py=coords[1];
+      var t=d3.zoomTransform(svg.node());
+      var curX=t.rescaleX(xScaleBase);
+      var hits=validSites.filter(function(d){
+        var cx=curX(d.totalCost), cy=yScale(d.pctGbep), r=rScale(d.count);
+        var dx=px-cx, dy=py-cy;
+        return dx*dx+dy*dy<=r*r;
+      });
+      if(hits.length>1){
+        showTooltip(event,"<strong>"+hits.length+" overlapping sites:</strong><br>"+
+          hits.map(function(d){
+            return "• "+d.label+" — "+d.count+" project"+(d.count!==1?"s":"")+
+              ", "+d.pctGbep+"% GBEP";
+          }).join("<br>"));
+      }
+    });
+
+    window._zoomBehaviors=window._zoomBehaviors||{};
+    window._zoomBehaviors[containerId]={svg:svg,zoom:zoom,initTransform:initTransform};
+  }
+  function drawSiteChart(){
+    var mode=window._siteSortMode||"all";
+
+    // ALL records with a site name — count every project regardless of award
+    var allRecords=filteredData.filter(function(d){
+      if(!d.site_name_long_term_project_nam||!d.site_name_long_term_project_nam.trim())return false;
+      if(mode==="physical"||mode==="large"){
+        var sc=String(d.project_scale||"").replace(/_/g," ").toLowerCase();
+        if(mode==="physical"&&sc.indexOf("physical")<0)return false;
+        if(mode==="large"&&sc.indexOf("large")<0)return false;
+      }
+      return true;
+    });
+
+        // Every row = one project. Award/cost deduplicated per title.
+    var siteMap={};
+    var seenAward={};
+    allRecords.forEach(function(row){
+      var site=row.site_name_long_term_project_nam.trim();
+      var title=(row.nru_project_title||"").trim();
+      if(!siteMap[site])siteMap[site]={count:0,award:0,totalCost:0,acres:0,landCount:0,habitats:[]};
+      siteMap[site].count++;
+      // Award/cost: only add once per unique title
+      var aKey=site+"|||"+title;
+      if(!seenAward[aKey]){
+        seenAward[aKey]=true;
+        var a=row.gbep_award_amount||0;
+        var c=row.total_cost_of_project||0;
+        siteMap[site].award+=a;
+        siteMap[site].totalCost+=Math.max(c,a);
+        siteMap[site].acres+=(row.numeric_approximate_project_siz||0);
+      }
+      var goalsRaw=row.edited_broad_project_goals||row.broad_project_goals;
+      if(goalsRaw){
+        var g=String(goalsRaw).replace(/_/g," ").toLowerCase();
+        if(g.indexOf("land acqui")>-1)siteMap[site].landCount++;
+      }
+      if(row.project_landscape_type){
+        row.project_landscape_type.split(",").forEach(function(h){
+          h=normHab(h.trim());
+          if(h&&siteMap[site].habitats.indexOf(h)<0)siteMap[site].habitats.push(h);
+        });
+      }
+    });
+
+    var sites=Object.keys(siteMap).map(function(s){
+      var sm=siteMap[s];
+      return{label:s,count:sm.count,award:sm.award,acres:sm.acres||0,
+             totalCost:sm.totalCost||sm.award,
+             landCount:sm.landCount||0,habitats:sm.habitats||[]};
+    }).filter(function(d){return d.award>0&&d.count>0;});
+
+    // Update count indicator
+    var countEl=document.getElementById("site-count");
+    if(countEl){
+      var totalRows=allRecords.length;
+      countEl.textContent=sites.length+" site"+(sites.length!==1?"s":"")+
+        ", "+totalRows+" project"+(totalRows!==1?"s":"");
+    }
+    // Debug: show goal data so we can verify land acquisition detection
+    console.log("=== SITE CHART DEBUG ===");
+    console.log("Total sites:", sites.length);
+    var landSites=sites.filter(function(s){return s.landCount===s.count;});
+    var otherSites=sites.filter(function(s){return s.landCount===0;});
+    var mixedSites=sites.filter(function(s){return s.landCount>0&&s.landCount<s.count;});
+    console.log("All land acquisition:",landSites.length, landSites.map(function(s){return s.label.slice(0,20);}));
+    console.log("No land acquisition:",otherSites.length);
+    console.log("Mixed (should be pies):",mixedSites.length, mixedSites.map(function(s){return s.label.slice(0,20)+' '+s.landCount+'/'+s.count;}));
+
+    drawScatterChart(sites,"site-chart");
+  }
+
+  function setSiteMode(mode){
+    window._siteSortMode=mode;
+    ["all","physical","large"].forEach(function(m){
+      var btn=document.getElementById("site-"+m);
+      if(!btn)return;
+      if(m===mode){btn.style.background="#1677bc";btn.style.color="white";}
+      else{btn.style.background="white";btn.style.color="#1677bc";}
+    });
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){drawSiteChart();});
+    });
+  }
+
+  function normalizeOrg(s){
+    if(!s)return s;
+    return s
+      .replace(/^County of Galveston$/i,'Galveston County')
+      .replace(/^County of Harris$/i,'Harris County')
+      .replace(/^County of ([A-Za-z ]+)$/i,function(m,n){return n.trim()+' County';});
+  }
+  function drawOrgChart(){
+    var el=document.getElementById("org-chart");
+    if(!el||el.clientWidth<10)return;
+    var width=el.clientWidth||600;
+    var height=el.clientHeight||300;
+
+    var funded=filteredData.filter(function(d){
+      return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";
+    });
+
+    var orgMap={};
+    funded.forEach(function(row){
+      var org=normalizeOrg(row.lead_organization_name);
+      if(!orgMap[org])orgMap[org]={count:0,award:0};
+      orgMap[org].count++;
+      orgMap[org].award+=(row.gbep_award_amount||0);
+    });
+
+    var total=funded.length||1;
+    var sorted=Object.keys(orgMap).map(function(org){
+      return{label:org,count:orgMap[org].count,award:orgMap[org].award};
+    }).sort(function(a,b){
+      var m=window._orgSortMode||"count";
+      if(m==="az")return a.label.localeCompare(b.label);
+      return b.count!==a.count?b.count-a.count:a.label.localeCompare(b.label);
+    });
+    if(!sorted.length)return;
+
+    var totalAward=d3.sum(sorted,function(d){return d.award;});
+    var avgCount=(total/sorted.length).toFixed(1);
+    var topOrg=sorted.slice().sort(function(a,b){return b.count-a.count;})[0];
+    var avgAward=total>0?fmt$(Math.round(totalAward/total)):"—";
+
+    // ── Responsive sizing ─────────────────────────────────────────────────
+    // Panel takes 26% of width, min 180px
+    var PANEL_W=Math.max(180,Math.round(width*0.26));
+    // Row height distributes evenly across available height
+    var N=sorted.length;
+    var ROW_H=Math.max(32,Math.min(56,Math.floor(height/N)));
+    // Font scales with row height and container width
+    var orgFs=Math.max(13,Math.min(Math.round(ROW_H*0.40),Math.round(vfs(18))));
+    var cntFs=Math.max(14,Math.min(Math.round(ROW_H*0.48),Math.round(vfs(22))));
+    var rankSz=Math.max(20,Math.min(Math.round(ROW_H*0.55),30));
+    var rankFs=Math.max(11,Math.round(rankSz*0.50));
+    // Stat panel font
+    var statLabelFs=Math.max(13,Math.round(vfs(14)));
+    var statValueFs=Math.max(18,Math.round(vfs(28)));
+    var statSubFs=Math.max(13,Math.round(vfs(14)));
+    var panelTitleFs=Math.max(14,Math.round(vfs(16)));
+
+    el.style.overflow="auto";
+    el.style.minHeight="200px";
+    el.innerHTML="";
+
+    var wrap=document.createElement("div");
+    wrap.style.cssText="display:flex;gap:14px;height:100%;width:100%;box-sizing:border-box;";
+
+    // ── Left: ranked rows ──────────────────────────────────────────────────
+    var listEl=document.createElement("div");
+    listEl.style.cssText="flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;";
+
+    sorted.forEach(function(d,i){
+      var pct=(d.count/total)*100;
+      var row=document.createElement("div");
+      row.style.cssText=
+        "display:flex;align-items:center;gap:12px;"+
+        "padding:0 10px;height:"+ROW_H+"px;"+
+        "border-radius:6px;margin-bottom:2px;position:relative;"+
+        "transition:background .12s;cursor:default;box-sizing:border-box;";
+      row.onmouseenter=function(){this.style.background="#f0f7ff";};
+      row.onmouseleave=function(){this.style.background="";};
+
+      row.innerHTML=
+        '<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;'+
+          'background:rgba(22,119,188,0.55);border-radius:6px;pointer-events:none;"></div>'+
+        '<span style="position:relative;min-width:'+rankSz+'px;height:'+rankSz+'px;border-radius:50%;'+
+          'background:#f1f5f9;color:#64748b;font-size:'+rankFs+'px;font-weight:900;'+
+          'display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;'+
+          'text-shadow:0 0 4px white,0 0 4px white;">'+(i+1)+'</span>'+
+        '<span style="position:relative;flex:1;font-size:'+orgFs+'px;font-weight:700;'+
+          'color:#1a2332;line-height:1.25;min-width:0;'+
+          'text-shadow:0 0 6px white,0 0 6px white,0 0 4px white;">'+d.label+'</span>'+
+        '<span style="position:relative;font-size:'+cntFs+'px;font-weight:900;'+
+          'color:#1677bc;flex-shrink:0;'+
+          'text-shadow:0 0 6px white,0 0 6px white;">'+d.count+'</span>';
+
+      listEl.appendChild(row);
+    });
+    wrap.appendChild(listEl);
+
+    // ── Right: stat panel ──────────────────────────────────────────────────
+    var panel=document.createElement("div");
+    panel.style.cssText=
+      "width:"+PANEL_W+"px;flex-shrink:0;display:flex;flex-direction:column;"+
+      "gap:0;background:#f8fafc;border-radius:10px;padding:14px 16px;"+
+      "border:1px solid #e2e8f0;box-sizing:border-box;height:100%;overflow-y:auto;";
+
+    function statBlock(label,value,sub){
+      return '<div style="text-align:center;padding:10px 0;border-bottom:1px solid #e2e8f0;">'+
+        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#64748b;'+
+          'text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">'+label+'</div>'+
+        '<div style="font-size:'+statValueFs+'px;font-weight:900;color:#1677bc;line-height:1;">'+value+'</div>'+
+        (sub?'<div style="font-size:'+statSubFs+'px;color:#475569;font-weight:500;margin-top:4px;">'+sub+'</div>':'')+
+      '</div>';
+    }
+
+    function fmt$(v){
+      if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";
+      if(v>=1e3)return"$"+Math.round(v/1e3)+"K";
+      return"$"+Math.round(v);
+    }
+
+    panel.innerHTML=
+      '<div style="font-size:'+panelTitleFs+'px;font-weight:700;color:#1a2332;'+
+        'margin-bottom:6px;text-align:center;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">Summary</div>'+
+      statBlock("Lead Organizations",sorted.length,"distinct funded orgs")+
+      statBlock("Total Projects",total,"across all organizations")+
+      statBlock("Total Awarded",fmt$(totalAward),"cumulative GBEP funding")+
+      statBlock("Avg Award per Project",avgAward,"per funded project")+
+      statBlock("Avg Projects per Org",avgCount,"across all lead orgs")+
+      '<div style="text-align:center;padding:10px 0;">'+
+        '<div style="font-size:'+statLabelFs+'px;font-weight:700;color:#64748b;'+
+          'text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Top Org</div>'+
+        '<div style="font-size:'+Math.max(13,Math.round(vfs(14)))+'px;font-weight:700;'+
+          'color:#1a2332;line-height:1.3;">'+topOrg.label+'</div>'+
+        '<div style="font-size:'+statValueFs+'px;font-weight:900;color:#1677bc;margin-top:4px;">'+topOrg.count+
+          '<span style="font-size:'+statSubFs+'px;font-weight:500;color:#475569;margin-left:4px;">projects</span></div>'+
+      '</div>';
+
+    wrap.appendChild(panel);
+    el.appendChild(wrap);
+  }
+
+  
+  function drawUpset(data,container){var el=document.getElementById(container),width=el.clientWidth,height=el.clientHeight;var raw=data.map(function(d){return d.project_landscape_type;}).filter(function(d){return d;}).map(function(d){return d.split(",").map(function(s){return s.trim().replace(/_/g," ").replace(/\s+/g," ");}).filter(function(s){return s;}).sort();});raw=raw.map(function(combo){var seen={};return combo.filter(function(t){var key=t.toLowerCase().trim();if(seen[key])return false;seen[key]=true;return true;});});var typeMap={};raw.forEach(function(combo){combo.forEach(function(t){var key=t.toLowerCase().trim();if(!typeMap[key])typeMap[key]=t;});});raw=raw.map(function(combo){return combo.map(function(t){return typeMap[t.toLowerCase().trim()]||t;}).sort();});var cMap=new Map();raw.forEach(function(c){var k=c.slice().sort().join(" | ");cMap.set(k,(cMap.get(k)||0)+1);});var sc=Array.from(cMap,function(e){return{key:e[0],count:e[1]};}).sort(function(a,b){return b.count-a.count;});if(sc.length===0)return;var allT=Array.from(new Set(raw.reduce(function(a,b){return a.concat(b);},[])));allT.sort();var tT=new Map();allT.forEach(function(t){tT.set(t,0);});raw.forEach(function(c){c.forEach(function(t){tT.set(t,(tT.get(t)||0)+1);});});var DOT_FILLED="#009988",BAR_TOP="#0077bb",BAR_RIGHT="#009988",DOT_EMPTY="#eeeeee",SECTION_LABEL_H=18,rBW=Math.round(vfs(100)),mL=Math.min(320,width*0.32),mR=rBW+50,mT=SECTION_LABEL_H+6,bH2=Math.floor((height-mT)*0.28),dotAreaH=height-mT-bH2-24,rH=dotAreaH/allT.length,cW=(width-mL-mR)/sc.length,dotTop=bH2+mT+20,labelFs=Math.min(vfs(14),rH*0.50);d3.select("#"+container).select("svg").remove();var svg=d3.select("#"+container).append("svg").attr("width",width).attr("height",height).style("font-family",FONT);svg.append("defs").append("clipPath").attr("id","upset-clip").append("rect").attr("width",width).attr("height",height);var gZoom=svg.append("g").attr("class","zoom-root").attr("clip-path","url(#upset-clip)");gZoom.append("text").attr("x",width-mR+rBW/2).attr("y",mT-4).attr("text-anchor","middle").attr("font-size",vfs(12)).attr("fill","#aaa").text(sc.length+" combinations");gZoom.append("text").attr("x",mL+(sc.length*cW)/2).attr("y",mT-4).attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED).text("\u25b2  Projects per Habitat Combination");gZoom.append("text").attr("x",mL-8).attr("y",dotTop-5).attr("text-anchor","end").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill",DOT_FILLED).text("Habitat Types  \u2192");gZoom.append("text").attr("x",mL+sc.length*cW+16+rBW/2).attr("y",dotTop-5).attr("text-anchor","middle").attr("font-size",vfs(12)).attr("font-weight","900").attr("fill","#333").text("Total Projects");var mxC=d3.max(sc,function(d){return d.count;}),yB=d3.scaleLinear().domain([0,mxC]).range([bH2,0]),bG=gZoom.append("g").attr("transform","translate("+mL+","+mT+")");bG.append("g").call(d3.axisLeft(yB).ticks(Math.min(mxC,6)).tickFormat(d3.format("d"))).call(function(g){g.select(".domain").remove();}).call(function(g){g.selectAll(".tick line").attr("x2",sc.length*cW).attr("stroke","#f0f0f0");g.selectAll("text").style("font-size",vfs(11)+"px").attr("fill","#888");});sc.forEach(function(d,i){var bx=i*cW+cW*0.18,bw=cW*0.64;bG.append("rect").attr("x",bx).attr("y",yB(d.count)).attr("width",bw).attr("height",bH2-yB(d.count)).attr("fill",BAR_TOP).attr("rx",2).attr("opacity",0.9).on("mousemove",function(event){var label=d.key.split(" | ").map(function(t){return t.replace(/_/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});}).join(", ");showTooltip(event,"<strong>"+d.count+" project"+(d.count!==1?"s":"")+"</strong><br><span style='opacity:0.85'>"+label+"</span>");}).on("mouseleave",hideTooltip);if(cW>16)bG.append("text").attr("x",bx+bw/2).attr("y",yB(d.count)-3).attr("text-anchor","middle").attr("font-size",vfs(11)).attr("font-weight","600").attr("fill","#444").text(d.count);});var dG=gZoom.append("g").attr("transform","translate("+mL+","+dotTop+")");allT.forEach(function(type,ri){if(ri%2===0)dG.append("rect").attr("x",-mL).attr("y",ri*rH).attr("width",width).attr("height",rH).attr("fill","#fafafa").attr("opacity",0.6);});for(var ri=0;ri<=allT.length;ri++)dG.append("line").attr("x1",-mL).attr("x2",sc.length*cW+mR).attr("y1",ri*rH).attr("y2",ri*rH).attr("stroke","#e8e8e8").attr("stroke-width",1);allT.forEach(function(type,ri){var label=normHab(type);var maxChars=Math.floor((mL-14)/(labelFs*0.55));var displayLabel=label.length>maxChars?label.slice(0,maxChars-1)+"…":label;dG.append("text").attr("x",-10).attr("y",ri*rH+rH/2).attr("text-anchor","end").attr("dominant-baseline","middle").attr("font-size",labelFs).attr("font-weight","700").attr("fill","#222").attr("title",label).text(displayLabel).append("title").text(label);});sc.forEach(function(d,ci){var cx=ci*cW+cW/2,types=d.key.split(" | "),r=Math.min(cW,rH)*0.30;dG.append("line").attr("x1",cx).attr("x2",cx).attr("y1",0).attr("y2",allT.length*rH).attr("stroke","#e0e0e0").attr("stroke-width",1);allT.forEach(function(type,ri){var filled=types.indexOf(type)>=0;dG.append("circle").attr("cx",cx).attr("cy",ri*rH+rH/2).attr("r",r).attr("fill",filled?DOT_FILLED:DOT_EMPTY).attr("stroke",filled?"white":"#d0d0d0").attr("stroke-width",filled?1.5:0.5);});});var mxT=d3.max(Array.from(tT.values()))||1,xSB=d3.scaleLinear().domain([0,mxT]).range([0,rBW]),sBG=gZoom.append("g").attr("transform","translate("+(mL+sc.length*cW+16)+","+dotTop+")");allT.forEach(function(type,ri){var total=tT.get(type)||0,cy=ri*rH+rH/2,bh=Math.min(rH*0.55,13);sBG.append("rect").attr("x",0).attr("y",cy-bh/2).attr("width",xSB(total)).attr("height",bh).attr("fill",BAR_RIGHT).attr("rx",2).attr("opacity",0.9);sBG.append("text").attr("x",xSB(total)+4).attr("y",cy).attr("dominant-baseline","middle").attr("font-size",vfs(12)).attr("font-weight","700").attr("fill","#222").text(total);});var contentW=mL+sc.length*cW+mR;
+  var fitScale=Math.min(1,width/Math.max(contentW,1));
+  var minScale=Math.max(0.1,fitScale);
+  var zoom=d3.zoom()
+    .scaleExtent([minScale,8])
+    .translateExtent([[-mL,-20],[contentW+mR,height+20]])
+    .on("zoom",function(event){gZoom.attr("transform",event.transform);svg.style("cursor",event.transform.k>minScale?"grabbing":"grab");});
+  var initTransform=fitScale<1?d3.zoomIdentity.scale(fitScale):d3.zoomIdentity;
+  svg.call(zoom).style("cursor","grab");
+  svg.call(zoom.transform,initTransform);
+  window._zoomBehaviors=window._zoomBehaviors||{};
+  window._zoomBehaviors["upset-chart"]={svg:svg,zoom:zoom,initTransform:initTransform};}
+
+  async function init(){allData=await fetchData();filteredData=allData.slice();document.getElementById("loading").style.display="none";document.getElementById("app").style.display="flex";populateYearDropdowns();drawUpset(filteredData,"upset-chart");chartDrawn[0]=true;}
+
+  function setOrgSort(mode){
+    window._orgSortMode=mode;
+    // Update button styles
+    var active={background:'#1677bc',color:'white'};
+    var inactive={background:'white',color:'#1677bc'};
+    var countBtn=document.getElementById('org-sort-count');
+    var azBtn=document.getElementById('org-sort-az');
+    if(countBtn&&azBtn){
+      Object.assign(countBtn.style,mode==='count'?active:inactive);
+      Object.assign(azBtn.style,mode==='az'?active:inactive);
+    }
+    drawOrgChart();
+  }
+  function setHeatSort(mode){
+    window._heatSortMode=mode;
+    var active={background:'#1677bc',color:'white'};
+    var inactive={background:'white',color:'#1677bc'};
+    var countBtn=document.getElementById('heat-sort-count');
+    var azBtn=document.getElementById('heat-sort-az');
+    if(countBtn&&azBtn){
+      Object.assign(countBtn.style,mode==='count'?active:inactive);
+      Object.assign(azBtn.style,mode==='az'?active:inactive);
+    }
+    drawHeatmap();
+  }
+  function resetZoom(containerId){if(!window._zoomBehaviors||!window._zoomBehaviors[containerId])return;var obj=window._zoomBehaviors[containerId];try{var t=obj.initTransform||d3.zoomIdentity;obj.svg.transition().duration(400).call(obj.zoom.transform,t);}catch(e){console.warn("resetZoom failed",e);}}
+
+  // Check if Phosphor icons loaded; show emoji fallbacks if not
+  setTimeout(function(){
+    var testIcon = document.createElement("i");
+    testIcon.className = "ph-fill ph-fish";
+    testIcon.style.cssText = "position:absolute;visibility:hidden;font-size:20px;";
+    document.body.appendChild(testIcon);
+    var w = testIcon.offsetWidth;
+    document.body.removeChild(testIcon);
+    if(w === 0 || w > 30) {
+      // Phosphor didn't load — show emoji fallbacks
+      document.querySelectorAll(".icon-fallback").forEach(function(el){
+        el.style.opacity = "0.88";
+        el.style.color = "white";
+      });
+      document.querySelectorAll(".ph-fill").forEach(function(el){
+        el.style.opacity = "0";
+        el.style.position = "absolute";
+      });
+    }
+  }, 1500);
+
+  init();
 </script>
 </body>
 </html>
