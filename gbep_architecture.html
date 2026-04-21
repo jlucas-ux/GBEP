@@ -431,7 +431,7 @@ h1 { font-size: 26px; font-weight: 700; color: #1a2332; margin-bottom: 6px; }
       <div style="flex:1;min-width:140px;text-align:center;padding:0 10px;">
         <div style="width:36px;height:36px;border-radius:50%;background:#1677bc;color:white;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">2</div>
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;">GitHub Actions runs</div>
-        <div style="font-size:11px;color:#64748b;line-height:1.5;">An automated workflow triggers. It runs in a private, secure environment that can access GitHub Secrets.</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.5;">An automated workflow triggers in a private, secure environment. It runs calculations <em>and</em> has access to GitHub Secrets.</div>
       </div>
       <div style="font-size:20px;color:#cbd5e1;align-self:center;flex-shrink:0;padding-top:8px;">→</div>
 
@@ -502,6 +502,54 @@ h1 { font-size: 26px; font-weight: 700; color: #1a2332; margin-bottom: 6px; }
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- What GitHub Actions actually does -->
+  <div style="margin-top:24px;">
+    <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;">What GitHub Actions actually does on each deploy</div>
+    <div style="background:#f8fafc;border-radius:10px;padding:20px;border:1px solid #e2e8f0;">
+      <p style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;">
+        GitHub Actions isn't just a file courier — it runs a full automated script that does real work before anything is published. 
+        This means the live site always reflects calculated, up-to-date values without anyone running a script manually.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+
+        <div style="background:white;border-radius:8px;padding:14px;border-left:3px solid #059669;">
+          <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px;">🔢 Calculated values</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5;">
+            Actions queries the ArcGIS Feature Service and computes things like <strong>watershed project counts</strong>, 
+            summary statistics, and aggregate totals that are baked into the HTML rather than calculated live in the browser.
+          </div>
+        </div>
+
+        <div style="background:white;border-radius:8px;padding:14px;border-left:3px solid #059669;">
+          <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px;">🔐 Credential injection</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5;">
+            Reads encrypted secrets (username, password, protected HTML content) from the GitHub Secrets vault 
+            and inserts them into the appropriate files — they exist nowhere in the code.
+          </div>
+        </div>
+
+        <div style="background:white;border-radius:8px;padding:14px;border-left:3px solid #059669;">
+          <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px;">📦 Build &amp; deploy</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5;">
+            Assembles the final files with all values and credentials in place, then publishes them to 
+            GitHub Pages. The whole process is automatic — no human steps required after a code push.
+          </div>
+        </div>
+
+      </div>
+
+      <div style="margin-top:14px;padding:12px;background:#fffbeb;border-radius:6px;border-left:3px solid #f59e0b;">
+        <span style="font-size:12px;color:#92400e;line-height:1.6;">
+          <strong>Why this matters:</strong> Some numbers on the site (like watershed counts) are pre-calculated 
+          at deploy time rather than computed on every page load. This makes the charts faster and keeps the 
+          server load minimal. If data changes significantly, triggering a new deploy re-runs the calculations 
+          and updates those values. You can trigger a manual deploy from: 
+          <strong>GitHub repo → Actions → Run workflow</strong>.
+        </span>
+      </div>
+    </div>
   </div>
 
   <div style="margin-top:16px;padding:12px 16px;background:#eff6ff;border-radius:8px;border-left:3px solid #1677bc;">
