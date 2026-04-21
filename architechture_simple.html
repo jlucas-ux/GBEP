@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GBEP Dashboard — How It Works</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+  padding: 32px 24px 64px;
+  min-height: 100vh;
+}
+h1 { font-size: 26px; font-weight: 700; color: #1a2332; margin-bottom: 6px; }
+.page-sub { font-size: 15px; color: #64748b; margin-bottom: 36px; }
+
+/* ── Section headers ─────────────────────────────────────────── */
+.section-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: #94a3b8; margin: 40px 0 12px;
+}
+
+/* ── Legend pills ────────────────────────────────────────────── */
+.legend-row {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+}
+.pill-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.pill.esri   { background: #e0e7ff; color: #3730a3; }
+.pill.custom { background: #d1fae5; color: #065f46; }
+.pill.data   { background: #fee2e2; color: #991b1b; }
+.pill-dot.esri   { background: #4f46e5; }
+.pill-dot.custom { background: #059669; }
+.pill-dot.data   { background: #dc2626; }
+
+/* ── Flow section ────────────────────────────────────────────── */
+.flow {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+  background: white; border-radius: 12px; padding: 28px 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07); margin-bottom: 16px;
+}
+.flow-step {
+  flex: 1; min-width: 150px;
+  text-align: center; padding: 0 12px;
+  position: relative;
+}
+.flow-icon { font-size: 28px; margin-bottom: 6px; }
+.flow-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.flow-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+.flow-tag {
+  display: inline-block; margin-top: 8px;
+  padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+}
+.flow-tag.esri   { background: #e0e7ff; color: #3730a3; }
+.flow-tag.custom { background: #d1fae5; color: #065f46; }
+.flow-tag.data   { background: #fee2e2; color: #991b1b; }
+.arrow {
+  font-size: 22px; color: #cbd5e1; flex-shrink: 0;
+  padding: 0 4px; align-self: center;
+}
+.arrow-label {
+  font-size: 10px; color: #94a3b8; text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  flex-shrink: 0; padding: 0 4px;
+}
+.arrow-label span { font-size: 18px; color: #cbd5e1; }
+
+/* ── Website mockup ──────────────────────────────────────────── */
+.mockup-wrap {
+  background: white; border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  overflow: hidden; margin-bottom: 16px;
+}
+.browser-bar {
+  background: #e2e8f0; padding: 10px 16px; display: flex;
+  align-items: center; gap: 8px; border-bottom: 1px solid #cbd5e1;
+}
+.browser-dots { display: flex; gap: 5px; }
+.browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+.browser-url {
+  flex: 1; background: white; border-radius: 4px;
+  padding: 4px 10px; font-size: 11px; color: #64748b;
+  margin: 0 8px; border: 1px solid #e2e8f0;
+}
+.site-layout {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-height: 460px;
+}
+.site-header {
+  background: #1a2332; color: white;
+  padding: 14px 20px; display: flex; align-items: center;
+  justify-content: space-between;
+}
+.site-header-left { font-size: 15px; font-weight: 700; }
+.site-header-right { font-size: 11px; opacity: .7; }
+.site-nav {
+  background: #1677bc; padding: 0 20px;
+  display: flex; gap: 0;
+}
+.nav-tab {
+  padding: 10px 18px; font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.7); cursor: default; border-bottom: 3px solid transparent;
+}
+.nav-tab.active { color: white; border-bottom-color: white; }
+.site-body {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; padding: 16px; background: #f8fafc;
+}
+.widget-box {
+  border-radius: 8px; padding: 14px; position: relative;
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 120px;
+}
+.widget-box.esri-widget {
+  background: #eef2ff; border: 2px solid #a5b4fc;
+}
+.widget-box.custom-widget {
+  background: #ecfdf5; border: 2px solid #6ee7b7;
+}
+.widget-box.esri-widget.full { grid-column: 1 / -1; min-height: 80px; }
+.widget-box.custom-widget.full { grid-column: 1 / -1; min-height: 80px; }
+.widget-label {
+  position: absolute; top: -10px; right: 12px;
+  padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 700;
+}
+.widget-label.esri   { background: #4f46e5; color: white; }
+.widget-label.custom { background: #059669; color: white; }
+.widget-title { font-size: 12px; font-weight: 700; color: #1e293b; }
+.widget-desc  { font-size: 11px; color: #64748b; line-height: 1.4; }
+.widget-files {
+  margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;
+}
+.widget-file {
+  font-size: 10px; background: rgba(5,150,105,.12);
+  color: #065f46; padding: 2px 7px; border-radius: 3px;
+  font-family: monospace;
+}
+.widget-file.esri-f {
+  background: rgba(79,70,229,.12); color: #3730a3;
+}
+
+/* ── Cards grid ─────────────────────────────────────────────── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card {
+  background: white; border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  padding: 20px; border-top: 4px solid #e2e8f0;
+}
+.card.esri-card   { border-top-color: #4f46e5; }
+.card.custom-card { border-top-color: #059669; }
+.card.data-card   { border-top-color: #dc2626; }
+.card-icon { font-size: 24px; margin-bottom: 10px; }
+.card-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.card-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
+.card-list { margin-top: 10px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.card-list li { font-size: 12px; color: #475569; display: flex; gap: 6px; align-items: baseline; }
+.card-list li::before { content: "→"; color: #94a3b8; flex-shrink: 0; }
+.card-list li code { font-family: monospace; font-size: 11px; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; }
+
+/* ── Download explainer ─────────────────────────────────────── */
+.download-box {
+  background: white; border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  padding: 24px; margin-bottom: 16px;
+}
+.download-steps {
+  display: flex; gap: 0; align-items: flex-start;
+  flex-wrap: wrap; margin-top: 16px;
+}
+.dl-step {
+  flex: 1; min-width: 160px; text-align: center; padding: 0 10px;
+}
+.dl-step-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #1677bc; color: white; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 8px;
+}
+.dl-step-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.dl-step-desc { font-size: 11px; color: #64748b; line-height: 1.5; }
+.dl-arrow { font-size: 20px; color: #cbd5e1; align-self: center; flex-shrink: 0; padding-top: 8px; }
+
+/* ── Security note ───────────────────────────────────────────── */
+.security-box {
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px;
+  padding: 20px 24px;
+}
+.security-box h3 { font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 12px; }
+.security-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.sec-item { display: flex; gap: 10px; align-items: flex-start; }
+.sec-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.sec-text { font-size: 13px; color: #78350f; line-height: 1.5; }
+.sec-text strong { color: #92400e; display: block; margin-bottom: 2px; }
+
+.footer-note { font-size: 12px; color: #94a3b8; text-align: center; margin-top: 32px; }
+</style>
+</head>
+<body>
+
+<h1>How the GBEP Dashboard Works</h1>
+<p class="page-sub">A plain-language guide for maintainers — what's built by ESRI, what's custom code, and how data flows through the system.</p>
+
+<!-- Legend -->
+<div class="legend-row">
+  <div class="pill esri">  <span class="pill-dot esri"></span>  ESRI product — managed in ArcGIS Online or Experience Builder</div>
+  <div class="pill custom"><span class="pill-dot custom"></span> Custom HTML — our code, hosted on GitHub Pages</div>
+  <div class="pill data">  <span class="pill-dot data"></span>  Live data — always current, fetched automatically</div>
+</div>
+
+<!-- ── SECTION 1: How data flows ── -->
+<div class="section-label">Step 1 — How project data gets into the dashboard</div>
+<div class="flow">
+  <div class="flow-step">
+    <div class="flow-icon">📱</div>
+    <div class="flow-title">Staff enter a project</div>
+    <div class="flow-desc">Using the Survey123 app on any device, staff fill out the project record form</div>
+    <span class="flow-tag esri">ESRI: Survey123</span>
+  </div>
+  <div class="arrow-label"><span>→</span>auto-saves</div>
+  <div class="flow-step">
+    <div class="flow-icon">🗄️</div>
+    <div class="flow-title">Data stored in ArcGIS Online</div>
+    <div class="flow-desc">All project records live in a Feature Service — a secure online database managed by ESRI</div>
+    <span class="flow-tag esri">ESRI: ArcGIS Online</span>
+  </div>
+  <div class="arrow-label"><span>→</span>fetched live</div>
+  <div class="flow-step">
+    <div class="flow-icon">📊</div>
+    <div class="flow-title">Charts update instantly</div>
+    <div class="flow-desc">Every time someone opens the dashboard, it pulls fresh data — no manual refreshes needed</div>
+    <span class="flow-tag data">Live data fetch</span>
+  </div>
+</div>
+
+<!-- ── SECTION 2: Website mockup ── -->
+<div class="section-label">Step 2 — What the public sees (and what powers each part)</div>
+<div class="mockup-wrap">
+  <div class="browser-bar">
+    <div class="browser-dots">
+      <div class="browser-dot" style="background:#fc5c57"></div>
+      <div class="browser-dot" style="background:#fdbc2c"></div>
+      <div class="browser-dot" style="background:#33c748"></div>
+    </div>
+    <div class="browser-url">experience.arcgis.com/experience/177ddb6fd0ce4dd7b8eebfb2938ede6d</div>
+  </div>
+  <div class="site-layout">
+    <div class="site-header">
+      <div class="site-header-left">🌊 Galveston Bay Estuary Program</div>
+      <div class="site-header-right">ArcGIS Experience Builder shell</div>
+    </div>
+    <div class="site-nav">
+      <div class="nav-tab active">Facts &amp; Figures</div>
+      <div class="nav-tab">Browse Projects</div>
+      <div class="nav-tab">Explore</div>
+      <div class="nav-tab">About</div>
+    </div>
+    <div class="site-body">
+
+      <div class="widget-box custom-widget full">
+        <span class="widget-label custom">Custom HTML</span>
+        <div class="widget-title">📈 Facts &amp; Figures — 7 interactive chart tabs</div>
+        <div class="widget-desc">Bubble chart, bar charts, treemap, heatmap, upset chart, fiscal year chart, habitat share. Filters by year, habitat, and scale.</div>
+        <div class="widget-files">
+          <span class="widget-file">index.html</span>
+        </div>
+      </div>
+
+      <div class="widget-box custom-widget">
+        <span class="widget-label custom">Custom HTML</span>
+        <div class="widget-title">🔍 Browse Projects</div>
+        <div class="widget-desc">Searchable project cards with filters, detail panel, attachments, and CSV/GeoJSON download.</div>
+        <div class="widget-files">
+          <span class="widget-file">browse_projects.html</span>
+        </div>
+      </div>
+
+      <div class="widget-box custom-widget">
+        <span class="widget-label custom">Custom HTML</span>
+        <div class="widget-title">🐦 Projects by Focal Species</div>
+        <div class="widget-desc">Raindrop infographic with alternating arms, Phosphor icons, and live percentage bands.</div>
+        <div class="widget-files">
+          <span class="widget-file">gbep_species_chart.html</span>
+        </div>
+      </div>
+
+      <div class="widget-box custom-widget">
+        <span class="widget-label custom">Custom HTML</span>
+        <div class="widget-title">📊 Standalone chart widgets</div>
+        <div class="widget-desc">Hero stats bar · Fiscal year chart · Goals donut · Watershed legend · Title bar · About text</div>
+        <div class="widget-files">
+          <span class="widget-file">gbep_hero_stats.html</span>
+          <span class="widget-file">gbep_fy_chart.html</span>
+          <span class="widget-file">gbep_goal_chart.html</span>
+          <span class="widget-file">+3 more</span>
+        </div>
+      </div>
+
+      <div class="widget-box esri-widget full">
+        <span class="widget-label esri">ESRI Native</span>
+        <div class="widget-title">🗺️ Map, navigation, page layout, and site shell</div>
+        <div class="widget-desc">The overall website structure — page routing, header, map widgets, layout panels — is managed entirely inside ArcGIS Experience Builder. No code required to change these.</div>
+        <div class="widget-files">
+          <span class="widget-file esri-f">Experience Builder settings</span>
+          <span class="widget-file esri-f">ArcGIS Map widgets</span>
+          <span class="widget-file esri-f">ESRI theme &amp; branding</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── SECTION 3: Where the code lives ── -->
+<div class="section-label">Step 3 — Where each part is maintained</div>
+<div class="cards">
+  <div class="card esri-card">
+    <div class="card-icon">🏢</div>
+    <div class="card-title">ArcGIS Online (ESRI)</div>
+    <div class="card-desc">All project data lives here. Staff never need to touch this directly — Survey123 writes to it automatically.</div>
+    <ul class="card-list">
+      <li>Log into ArcGIS Online to view raw data</li>
+      <li>Manage Survey123 form fields here</li>
+      <li>Control who can submit or edit records</li>
+      <li>Feature Service URL is referenced in all HTML files</li>
+    </ul>
+  </div>
+  <div class="card esri-card">
+    <div class="card-icon">🖥️</div>
+    <div class="card-title">ArcGIS Experience Builder (ESRI)</div>
+    <div class="card-desc">The public website shell. Controls page layout, navigation, the map, and which HTML files appear where.</div>
+    <ul class="card-list">
+      <li>Log into ArcGIS Online → Experience Builder</li>
+      <li>Use Embed widgets to place custom HTML pages</li>
+      <li>Each HTML file = one Embed widget URL</li>
+      <li>No coding needed for layout changes</li>
+    </ul>
+  </div>
+  <div class="card custom-card">
+    <div class="card-icon">💻</div>
+    <div class="card-title">GitHub (Custom Code)</div>
+    <div class="card-desc">All 8 custom HTML files live here. This is the only place that requires coding knowledge to update.</div>
+    <ul class="card-list">
+      <li>Repo: <code>github.com/jlucas-ux/GBEP</code></li>
+      <li>Edit an HTML file → commit → auto-deploys</li>
+      <li>Live at: <code>jlucas-ux.github.io/GBEP/</code></li>
+      <li>Changes appear on the live site within minutes</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ── SECTION 4: How downloads work ── -->
+<div class="section-label">Step 4 — How the data download works (and why it's unusual)</div>
+<div class="download-box">
+  <p style="font-size:14px;color:#475569;line-height:1.6;">The ESRI website wraps our HTML files in a security container (called a sandbox) that normally blocks file downloads. We worked around this using a standard browser feature:</p>
+  <div class="download-steps">
+    <div class="dl-step">
+      <div class="dl-step-num">1</div>
+      <div class="dl-step-title">User clicks Download</div>
+      <div class="dl-step-desc">Inside the ESRI sandbox — file download is blocked here</div>
+    </div>
+    <div class="dl-arrow">→</div>
+    <div class="dl-step">
+      <div class="dl-step-num">2</div>
+      <div class="dl-step-title">New tab opens</div>
+      <div class="dl-step-desc">A new browser tab opens — this one is outside the sandbox restriction</div>
+    </div>
+    <div class="dl-arrow">→</div>
+    <div class="dl-step">
+      <div class="dl-step-num">3</div>
+      <div class="dl-step-title">File is built</div>
+      <div class="dl-step-desc">The new tab builds the CSV or GeoJSON from the current filtered data</div>
+    </div>
+    <div class="dl-arrow">→</div>
+    <div class="dl-step">
+      <div class="dl-step-num">4</div>
+      <div class="dl-step-title">Download completes</div>
+      <div class="dl-step-desc">The file downloads normally. The tab can be closed.</div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#94a3b8;margin-top:16px;">⚠️ If a user has popup blocking enabled in their browser, the new tab may be blocked. The download will still show a copy-paste modal as a fallback. This is an ESRI platform limitation, not a bug in our code.</p>
+</div>
+
+<!-- ── SECTION 5: Security ── -->
+<div class="section-label">Security at a glance</div>
+<div class="security-box">
+  <h3>🔒 Security considerations</h3>
+  <div class="security-grid">
+    <div class="sec-item">
+      <div class="sec-icon">✅</div>
+      <div class="sec-text">
+        <strong>Read-only data access</strong>
+        The public dashboard can only read project records. No one can add, edit, or delete data through the website.
+      </div>
+    </div>
+    <div class="sec-item">
+      <div class="sec-icon">✅</div>
+      <div class="sec-text">
+        <strong>No passwords in code</strong>
+        The ArcGIS data service is intentionally public. No login credentials are embedded anywhere in the HTML files.
+      </div>
+    </div>
+    <div class="sec-item">
+      <div class="sec-icon">✅</div>
+      <div class="sec-text">
+        <strong>Always up to date</strong>
+        Data is fetched live on every page load. New Survey123 entries appear immediately with no manual steps.
+      </div>
+    </div>
+    <div class="sec-item">
+      <div class="sec-icon">✅</div>
+      <div class="sec-text">
+        <strong>No server or database of our own</strong>
+        Everything runs in the user's browser. We don't store, log, or process any data on our end.
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="footer-note">
+  GBEP Dashboard Architecture · Custom HTML maintained at github.com/jlucas-ux/GBEP · 
+  Generated <script>document.write(new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}))</script>
+</p>
+
+</body>
+</html>
