@@ -1383,17 +1383,27 @@ function drawTreemap() {
       .attr("text-anchor","middle").attr("font-size",FONT).attr("font-weight","700").attr("fill","#475569")
       .text("Total");
 
-    // Darker vertical grid lines in bar area
-    xScale.ticks(5).forEach(function(t){
-      var tx=LABEL_W+xScale(t);
-      svg.append("line").attr("x1",tx).attr("x2",tx)
-        .attr("y1",28).attr("y2",TOTAL_H-8)
-        .attr("stroke","#94a3b8").attr("stroke-width",1)
-        .attr("stroke-dasharray","4,3");
-      svg.append("text").attr("x",tx).attr("y",hY-2)
-        .attr("text-anchor","middle").attr("font-size",Math.max(11,FONT-1))
-        .attr("fill","#64748b").text(fmt$(t));
-    });
+    // Vertical grid lines at fixed $200K intervals, drawn under bars
+    var INTERVAL=200000;
+    var gridTicks=[];
+    for(var gt=INTERVAL; gt<=maxTotal*1.05; gt+=INTERVAL) gridTicks.push(gt);
+    // Draw lines first (behind everything) — will redraw after rows to ensure they sit on top
+    // Store for redraw after rows are drawn
+    function drawGridLines(){
+      gridTicks.forEach(function(t){
+        if(xScale(t)>BAR_W)return;
+        var tx=LABEL_W+xScale(t);
+        svg.append("line").attr("x1",tx).attr("x2",tx)
+          .attr("y1",30).attr("y2",TOTAL_H-4)
+          .attr("stroke","#475569").attr("stroke-width",1.5)
+          .attr("stroke-dasharray","none");
+        svg.append("text").attr("x",tx).attr("y",hY-2)
+          .attr("text-anchor","middle")
+          .attr("font-size",Math.max(11,FONT-1)).attr("font-weight","600")
+          .attr("fill","#475569").text(fmt$(t));
+      });
+    }
+    drawGridLines();
 
     // ── Rows ──────────────────────────────────────────────────────────────────
     var curY=32;
@@ -1512,6 +1522,9 @@ function drawTreemap() {
 
       curY+=rowH;
     });
+
+    // Redraw grid lines on top of row backgrounds
+    drawGridLines();
   }
 
 </script>
