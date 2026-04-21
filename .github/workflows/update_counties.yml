@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 6 * * *'   # Runs daily at 6am UTC
+    - cron: '0 6 * * *'   # Daily at 6am UTC
   workflow_dispatch:       # Manual trigger from GitHub Actions tab
 
 jobs:
@@ -20,10 +20,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run county update script
+      - name: Update county project counts
         env:
-          AGOL_USERNAME:      ${{ secrets.AGOL_USERNAME }}
-          AGOL_PASSWORD:      ${{ secrets.AGOL_PASSWORD }}
-          COUNTY_LAYER_ID:    76a4958980554c8a88db464e69e2dbbc
-          COUNTY_NAME_FIELD:  NAME
+          AGOL_USERNAME: ${{ secrets.AGOL_USERNAME }}
+          AGOL_PASSWORD: ${{ secrets.AGOL_PASSWORD }}
         run: python scripts/update_counties.py
