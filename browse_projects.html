@@ -83,7 +83,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .leg-divider{width:1px;height:14px;background:#e2e8f0;}
 .leg-accent{width:16px;height:22px;border-radius:4px;flex-shrink:0;}
 
-#download-btn{height:28px;padding:0 12px;border-radius:5px;border:1px solid #1677bc;background:white;font-size:14px;color:#1677bc;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+#download-btn{height:28px;padding:0 10px;border-radius:5px;border:1px solid #1565c0;background:white;color:#1565c0;cursor:pointer;font-size:12px;font-weight:700;font-family:'Roboto',sans-serif;}
 #download-btn:hover{background:#eff6ff;}
 .dl-item{padding:9px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;}
 .dl-item:last-child{border-bottom:none;}
@@ -175,12 +175,15 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
             <option value="fy">Sort: Year ↓</option>
             <option value="acres">Sort: Acres ↓</option>
           </select>
-          <div id="dl-wrap" style="position:relative;">
-            <button id="download-btn" onclick="toggleDlMenu()">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 10h8" stroke="#1677bc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Download
+          <div id="dl-wrap" style="position:relative;display:flex;gap:6px;align-items:center;">
+            <button onclick="downloadCSV(false)" style="padding:5px 12px;border-radius:6px;border:none;background:#1565c0;color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;gap:5px;" title="Download filtered results as CSV">
+              ↓ CSV
+            </button>
+            <button onclick="downloadGeoJSON(false)" style="padding:5px 12px;border-radius:6px;border:none;background:#0d47a1;color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;gap:5px;" title="Download filtered results as GeoJSON">
+              ↓ GeoJSON
+            </button>
+            <button id="download-btn" onclick="toggleDlMenu()" style="padding:5px 10px;border-radius:6px;border:1px solid #1565c0;background:white;color:#1565c0;font-size:12px;font-weight:700;cursor:pointer;" title="More download options">
+              ⋯
             </button>
             <div id="dl-menu" style="display:none;position:absolute;right:0;top:30px;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:100;min-width:210px;overflow:hidden;">
               <div class="dl-item" onclick="downloadCSV(false)">
@@ -973,7 +976,7 @@ async function loadAttachments(objectId, container){
         '<span style="font-size:13px;font-weight:700;padding:4px 8px;border-radius:4px;background:'+extColor+';color:white;flex-shrink:0;">'+ext+'</span>'+
         '<span style="flex:1;font-size:13px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+att.name+'</span>'+
         '<span style="font-size:14px;color:#94a3b8;flex-shrink:0;">'+fmtSize(att.size)+'</span>'+
-        '<a href="'+dlUrl+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;background:#eff6ff;color:#1677bc;font-size:18px;font-weight:900;text-decoration:none;flex-shrink:0;line-height:1;">↓</a>';
+        '<a href="'+dlUrl+'" target="_blank" rel="noopener" title="Download '+att.name+'" style="display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:6px;background:#1565c0;color:white;font-size:13px;font-weight:700;text-decoration:none;flex-shrink:0;gap:5px;letter-spacing:0.3px;"><span style="font-size:16px;line-height:1;">↓</span> Download</a>';
       container.appendChild(row);
     });
   }catch(err){
@@ -1061,28 +1064,39 @@ async function downloadGeoJSON(useAll){
 }
 
 function triggerDownload(blob,filename){
-  // Try createObjectURL first; fall back to FileReader data URI for sandboxed iframes
-  try{
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement("a");
-    a.href=url; a.download=filename; a.style.display="none";
-    document.body.appendChild(a); a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},300);
-  }catch(e){
-    // Fallback: FileReader converts blob to base64 data URI
-    var reader=new FileReader();
-    reader.onload=function(){
-      try{
-        var a=document.createElement("a");
-        a.href=reader.result; a.download=filename; a.style.display="none";
-        document.body.appendChild(a); a.click();
-        setTimeout(function(){document.body.removeChild(a);},300);
-      }catch(e2){
-        window.open(reader.result,"_blank");
+  var reader=new FileReader();
+  reader.onload=function(){
+    var dataUrl=reader.result;
+    // Method 1: anchor click with download attr
+    try{
+      var a=document.createElement("a");
+      a.href=dataUrl;
+      a.setAttribute("download",filename);
+      a.style.position="fixed";
+      a.style.top="-9999px";
+      document.body.appendChild(a);
+      a.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window}));
+      setTimeout(function(){
+        if(document.body.contains(a))document.body.removeChild(a);
+      },500);
+    }catch(e){
+      // Method 2: open data URI in new tab
+      var w=window.open("","_blank");
+      if(w){
+        w.document.write("<pre style='word-wrap:break-word;white-space:pre-wrap;'>"+
+          "Save this file as: "+filename+"\n\n"+
+          "If your browser supports it, use File > Save Page As.\n\n"+
+          "Or select all text below and paste into a text editor:\n\n");
+        // For CSV/text just open cleanly
+        if(filename.endsWith(".csv")||filename.endsWith(".geojson")){
+          blob.text().then(function(txt){
+            w.document.write(txt+"</pre>");
+          });
+        }
       }
-    };
-    reader.readAsDataURL(blob);
-  }
+    }
+  };
+  reader.readAsDataURL(blob);
 }
 
 async function init(){
