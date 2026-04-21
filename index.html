@@ -155,6 +155,12 @@
     </div>
     <div class="chart-panel" id="panel-7">
       <div class="chart-title">NRU Projects by Site — Funding Breakdown</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-shrink:0;">
+        <span style="font-size:12px;color:#64748b;font-weight:600;">Sort:</span>
+        <button id="bar-sort-funding" onclick="setBarSort('funding')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">Funding ↓</button>
+        <button id="bar-sort-az" onclick="setBarSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">A–Z</button>
+        <button id="bar-sort-org" onclick="setBarSort('org')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">By Organization</button>
+      </div>
       <div class="chart-subtitle">
         <span>Each bar shows total GBEP award for that site. Segments within each bar represent individual projects — 
         <span style="display:inline-flex;align-items:center;gap:4px;">
@@ -1254,6 +1260,17 @@ function drawTreemap() {
   }, 1500);
 
   init();
+  function setBarSort(mode){
+    window._barSortMode=mode;
+    ["funding","az","org"].forEach(function(m){
+      var btn=document.getElementById("bar-sort-"+m);
+      if(!btn)return;
+      if(m===mode){btn.style.background="#1677bc";btn.style.color="white";}
+      else{btn.style.background="white";btn.style.color="#1677bc";}
+    });
+    requestAnimationFrame(function(){requestAnimationFrame(function(){drawBarChart();});});
+  }
+
   // ── drawBarChart: NRU Projects by Site — composite horizontal bar ──────────
   function drawBarChart(){
     var el=document.getElementById("site-bar-chart");
@@ -1279,18 +1296,33 @@ function drawTreemap() {
         award:row.gbep_award_amount||0,
         totalCost:row.total_cost_of_project||0,
         acres:acres, isLand:isLand,
-        fy:row.fiscal_year_awarded||""
+        fy:row.fiscal_year_awarded||"",
+        org:(row.lead_organization_name||"").trim()
       });
     });
 
-    // Group by site, sort projects within site by award desc
+    // Group by site, sort sites by total desc, projects within site by award desc
     var siteMap={};
     projects.forEach(function(p){
       if(!siteMap[p.site])siteMap[p.site]={site:p.site,total:0,projects:[]};
       siteMap[p.site].total+=p.award;
       siteMap[p.site].projects.push(p);
     });
-    var sites=Object.values(siteMap).sort(function(a,b){return b.total-a.total;});
+    // Apply sort mode
+    var barMode=window._barSortMode||"funding";
+    // Attach lead org to each site (use most common org across its projects)
+    Object.values(siteMap).forEach(function(s){
+      var orgCounts={};
+      s.projects.forEach(function(p){
+        var o=p.org||""; orgCounts[o]=(orgCounts[o]||0)+1;
+      });
+      s.leadOrg=Object.keys(orgCounts).sort(function(a,b){return orgCounts[b]-orgCounts[a];})[0]||"";
+    });
+    var sites=Object.values(siteMap).sort(function(a,b){
+      if(barMode==="az") return a.site.localeCompare(b.site);
+      if(barMode==="org") return a.leadOrg.localeCompare(b.leadOrg)||a.site.localeCompare(b.site);
+      return b.total-a.total; // default: funding desc
+    });
     sites.forEach(function(s){s.projects.sort(function(a,b){return b.award-a.award;});});
     if(!sites.length)return;
 
@@ -1303,14 +1335,34 @@ function drawTreemap() {
     }
     function fmtAc(v){return v>=1000?Math.round(v/1000)+"K ac":Math.round(v)+" ac";}
 
-    // ── Layout constants ─────────────────────────────────────────────────────
+    // ── Layout ───────────────────────────────────────────────────────────────
     var W=el.clientWidth||600;
-    var ROW_H=Math.max(38, Math.min(56, Math.floor(W*0.055)));
-    var LABEL_W=Math.min(W*0.28, 200);
-    var TOTAL_W=Math.min(W*0.1, 72);
-    var BAR_W=W-LABEL_W-TOTAL_W-24;
-    var FONT=Math.max(MIN_FONT, Math.min(14, Math.floor(ROW_H*0.34)));
-    var TOTAL_H=sites.length*ROW_H+40; // scrollable height
+    // Label column uses foreignObject — allow multi-line so no truncation
+    var LABEL_W=Math.min(W*0.30, 210);
+    var TOTAL_W=Math.min(W*0.10, 72);
+    var BAR_W=W-LABEL_W-TOTAL_W-28;
+    var FONT=Math.max(MIN_FONT, Math.min(14, Math.floor(W*0.022)));
+    var LINE_H=FONT*1.3;
+
+    // Pre-compute row heights based on wrapped label line count
+    function wrapLines(text, maxW){
+      var words=text.split(/\s+/), lines=[], cur="";
+      var cpl=Math.max(4,Math.floor(maxW/(FONT*0.55)));
+      words.forEach(function(w){
+        var test=cur?cur+" "+w:w;
+        if(test.length>cpl&&cur){lines.push(cur);cur=w;}else cur=test;
+      });
+      if(cur)lines.push(cur);
+      return lines;
+    }
+
+    var rowData=sites.map(function(s){
+      var lines=wrapLines(s.site, LABEL_W-12);
+      var labelH=Math.max(lines.length*LINE_H+8, 40);
+      var rowH=Math.max(labelH, 44);
+      return{site:s, lines:lines, rowH:rowH};
+    });
+    var TOTAL_H=d3.sum(rowData,function(d){return d.rowH;})+44;
 
     var svg=d3.select("#site-bar-chart").append("svg")
       .attr("width",W).attr("height",TOTAL_H)
@@ -1320,7 +1372,7 @@ function drawTreemap() {
     var xScale=d3.scaleLinear().domain([0,maxTotal]).range([0,BAR_W]);
 
     // ── Column headers ────────────────────────────────────────────────────────
-    var hY=16;
+    var hY=20;
     svg.append("text").attr("x",8).attr("y",hY)
       .attr("font-size",FONT).attr("font-weight","700").attr("fill","#475569")
       .text("Site");
@@ -1331,68 +1383,121 @@ function drawTreemap() {
       .attr("text-anchor","middle").attr("font-size",FONT).attr("font-weight","700").attr("fill","#475569")
       .text("Total");
 
-    // ── Rows ──────────────────────────────────────────────────────────────────
-    sites.forEach(function(s,ri){
-      var rowY=ri*ROW_H+28;
-      var midY=rowY+ROW_H/2;
+    // Darker vertical grid lines in bar area
+    xScale.ticks(5).forEach(function(t){
+      var tx=LABEL_W+xScale(t);
+      svg.append("line").attr("x1",tx).attr("x2",tx)
+        .attr("y1",28).attr("y2",TOTAL_H-8)
+        .attr("stroke","#94a3b8").attr("stroke-width",1)
+        .attr("stroke-dasharray","4,3");
+      svg.append("text").attr("x",tx).attr("y",hY-2)
+        .attr("text-anchor","middle").attr("font-size",Math.max(11,FONT-1))
+        .attr("fill","#64748b").text(fmt$(t));
+    });
 
-      // Alternating row bg
+    // ── Rows ──────────────────────────────────────────────────────────────────
+    var curY=32;
+    var lastOrg=null;
+    rowData.forEach(function(rd,ri){
+      // When sorted by org, insert a group header when org changes
+      if(barMode==="org"&&rd.site.leadOrg!==lastOrg){
+        lastOrg=rd.site.leadOrg;
+        var orgLabel=rd.site.leadOrg||"Unknown Organization";
+        var orgH=26;
+        svg.append("rect").attr("x",0).attr("y",curY)
+          .attr("width",W).attr("height",orgH)
+          .attr("fill","#e8f0fe");
+        svg.append("text").attr("x",10).attr("y",curY+orgH/2)
+          .attr("dominant-baseline","middle")
+          .attr("font-size",Math.max(12,FONT-1)).attr("font-weight","700")
+          .attr("fill","#1677bc").text(orgLabel);
+        curY+=orgH;
+        TOTAL_H+=orgH;
+        svg.attr("height",TOTAL_H);
+      }
+      var s=rd.site, rowH=rd.rowH, rowY=curY;
+      var midY=rowY+rowH/2;
+      var barH=rowH*0.62;
+      var barY=midY-barH/2;
+
+      // Alternating row background
       svg.append("rect").attr("x",0).attr("y",rowY)
-        .attr("width",W).attr("height",ROW_H)
+        .attr("width",W).attr("height",rowH)
         .attr("fill",ri%2===0?"#f8fafc":"white");
 
-      // Site label — truncate to fit
-      var maxCh=Math.floor(LABEL_W*0.95/(FONT*0.55));
-      var lbl=s.site.length>maxCh?s.site.slice(0,maxCh-1)+"\u2026":s.site;
-      svg.append("text").attr("x",8).attr("y",midY)
-        .attr("dominant-baseline","middle")
-        .attr("font-size",FONT).attr("font-weight","600").attr("fill","#1e293b")
-        .text(lbl);
+      // ── Site label: stacked via foreignObject ─────────────────────────────
+      var fo=svg.append("foreignObject")
+        .attr("x",6).attr("y",rowY+2)
+        .attr("width",LABEL_W-8).attr("height",rowH-4);
+      var div=fo.append("xhtml:div")
+        .style("width",(LABEL_W-8)+"px")
+        .style("height",(rowH-4)+"px")
+        .style("display","flex")
+        .style("align-items","center")
+        .style("overflow","hidden");
+      div.append("xhtml:span")
+        .style("font-family","'Roboto',sans-serif")
+        .style("font-size",FONT+"px")
+        .style("font-weight","600")
+        .style("color","#1e293b")
+        .style("line-height","1.3")
+        .style("word-wrap","break-word")
+        .style("overflow-wrap","break-word")
+        .text(s.site);
 
-      // Composite bar — segments per project
+      // ── Composite bar segments ─────────────────────────────────────────────
       var xOff=LABEL_W;
-      s.projects.forEach(function(p){
-        var bw=Math.max(1,xScale(p.award));
-        var bh=ROW_H*0.65;
-        var by=midY-bh/2;
+      s.projects.forEach(function(p,pi){
+        var bw=Math.max(2,xScale(p.award));
         var color=p.isLand?C_LAND:C_OTHER;
 
         var ttHtml="<strong>"+p.title+"</strong><br>"+
           "Site: "+p.site+"<br>"+
+          (p.org?"Lead Org: "+p.org+"<br>":"")+
           "GBEP Award: "+fmt$(p.award)+"<br>"+
           (p.totalCost>0?"Total Cost: "+fmt$(p.totalCost)+"<br>":"")+
-          (p.fy?"FY Awarded: "+p.fy+"<br>":"")+
-          (p.isLand?"<span style='color:#f87171'>&#9632; Land Acquisition</span>":"<span style='color:#fbbf24'>&#9632; Restoration/Stewardship/Research</span>")+
+          (p.fy?"FY: "+p.fy+"<br>":"")+
+          (p.isLand
+            ?"<span style='color:#f87171'>\u25a0 Land Acquisition</span>"
+            :"<span style='color:#fbbf24'>\u25a0 Restoration/Stewardship/Research</span>")+
           (p.acres>0&&p.isLand?"<br>Approx. "+fmtAc(p.acres)+" protected":"");
 
         var seg=svg.append("g").style("cursor","pointer")
           .on("mousemove",function(ev){showTooltip(ev,ttHtml);})
           .on("mouseleave",hideTooltip);
 
-        seg.append("rect").attr("x",xOff).attr("y",by)
-          .attr("width",bw).attr("height",bh)
-          .attr("fill",color).attr("fill-opacity",0.85)
+        // Bar fill
+        seg.append("rect").attr("x",xOff).attr("y",barY)
+          .attr("width",bw).attr("height",barH)
+          .attr("fill",color).attr("fill-opacity",0.88)
           .attr("rx",2);
 
-        // Project label inside segment if wide enough
-        if(bw>40){
-          var segLabel=p.award>=1e6?"$"+(p.award/1e6).toFixed(1)+"M":p.award>=1e3?"$"+Math.round(p.award/1e3)+"K":"$"+Math.round(p.award);
+        // Project amount label inside segment
+        if(bw>44){
           seg.append("text")
             .attr("x",xOff+bw/2).attr("y",midY)
             .attr("text-anchor","middle").attr("dominant-baseline","middle")
             .attr("font-size",Math.max(11,FONT-1)).attr("font-weight","700")
             .attr("fill","white").style("pointer-events","none")
-            .text(segLabel);
+            .text(fmt$(p.award));
         }
 
-        // Segment border
-        seg.append("rect").attr("x",xOff).attr("y",by)
-          .attr("width",bw).attr("height",bh)
-          .attr("fill","none").attr("stroke","white").attr("stroke-width",1)
-          .attr("rx",2).style("pointer-events","none");
+        // Project divider — bold white gap line between segments
+        if(pi>0){
+          svg.append("line")
+            .attr("x1",xOff).attr("x2",xOff)
+            .attr("y1",barY-1).attr("y2",barY+barH+1)
+            .attr("stroke","white").attr("stroke-width",2.5);
+        }
 
         xOff+=bw;
       });
+
+      // Bar outline
+      svg.append("rect").attr("x",LABEL_W).attr("y",barY)
+        .attr("width",xScale(s.total)).attr("height",barH)
+        .attr("fill","none").attr("stroke","rgba(255,255,255,0.3)").attr("stroke-width",1)
+        .attr("rx",2).style("pointer-events","none");
 
       // Total label
       svg.append("text").attr("x",W-TOTAL_W/2).attr("y",midY)
@@ -1400,19 +1505,12 @@ function drawTreemap() {
         .attr("font-size",FONT).attr("font-weight","700").attr("fill","#1e293b")
         .text(fmt$(s.total));
 
-      // Row divider
+      // Row divider — heavier line between rows
       svg.append("line").attr("x1",0).attr("x2",W)
-        .attr("y1",rowY+ROW_H).attr("y2",rowY+ROW_H)
-        .attr("stroke","#e2e8f0").attr("stroke-width",0.5);
-    });
+        .attr("y1",rowY+rowH).attr("y2",rowY+rowH)
+        .attr("stroke","#cbd5e1").attr("stroke-width",1.5);
 
-    // X axis ticks at bottom
-    var axY=TOTAL_H-8;
-    xScale.ticks(5).forEach(function(t){
-      var tx=LABEL_W+xScale(t);
-      svg.append("line").attr("x1",tx).attr("x2",tx)
-        .attr("y1",28).attr("y2",axY)
-        .attr("stroke","#f0f0f0").attr("stroke-width",1);
+      curY+=rowH;
     });
   }
 
