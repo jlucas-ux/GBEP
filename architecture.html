@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GBEP Dashboard — System Architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a2332;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 32px;
+  }
+  .diagram-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    overflow-x: auto;
+  }
+  .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+  .legend {
+    max-width: 1100px;
+    margin: 24px auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .legend-item {
+    background: white;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    font-size: 13px;
+  }
+  .legend-item strong {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .c-data   strong { color: #993C1D; }
+  .c-code   strong { color: #185FA5; }
+  .c-html   strong { color: #0F6E56; }
+  .c-embed  strong { color: #534AB7; }
+  .c-dl     strong { color: #3B6D11; }
+  .c-sec    strong { color: #854F0B; }
+</style>
+</head>
+<body>
+
+<h1>GBEP Dashboard — System Architecture</h1>
+<p class="subtitle">
+  How data flows from Survey123 through ArcGIS and GitHub Pages into the public Experience Builder site.
+  Last updated: <span id="date"></span>
+</p>
+
+<div class="diagram-card">
+  <div class="mermaid">
+flowchart TD
+
+  %% ── Data origin ──────────────────────────────────────────────────
+  S123["📱 Survey123\nField data entry app"]
+  AFS["🗄️ ArcGIS Feature Service\nPublic read-only REST API\nsurvey123_6ce0c22f...results/FeatureServer/0"]
+
+  S123 -->|"staff submit\nproject records"| AFS
+
+  %% ── Code hosting ─────────────────────────────────────────────────
+  GHR["💻 GitHub Repository\ngithub.com/jlucas-ux/GBEP\nCode · version history · public"]
+  GHP["🌐 GitHub Pages\njlucas-ux.github.io/GBEP\nFree HTTPS hosting"]
+
+  GHR -->|"git push\nauto-deploys"| GHP
+
+  %% ── HTML pages ───────────────────────────────────────────────────
+  HTML["📄 8 HTML Pages\nindex.html · browse_projects.html\ngbep_species_chart.html · +5 more\nAll charts · filters · downloads"]
+
+  AFS -->|"live JSON fetch\non every page load"| HTML
+  GHP -->|"serves files\nover HTTPS"| HTML
+
+  %% ── Embed ────────────────────────────────────────────────────────
+  EXB["🖥️ ArcGIS Experience Builder\nexperience.arcgis.com/experience/177ddb6...\nPublic-facing site\nSandbox: allow-scripts · allow-popups\n⚠️ NO allow-downloads flag"]
+
+  HTML -->|"embedded as\nsandboxed iframes"| EXB
+
+  %% ── Download workaround ──────────────────────────────────────────
+  WO["window.open()\nAllowed by allow-popups\nin iframe sandbox"]
+  NT["New Browser Tab\nNot sandboxed\ndownloads unrestricted"]
+  DL["✅ CSV or GeoJSON file\nBuilt from live ArcGIS data\nNo server involved"]
+
+  EXB -->|"user clicks\nDownload button"| WO
+  WO -->|"opens new\nunsandboxed tab"| NT
+  NT -->|"createObjectURL +\na.click() works here"| DL
+
+  %% ── Security subgraph ────────────────────────────────────────────
+  subgraph SEC ["🔒 Security Notes"]
+    direction LR
+    SEC1["ArcGIS: public read-only\nNo write access possible\nNo credentials in code"]
+    SEC2["GitHub: public repo\nCode only · zero secrets\nor sensitive data"]
+    SEC3["Data always live\nFetched on each page load\nNothing cached server-side"]
+    SEC4["No server involved\nAll processing in browser\nNothing logged by us"]
+  end
+
+  %% ── Styles ───────────────────────────────────────────────────────
+  classDef data   fill:#FAECE7,stroke:#D85A30,color:#993C1D,rx:8
+  classDef code   fill:#E6F1FB,stroke:#378ADD,color:#185FA5,rx:8
+  classDef html   fill:#E1F5EE,stroke:#1D9E75,color:#0F6E56,rx:8
+  classDef embed  fill:#EEEDFE,stroke:#7F77DD,color:#534AB7,rx:8
+  classDef dl     fill:#EAF3DE,stroke:#639922,color:#3B6D11,rx:8
+  classDef sec    fill:#FAEEDA,stroke:#BA7517,color:#854F0B,rx:8
+
+  class S123,AFS data
+  class GHR,GHP code
+  class HTML html
+  class EXB embed
+  class WO,NT,DL dl
+  class SEC1,SEC2,SEC3,SEC4 sec
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item c-data">
+    <strong>🟠 Data origin</strong>
+    Survey123 form submissions stored in ArcGIS Online Feature Service
+  </div>
+  <div class="legend-item c-code">
+    <strong>🔵 Code hosting</strong>
+    GitHub stores code history; GitHub Pages serves HTML files over HTTPS
+  </div>
+  <div class="legend-item c-html">
+    <strong>🟢 HTML pages</strong>
+    8 standalone HTML files — charts, browse, species, stats, etc.
+  </div>
+  <div class="legend-item c-embed">
+    <strong>🟣 Embed layer</strong>
+    ArcGIS Experience Builder wraps HTML files in sandboxed iframes
+  </div>
+  <div class="legend-item c-dl">
+    <strong>🟩 Download flow</strong>
+    window.open() bypasses iframe sandbox restriction on file downloads
+  </div>
+  <div class="legend-item c-sec">
+    <strong>🟡 Security</strong>
+    Read-only service, no server, live data, no credentials in code
+  </div>
+</div>
+
+<script>
+  document.getElementById('date').textContent = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontSize: '14px',
+      fontFamily: "-apple-system, 'Segoe UI', Roboto, sans-serif",
+      primaryColor: '#E6F1FB',
+      primaryBorderColor: '#378ADD',
+      primaryTextColor: '#1e293b',
+      lineColor: '#94a3b8',
+      secondaryColor: '#EEEDFE',
+      tertiaryColor: '#EAF3DE',
+    },
+    flowchart: {
+      rankSpacing: 60,
+      nodeSpacing: 40,
+      curve: 'basis',
+      htmlLabels: true,
+    }
+  });
+</script>
+</body>
+</html>
