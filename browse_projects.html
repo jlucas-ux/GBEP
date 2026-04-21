@@ -765,9 +765,22 @@ async function downloadProject(){
     combined += "--- CSV ---\n" + csvText + "\n\n";
     if(geojsonText) combined += "--- GeoJSON ---\n" + geojsonText + "\n\n";
 
-    // Use window.open — bypasses iframe sandbox
+    // Download CSV + GeoJSON for this project
     var projRow = allData.filter(function(r){ return r._id===activeId; });
-    downloadProjectData(projRow);
+    var ptitle=(clean(projRow[0]&&projRow[0].nru_project_title)||"project").replace(/[^a-z0-9]/gi,"_").slice(0,30);
+    var pdate=new Date().toISOString().slice(0,10);
+    var csvT=rowsToCSV(projRow);
+    openWindowDownload(csvT,"GBEP_"+ptitle+"_"+pdate+".csv","text/csv;charset=utf-8;",
+      "Project CSV","Project data as a spreadsheet.");
+    try{
+      var gjT=await rowsToGeoJSON(projRow);
+      if(gjT){
+        setTimeout(function(){
+          openWindowDownload(gjT,"GBEP_"+ptitle+"_"+pdate+".geojson","application/geo+json;charset=utf-8;",
+            "Project GeoJSON","Geographic data with coordinates for GIS applications.");
+        },700);
+      }
+    }catch(e){console.warn("GeoJSON fetch failed",e);}
 
   } catch(err){
     alert("Download error: "+err.message);
@@ -1083,8 +1096,11 @@ function downloadCSV(useAll){
       return s.indexOf(",")>-1||s.indexOf('"')>-1||s.indexOf("\n")>-1?'"'+s+'"':s;
     }).join(","));
   });
-  // Use window.open approach — bypasses iframe sandbox
-  downloadProjectData(rows);
+  // CSV only
+  var csvText=rowsToCSV(rows);
+  var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".csv";
+  openWindowDownload(csvText, fname, "text/csv;charset=utf-8;", "CSV Spreadsheet",
+    "Comma-separated values — open in Excel, Google Sheets, or any spreadsheet app.");
 }
 
 async function downloadGeoJSON(useAll){
@@ -1107,8 +1123,15 @@ async function downloadGeoJSON(useAll){
     var geojson=await res.text(); // keep as text to preserve precision
     var blob=new Blob([geojson],{type:"application/geo+json;charset=utf-8;"});
     var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".geojson";
-    // Use window.open approach — bypasses iframe sandbox
-    downloadProjectData(rows);
+    // GeoJSON only
+    var gjText=await rowsToGeoJSON(rows);
+    if(gjText){
+      var gfname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".geojson";
+      openWindowDownload(gjText, gfname, "application/geo+json;charset=utf-8;", "GeoJSON Geographic Data",
+        "Geographic data including coordinates — import into ArcGIS, QGIS, or Mapbox.");
+    } else {
+      alert("Could not fetch geometry data from ArcGIS. Try again.");
+    }
   }catch(err){
     alert("GeoJSON export failed: "+err.message);
   }finally{
@@ -1156,25 +1179,43 @@ function triggerDownload(blob, filename){
 // ESRI sandbox includes allow-popups, so window.open() works.
 // The new window is NOT sandboxed, so downloads work there.
 
-function openWindowDownload(text, filename, mimeType){
+function openWindowDownload(text, filename, mimeType, label, description){
+  label = label || filename;
+  description = description || 'Click the button below to download.';
   var win = window.open('about:blank', '_blank');
   if(!win){
     showCopyModal(text, filename);
     return;
   }
-  // JSON.stringify safely handles ALL characters in text (backticks, $, quotes, newlines)
   var safeData = JSON.stringify(text);
   var safeName = JSON.stringify(filename);
   var safeMime = JSON.stringify(mimeType);
-  var page = '<!DOCTYPE html><html><head><title>Downloading...</title></head><body>'+
-    '<div style="font-family:sans-serif;padding:30px;max-width:500px;">'+
-    '<h3 style="color:#1565c0;margin:0 0 10px;">Preparing download...</h3>'+
-    '<p style="color:#475569;margin:0 0 8px;">File: <strong>'+filename+'</strong></p>'+
-    '<p style="color:#64748b;font-size:13px;">Download should start automatically.'+
-    ' If not, click the button below.</p>'+
-    '<button id="dlbtn" style="margin-top:14px;padding:10px 22px;background:#1565c0;'+
-    'color:white;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">'+
-    '\u2193 Download '+filename+'</button>'+
+  // Choose accent color based on file type
+  var color = filename.indexOf('.geojson')>-1 ? '#0d47a1' :
+              filename.indexOf('.csv')>-1     ? '#1565c0' : '#1e293b';
+  var icon  = filename.indexOf('.geojson')>-1 ? '🗺️' :
+              filename.indexOf('.csv')>-1     ? '📊' : '📄';
+  var page = '<!DOCTYPE html><html><head>'+
+    '<title>Download: '+filename+'</title>'+
+    '<style>body{font-family:-apple-system,Roboto,sans-serif;margin:0;padding:40px;'+
+    'background:#f8fafc;display:flex;align-items:flex-start;justify-content:center;}'+
+    '.card{background:white;border-radius:12px;padding:32px;max-width:480px;width:100%;'+
+    'box-shadow:0 4px 24px rgba(0,0,0,0.10);border-top:5px solid '+color+';}'+
+    'h2{margin:0 0 6px;font-size:20px;color:'+color+';}'+
+    'p{color:#64748b;font-size:13px;line-height:1.6;margin:0 0 20px;}'+
+    '.fname{font-family:monospace;background:#f1f5f9;padding:4px 8px;border-radius:4px;'+
+    'font-size:12px;color:#334155;word-break:break-all;}'+
+    'button{width:100%;padding:13px;background:'+color+';color:white;border:none;'+
+    'border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;}'+
+    'button:hover{opacity:0.88;}'+
+    '</style></head><body>'+
+    '<div class="card">'+
+    '<h2>'+icon+' '+label+'</h2>'+
+    '<p>'+description+'</p>'+
+    '<div class="fname">'+filename+'</div>'+
+    '<button id="dlbtn">↓ Download '+filename+'</button>'+
+    '<p style="margin-top:12px;font-size:11px;color:#94a3b8;">'+
+    'Download should begin automatically. If not, click the button above.</p>'+
     '</div>'+
     '<scr'+'ipt>(function(){'+
     'var data='+safeData+';'+
