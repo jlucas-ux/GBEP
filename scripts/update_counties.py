@@ -8,7 +8,7 @@ import os, sys, json, urllib.request, urllib.parse, ssl
 # ── Config ────────────────────────────────────────────────────────────────────
 ARCGIS_USERNAME     = os.environ["ARCGIS_USERNAME"]
 ARCGIS_PASSWORD     = os.environ["ARCGIS_PASSWORD"]
-COUNTY_LAYER_URL  = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/Texas_Counties_Summary_Statistics/FeatureServer/0"
+COUNTY_LAYER_URL  = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/GBEP_Counties/FeatureServer/0"
 COUNTY_NAME_FIELD = "CNTY_NM"
 
 SURVEY_URL = (
