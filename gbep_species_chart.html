@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<title>GBEP Projects by Focal Species</title>
+<title>GBEP Focal Species</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;max-height:100vh;overflow:hidden;background:white;font-family:'Roboto',sans-serif;}
@@ -63,15 +63,16 @@ function getIcon(lbl){
   return "ph-leaf";
 }
 function normS(s){
-  var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim(),k=c.toLowerCase();
+  var c=String(s).replace(/_/g," ").replace(/\s+/g," ").trim(), k=c.toLowerCase();
   if(SLABELS[k])return SLABELS[k];
   var kns=k.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
   if(SLABELS[kns])return SLABELS[kns];
-  for(var key in SLABELS){var kk=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
-    if(kns.indexOf(kk)===0||kk.indexOf(kns)===0)return SLABELS[key];}
+  for(var key in SLABELS){
+    var kk=key.replace(/[\/\\]/g," ").replace(/\s+/g," ").trim();
+    if(kns.indexOf(kk)===0||kk.indexOf(kns)===0)return SLABELS[key];
+  }
   return c.replace(/\b\w/g,function(ch){return ch.toUpperCase();});
 }
-// Dark→light top→bottom matching reference
 var COLORS=["#0d47a1","#1565c0","#1e8ec4","#29b6d3","#4dd0e1","#80deea","#b2ebf2"];
 
 function draw(data){
@@ -88,12 +89,12 @@ function draw(data){
   funded.forEach(function(row){
     row.targeted_focal_species.split(",").map(function(s){return s.trim();}).filter(Boolean)
     .forEach(function(raw){
-      var norm=normS(raw),key=norm.toLowerCase().trim();
+      var norm=normS(raw), key=norm.toLowerCase().trim();
       if(key==="other"||key.indexOf("other targeted")===0||key.indexOf("other_targeted")===0){
         var desc=(row.targeted_focal_species_other||"").trim().replace(/_/g," ");
-        var lbl=desc?"Other: "+desc:"Other",lk=lbl.toLowerCase();
+        var lbl=desc?"Other: "+desc:"Other", lk=lbl.toLowerCase();
         sk[lk]=(sk[lk]||0)+1; sl[lk]=lbl;
-      } else {sk[key]=(sk[key]||0)+1; sl[key]=norm;}
+      } else { sk[key]=(sk[key]||0)+1; sl[key]=norm; }
     });
   });
   var counts=Object.keys(sk).map(function(k){return{label:sl[k],count:sk[k]};})
@@ -102,152 +103,161 @@ function draw(data){
   var total=d3.sum(counts,function(d){return d.count;}), N=counts.length;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
-  var FONT_SZ  = Math.max(11, Math.min(13, Math.floor(H/(N*2.0))));
-  var MIN_ARM_H = FONT_SZ + 10;  // arm tall enough to hold text
-  var ARM_W    = Math.min(W*0.28, 135);
-  var CR       = Math.min(ARM_W*0.23, 30);
-  var PAD      = ARM_W + CR*2 + 14;
-  var DR       = Math.min((W-PAD*2)*0.46, H*0.31, 92);
-  var cx       = W/2;
-  var topY     = 10;
-  var bCy      = H - DR - 10;
-  var dropH    = bCy + DR - topY;
+  var CR    = Math.min(Math.floor(W*0.068), 36);      // end circle radius
+  var DR    = Math.min(Math.floor((W-CR*4)*0.22), Math.floor(H*0.31), 92); // drop radius
+  var cx    = W/2;
+  var topY  = Math.max(10, CR);
+  var bCy   = H - DR - Math.max(10, CR);
+  var dropH = bCy + DR - topY;
 
-  // Half-width of drop at Y
+  // Font and arm height — scaled to N so all labels always fit
+  var FS    = Math.max(11, Math.min(14, Math.floor(H / (N * 2.4))));
+  // Arm height: enough for 2 lines of text with padding
+  var ARM_H = Math.max(FS * 2.8, Math.min(dropH / (N * 0.85), 58));
+
   function hw(y){
     if(y>=bCy) return Math.sqrt(Math.max(0, DR*DR-(y-bCy)*(y-bCy)));
-    return DR*(y-topY)/(bCy-topY);
+    return Math.max(0, DR*(y-topY)/(bCy-topY));
   }
   var dp="M"+cx+","+topY+" L"+(cx+DR)+","+bCy+" A"+DR+","+DR+" 0 0,1 "+(cx-DR)+","+bCy+" Z";
 
   var svg=d3.select("#sc").append("svg").attr("width",W).attr("height",H)
     .style("font-family","'Roboto',sans-serif").style("overflow","visible");
   var defs=svg.append("defs");
-  defs.append("clipPath").attr("id","dc5").append("path").attr("d",dp);
+  defs.append("clipPath").attr("id","dc7").append("path").attr("d",dp);
 
   // ── Band geometry ──────────────────────────────────────────────────────────
   var layers=[];
   var cur=bCy+DR;
   counts.forEach(function(c,i){
     var pct=c.count/total, lh=pct*dropH, lt=cur-lh, midY=lt+lh/2;
-    var bandH=lh;
-    // Arm height = band height clamped to min so text always fits
-    var aH=Math.max(MIN_ARM_H, Math.min(bandH, 52));
     layers.push({
       label:c.label, count:c.count, pct:pct,
-      top:lt, bot:cur, midY:midY, bandH:bandH,
-      edgeHW:hw(midY), armH:aH,
+      top:lt, bot:cur, midY:midY, bandH:lh,
+      edgeHW:hw(midY),
       color:COLORS[i%COLORS.length], right:i%2===0
     });
     cur=lt;
   });
 
-  // ══ LAYER 1: Arms drawn first (behind drop) ════════════════════════════════
-  // Each arm: a rect from (drop_edge - overlap) extending outward to the circle
-  // This ensures the arm visually disappears under the drop
-  var OVERLAP=DR+4; // arms extend all the way across, clipped by drop on inner side
+  // ══ LAYER 1: Arms from center to box edge (behind drop) ════════════════════
   layers.forEach(function(lay){
     var midY=lay.midY;
-    var aH=lay.armH;
     if(lay.right){
-      // Arm extends from left side of drop all the way to circle
-      svg.append("rect")
-        .attr("x", cx-OVERLAP)
-        .attr("y", midY-aH/2)
-        .attr("width", OVERLAP+ARM_W)
-        .attr("height", aH)
-        .attr("fill", lay.color)
-        .attr("rx", 3);
+      svg.append("rect").attr("x",cx).attr("y",midY-ARM_H/2)
+        .attr("width",W-cx).attr("height",ARM_H)
+        .attr("fill",lay.color).attr("rx",3);
     } else {
-      svg.append("rect")
-        .attr("x", cx-OVERLAP-ARM_W)
-        .attr("y", midY-aH/2)
-        .attr("width", OVERLAP+ARM_W)
-        .attr("height", aH)
-        .attr("fill", lay.color)
-        .attr("rx", 3);
+      svg.append("rect").attr("x",0).attr("y",midY-ARM_H/2)
+        .attr("width",cx).attr("height",ARM_H)
+        .attr("fill",lay.color).attr("rx",3);
     }
   });
 
-  // ══ LAYER 2: Drop shadow over arms (creates 3D separation) ════════════════
+  // ══ LAYER 2: Drop shadow over arms ══════════════════════════════════════════
   svg.append("path").attr("d",dp)
     .attr("transform","translate(7,9)")
     .attr("fill","rgba(8,40,120,0.28)")
     .style("filter","blur(9px)");
 
-  // ══ LAYER 3: Drop bands clipped to drop shape ══════════════════════════════
+  // ══ LAYER 3: Drop bands clipped to shape ════════════════════════════════════
   layers.forEach(function(lay){
     svg.append("rect")
-      .attr("x", cx-DR-4).attr("y", lay.top)
-      .attr("width", (DR+4)*2).attr("height", Math.max(lay.bot-lay.top, 1))
-      .attr("fill", lay.color)
-      .attr("clip-path","url(#dc5)");
-    // Band divider
-    if(lay.top > topY+2){
+      .attr("x",cx-DR-4).attr("y",lay.top)
+      .attr("width",(DR+4)*2).attr("height",Math.max(lay.bot-lay.top,1))
+      .attr("fill",lay.color).attr("clip-path","url(#dc7)");
+    if(lay.top>topY+2){
       svg.append("line")
         .attr("x1",cx-DR).attr("x2",cx+DR)
         .attr("y1",lay.top).attr("y2",lay.top)
         .attr("stroke","rgba(255,255,255,0.45)").attr("stroke-width",2)
-        .attr("clip-path","url(#dc5)");
+        .attr("clip-path","url(#dc7)");
     }
   });
 
-  // ══ LAYER 4: Drop white outline ════════════════════════════════════════════
+  // ══ LAYER 4: Drop white outline ═════════════════════════════════════════════
   svg.append("path").attr("d",dp).attr("fill","none")
     .attr("stroke","white").attr("stroke-width",3);
 
-  // ══ LAYER 5: Icons — only when band is tall enough ═════════════════════════
-  var MIN_ICON_BAND=28;
+  // ══ LAYER 5: Icons inside drop (only when band is tall enough) ══════════════
+  var MIN_ICON=28;
   layers.forEach(function(lay){
-    if(lay.bandH < MIN_ICON_BAND) return;
-    var sz=Math.max(16, Math.min(lay.bandH*0.55, 28));
+    if(lay.bandH<MIN_ICON)return;
+    var sz=Math.max(16,Math.min(lay.bandH*0.58,28));
     svg.append("foreignObject")
-      .attr("x", cx-sz/2).attr("y", lay.midY-sz/2)
-      .attr("width", sz+4).attr("height", sz+4)
+      .attr("x",cx-sz/2).attr("y",lay.midY-sz/2)
+      .attr("width",sz+4).attr("height",sz+4)
       .append("xhtml:i")
         .attr("class","ph-bold "+getIcon(lay.label))
-        .style("font-size", sz+"px")
+        .style("font-size",sz+"px")
         .style("color","rgba(255,255,255,0.92)")
-        .style("display","flex")
-        .style("align-items","center")
+        .style("display","flex").style("align-items","center")
         .style("justify-content","center")
-        .style("width",(sz+4)+"px")
-        .style("height",(sz+4)+"px");
+        .style("width",(sz+4)+"px").style("height",(sz+4)+"px");
   });
 
-  // ══ LAYER 6: Arm labels + end circles ══════════════════════════════════════
+  // ══ LAYER 6: Arm labels using foreignObject for full CSS text handling ═══════
   layers.forEach(function(lay){
     var midY=lay.midY;
-    var aH=lay.armH;
-    // Label area on arm (right-side arm starts at cx, left-side arm ends at cx)
-    var labelCx = lay.right ? cx + ARM_W/2 + 6 : cx - ARM_W/2 - 6;
-    var maxCh   = Math.floor(ARM_W*0.88/(FONT_SZ*0.53));
-    var lbl     = lay.label.length>maxCh ? lay.label.slice(0,maxCh-1)+"\u2026" : lay.label;
-    svg.append("text")
-      .attr("x", labelCx).attr("y", midY)
-      .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size", FONT_SZ).attr("font-weight","700").attr("fill","white")
-      .style("pointer-events","none")
-      .text(lbl);
+    // Text region: from drop edge outward, leaving room for circle
+    // Use 6px gap from drop edge, 8px gap before circle
+    var textGap=6;
+    var circGap=CR*2+10;
+    var textX, textW, align;
+    if(lay.right){
+      textX = cx + lay.edgeHW + textGap;
+      textW = W - textX - circGap;
+      align = "left";
+    } else {
+      textX = circGap;
+      textW = cx - lay.edgeHW - textGap - circGap;
+      align = "left";
+    }
+    textW = Math.max(20, textW);
 
-    // End circle: shadow, white fill, colored ring, bold %
-    var cX=lay.right ? cx+ARM_W+CR+8 : cx-ARM_W-CR-8;
+    // foreignObject for text — CSS handles line wrap + overflow
+    var fo=svg.append("foreignObject")
+      .attr("x", textX)
+      .attr("y", midY - ARM_H/2)
+      .attr("width", textW)
+      .attr("height", ARM_H);
+    fo.append("xhtml:div")
+      .style("width", textW+"px")
+      .style("height", ARM_H+"px")
+      .style("display","flex")
+      .style("align-items","center")
+      .style("justify-content", align)
+      .style("overflow","hidden")
+      .append("xhtml:span")
+        .style("font-family","'Roboto',sans-serif")
+        .style("font-size", FS+"px")
+        .style("font-weight","700")
+        .style("color","white")
+        .style("line-height","1.25")
+        .style("word-break","break-word")
+        .style("overflow-wrap","break-word")
+        .style("max-height", ARM_H+"px")
+        .style("overflow","hidden")
+        .text(lay.label);
+
+    // End circle at box edge
+    var cX = lay.right ? W-CR-4 : CR+4;
     svg.append("circle").attr("cx",cX+2).attr("cy",midY+3).attr("r",CR)
       .attr("fill","rgba(0,0,0,0.13)").style("filter","blur(4px)");
     svg.append("circle").attr("cx",cX).attr("cy",midY).attr("r",CR)
       .attr("fill","white").attr("stroke",lay.color).attr("stroke-width",3);
     svg.append("text").attr("x",cX).attr("y",midY)
       .attr("text-anchor","middle").attr("dominant-baseline","middle")
-      .attr("font-size",Math.max(11,Math.round(CR*0.68))).attr("font-weight","900")
+      .attr("font-size",Math.max(11,Math.round(CR*0.65))).attr("font-weight","900")
       .attr("fill",lay.color).style("pointer-events","none")
       .text(Math.round(lay.pct*100)+"%");
 
-    // Hover zone spanning full arm + circle area
-    var hLeft  = lay.right ? cx          : cX-CR;
-    var hRight = lay.right ? cX+CR       : cx;
+    // Hover zone
+    var hLeft  = lay.right ? cx+lay.edgeHW : cX-CR;
+    var hRight = lay.right ? cX+CR         : cx-lay.edgeHW;
     svg.append("rect")
-      .attr("x",hLeft).attr("y",midY-aH/2-4)
-      .attr("width",Math.abs(hRight-hLeft)).attr("height",aH+8)
+      .attr("x",hLeft).attr("y",midY-ARM_H/2-4)
+      .attr("width",Math.max(0,hRight-hLeft)).attr("height",ARM_H+8)
       .attr("fill","transparent").style("cursor","pointer")
       .on("mousemove",function(ev){
         showTip(ev,"<strong>"+lay.label+"</strong><br>"+
