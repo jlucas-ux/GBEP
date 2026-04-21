@@ -22,6 +22,6 @@ jobs:
 
       - name: Update county project counts
         env:
-          AGOL_USERNAME: ${{ secrets.AGOL_USERNAME }}
-          AGOL_PASSWORD: ${{ secrets.AGOL_PASSWORD }}
+          ARCGIS_USERNAME: ${{ secrets.ARCGIS_USERNAME }}
+          ARCGIS_PASSWORD: ${{ secrets.ARCGIS_PASSWORD }}
         run: python scripts/update_counties.py
