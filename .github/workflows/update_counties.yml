@@ -1,0 +1,29 @@
+name: Update County Project Counts
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'   # Runs daily at 6am UTC
+  workflow_dispatch:       # Manual trigger from GitHub Actions tab
+
+jobs:
+  update-counties:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run county update script
+        env:
+          AGOL_USERNAME:      ${{ secrets.AGOL_USERNAME }}
+          AGOL_PASSWORD:      ${{ secrets.AGOL_PASSWORD }}
+          COUNTY_LAYER_ID:    76a4958980554c8a88db464e69e2dbbc
+          COUNTY_NAME_FIELD:  NAME
+        run: python scripts/update_counties.py
