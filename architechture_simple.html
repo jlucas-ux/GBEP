@@ -387,6 +387,133 @@ h1 { font-size: 26px; font-weight: 700; color: #1a2332; margin-bottom: 6px; }
 </div>
 
 <!-- ── SECTION 5: Security ── -->
+
+<!-- ── SECTION: GitHub Secrets ── -->
+<div class="section-label">The public repo + private credentials paradox — and how we solved it</div>
+
+<div style="background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:24px;margin-bottom:16px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+
+    <div style="background:#fef2f2;border-radius:10px;padding:20px;border-left:4px solid #dc2626;">
+      <div style="font-size:18px;margin-bottom:8px;">⚠️ The problem</div>
+      <div style="font-size:14px;font-weight:700;color:#991b1b;margin-bottom:8px;">GitHub Pages requires a public repository</div>
+      <div style="font-size:13px;color:#7f1d1d;line-height:1.6;">
+        Free GitHub Pages hosting only works if the repository is public — meaning <strong>anyone on the internet can view the code.</strong>
+        This is non-negotiable without a paid GitHub plan.<br><br>
+        But some of the HTML files are password-protected. Putting passwords directly in the code would expose them to everyone.
+      </div>
+    </div>
+
+    <div style="background:#f0fdf4;border-radius:10px;padding:20px;border-left:4px solid #16a34a;">
+      <div style="font-size:18px;margin-bottom:8px;">✅ The solution</div>
+      <div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:8px;">GitHub Secrets + GitHub Actions</div>
+      <div style="font-size:13px;color:#14532d;line-height:1.6;">
+        Credentials (usernames, passwords, protected HTML) are stored in <strong>GitHub Secrets</strong> — an encrypted vault built into GitHub that is <em>never</em> visible in the code, never logged, and never accessible to anyone viewing the repository.
+        <br><br>
+        A GitHub Actions workflow injects those secrets into the files automatically on each deploy.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- How it works flow -->
+  <div style="margin-top:20px;">
+    <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:14px;text-transform:uppercase;letter-spacing:.06em;">How it works step by step</div>
+    <div style="display:flex;align-items:flex-start;gap:0;flex-wrap:wrap;">
+
+      <div style="flex:1;min-width:140px;text-align:center;padding:0 10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#1677bc;color:white;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">1</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Developer pushes code</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.5;">A code change is committed and pushed to GitHub. The repo is public — but contains <em>no passwords</em>.</div>
+      </div>
+      <div style="font-size:20px;color:#cbd5e1;align-self:center;flex-shrink:0;padding-top:8px;">→</div>
+
+      <div style="flex:1;min-width:140px;text-align:center;padding:0 10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#1677bc;color:white;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">2</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">GitHub Actions runs</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.5;">An automated workflow triggers. It runs in a private, secure environment that can access GitHub Secrets.</div>
+      </div>
+      <div style="font-size:20px;color:#cbd5e1;align-self:center;flex-shrink:0;padding-top:8px;">→</div>
+
+      <div style="flex:1;min-width:140px;text-align:center;padding:0 10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#1677bc;color:white;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">3</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Secrets injected</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.5;">The workflow reads the encrypted username, password, and protected HTML from the Secrets vault and inserts them into the files.</div>
+      </div>
+      <div style="font-size:20px;color:#cbd5e1;align-self:center;flex-shrink:0;padding-top:8px;">→</div>
+
+      <div style="flex:1;min-width:140px;text-align:center;padding:0 10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#059669;color:white;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">4</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Live site updated</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.5;">The completed files (with credentials embedded) are deployed to GitHub Pages. Credentials exist only in the live files — never in the repo code.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- What's visible vs hidden table -->
+  <div style="margin-top:24px;overflow-x:auto;">
+    <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;">What is and isn't visible</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:10px 14px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569;font-weight:700;">Item</th>
+          <th style="padding:10px 14px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569;font-weight:700;">Public repo<br>(anyone can see)</th>
+          <th style="padding:10px 14px;text-align:center;border-bottom:2px solid #e2e8f0;color:#475569;font-weight:700;">GitHub Secrets<br>(encrypted, hidden)</th>
+          <th style="padding:10px 14px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569;font-weight:700;">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:10px 14px;font-weight:600;">Chart HTML files</td>
+          <td style="padding:10px 14px;text-align:center;color:#16a34a;font-size:16px;">✅</td>
+          <td style="padding:10px 14px;text-align:center;color:#94a3b8;">—</td>
+          <td style="padding:10px 14px;color:#64748b;">index.html, browse_projects.html, etc. — public code, no credentials</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;background:#fafafa;">
+          <td style="padding:10px 14px;font-weight:600;">Password-protected HTML</td>
+          <td style="padding:10px 14px;text-align:center;color:#dc2626;font-size:16px;">🚫</td>
+          <td style="padding:10px 14px;text-align:center;color:#16a34a;font-size:16px;">✅</td>
+          <td style="padding:10px 14px;color:#64748b;">Stored encrypted in Secrets vault; injected by Actions at deploy time</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:10px 14px;font-weight:600;">Username &amp; password</td>
+          <td style="padding:10px 14px;text-align:center;color:#dc2626;font-size:16px;">🚫</td>
+          <td style="padding:10px 14px;text-align:center;color:#16a34a;font-size:16px;">✅</td>
+          <td style="padding:10px 14px;color:#64748b;">Never in the code. Only ever exist as encrypted secrets and in the deployed live files.</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;background:#fafafa;">
+          <td style="padding:10px 14px;font-weight:600;">ArcGIS service URL</td>
+          <td style="padding:10px 14px;text-align:center;color:#f59e0b;font-size:16px;">⚠️</td>
+          <td style="padding:10px 14px;text-align:center;color:#94a3b8;">—</td>
+          <td style="padding:10px 14px;color:#64748b;">Visible in code — intentional. Service is public read-only; no risk in exposure.</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:10px 14px;font-weight:600;">GitHub Actions workflow</td>
+          <td style="padding:10px 14px;text-align:center;color:#16a34a;font-size:16px;">✅</td>
+          <td style="padding:10px 14px;text-align:center;color:#94a3b8;">—</td>
+          <td style="padding:10px 14px;color:#64748b;">The workflow <em>logic</em> is public, but it only reads secrets by name — values never appear in logs</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:600;">Commit history</td>
+          <td style="padding:10px 14px;text-align:center;color:#16a34a;font-size:16px;">✅</td>
+          <td style="padding:10px 14px;text-align:center;color:#94a3b8;">—</td>
+          <td style="padding:10px 14px;color:#64748b;">Full history visible — safe because credentials were never committed in the first place</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:16px;padding:12px 16px;background:#eff6ff;border-radius:8px;border-left:3px solid #1677bc;">
+    <span style="font-size:13px;color:#1e40af;line-height:1.6;">
+      <strong>Bottom line for a maintainer:</strong> The repository being public does not create a security risk. 
+      All sensitive credentials live exclusively in GitHub's encrypted Secrets vault. 
+      To update a password or protected file, you change the Secret in GitHub — not the code.
+      Go to: <strong>GitHub repo → Settings → Secrets and variables → Actions</strong>.
+    </span>
+  </div>
+</div>
+
 <div class="section-label">Security at a glance</div>
 <div class="security-box">
   <h3>🔒 Security considerations</h3>
