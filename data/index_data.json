@@ -1,6 +1,6 @@
 [
   {
-    "project_landscape_type": "Estuarine Shoreline",
+    "project_landscape_type": "Estuarine_Shoreline,Estuarine_Wetland",
     "site_name_long_term_project_nam": "Anahuac National Wildlife Refuge",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 230000,
@@ -98,7 +98,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Estuarine Shoreline,Estuarine Wetland",
+    "project_landscape_type": "Coastal_Prairie,Estuarine_Wetland",
     "site_name_long_term_project_nam": "Virginia Point Peninsula Preserve",
     "lead_organization_name": "Scenic Galveston",
     "gbep_award_amount": 45000,
@@ -196,7 +196,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Beach,Estuarine Shoreline,Estuarine Wetland,Forest/Woodland,Rookery Island",
+    "project_landscape_type": "Beach,Estuarine_Shoreline,Estuarine_Wetland,Rookery_Island",
     "site_name_long_term_project_nam": "North Deer Island",
     "lead_organization_name": "Texas Parks and Wildlife Department",
     "gbep_award_amount": 649700,
@@ -294,7 +294,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Estuarine Shoreline,Estuarine Wetland",
+    "project_landscape_type": "Coastal_Prairie,Estuarine_Shoreline,Estuarine_Wetland,Freshwater_Marsh",
     "site_name_long_term_project_nam": "McAllis Point",
     "lead_organization_name": "Trust for Public Land",
     "gbep_award_amount": 176486,
@@ -441,7 +441,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Shoreline,Estuarine Wetland",
+    "project_landscape_type": "Estuarine_Shoreline,Estuarine_Water_Column/Open_Bay,Estuarine_Wetland",
     "site_name_long_term_project_nam": "Starvation Gap Restoration Project",
     "lead_organization_name": "Texas Parks and Wildlife Department",
     "gbep_award_amount": 150000,
@@ -637,7 +637,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Estuarine Shoreline,Estuarine Wetland,Freshwater Marsh,Riparian",
+    "project_landscape_type": "Agriculture/Ranch_Land,Coastal_Prairie,Estuarine_Shoreline,Estuarine_Wetland,Riparian",
     "site_name_long_term_project_nam": "Galveston Bay Coastal Habitat Management ",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 65000,
@@ -735,10 +735,10 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Beach,Coastal Prairie,Dune,Estuarine Shoreline,Estuarine Wetland",
+    "project_landscape_type": "Beach,Dune,Estuarine_Shoreline,Estuarine_Wetland",
     "site_name_long_term_project_nam": "Follets Island",
     "lead_organization_name": "Texas General Land Office",
-    "gbep_award_amount": 1,
+    "gbep_award_amount": 100000,
     "nru_project_title": "Follet's Island Conservation Project",
     "total_cost_of_project": 1471786,
     "fiscal_year_awarded": 2011,
@@ -833,14 +833,14 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Wetland",
+    "project_landscape_type": "Beach,Estuarine_Shoreline,Estuarine_Water_Column/Open_Bay,Estuarine_Wetland,Intertidal_reef,Living_Shoreline,Rookery_Island",
     "site_name_long_term_project_nam": "Dickinson Bay Islands",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 100000,
     "nru_project_title": "Dickinson Bay Island II Restoration",
     "total_cost_of_project": 201000,
     "fiscal_year_awarded": 2012,
-    "numeric_approximate_project_siz": 0,
+    "numeric_approximate_project_siz": 8,
     "project_scale": "Physical project",
     "nps_1": "No",
     "nps_2": "No",
@@ -882,7 +882,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "None- this project was research",
+    "project_landscape_type": "None-_this_project_was_research",
     "site_name_long_term_project_nam": "Habitat Conservation Blueprint",
     "lead_organization_name": "Environmental Institute of Houston at UHCL",
     "gbep_award_amount": 11600,
@@ -933,7 +933,7 @@
   {
     "project_landscape_type": "Beach,Estuarine_Shoreline,Intertidal_reef,Rookery_Island",
     "site_name_long_term_project_nam": "Jones Bay",
-    "lead_organization_name": "Galveston Bay Foundation",
+    "lead_organization_name": "Texas Parks and Wildlife Department",
     "gbep_award_amount": 75000,
     "nru_project_title": "Jones Bay Oystercatcher Habitat Restoration Project",
     "total_cost_of_project": 4249241,
@@ -1029,7 +1029,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Riparian",
+    "project_landscape_type": "Coastal_Prairie,Riparian",
     "site_name_long_term_project_nam": "Blackhawk Park",
     "lead_organization_name": "Houston Parks and Recreation Department",
     "gbep_award_amount": 80000,
@@ -1078,7 +1078,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie",
+    "project_landscape_type": "Coastal_Prairie,Urban/Suburban_Park",
     "site_name_long_term_project_nam": "Sylvan Rodriguez Park",
     "lead_organization_name": "Houston Parks and Recreation Department",
     "gbep_award_amount": 105300,
@@ -1127,7 +1127,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Shoreline,Intertidal reef,Living Shoreline",
+    "project_landscape_type": "Coastal_Prairie,Estuarine_Shoreline,Estuarine_Wetland,Living_Shoreline",
     "site_name_long_term_project_nam": "Trinity Bay Discovery Center",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 85000,
@@ -1176,14 +1176,14 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Estuarine Shoreline,Estuarine Wetland,Forested Wetland,Urban/Suburban Park",
+    "project_landscape_type": "Coastal_Prairie,Estuarine_Shoreline,Estuarine_Wetland,Forest/Woodland,Riparian",
     "site_name_long_term_project_nam": "Conservation Assistance Program",
     "lead_organization_name": "Trust for Public Land",
     "gbep_award_amount": 125000,
     "nru_project_title": "Conservation Assistance Program",
     "total_cost_of_project": 250000,
     "fiscal_year_awarded": 2007,
-    "numeric_approximate_project_siz": null,
+    "numeric_approximate_project_siz": 112,
     "project_scale": "Physical project",
     "nps_1": "Yes",
     "nps_2": "No",
