@@ -23,7 +23,7 @@
       font-weight:900;color:white;
       letter-spacing:-0.5px;line-height:1.1;
     }
-    .page-title span{color:#b2ebf2;}
+    .page-title span{color:#ffffff;}
     .blurb-block{flex:1;}
     .page-blurb{
       font-size:clamp(11px,1.1vw,14px);
@@ -45,7 +45,7 @@
 <script>
   var params=new URLSearchParams(window.location.search);
   if(params.get('title')) document.getElementById('page-title').innerHTML=params.get('title');
-  if(params.get('blurb')) document.getElementById('page-blurb').textContent=params.get('blurb');
+  document.getElementById('page-blurb').textContent=params.get('blurb')||'Galveston Bay Estuary Program — Habitat Project Database';
 </script>
 </body>
 </html>
