@@ -11,7 +11,7 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;background:#f4f6f9;color:#1a2332;}
 
 #filter-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;flex-wrap:wrap;}
-#filter-bar input{height:38px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:170px;flex:1;max-width:280px;}
+#filter-bar input{height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:170px;flex:1;max-width:280px;}
 #filter-bar select{height:38px;border:1px solid #cbd5e1;border-radius:6px;padding:0 28px 0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:200px;max-width:300px;}
 #filter-bar select:focus,#filter-bar input:focus{border-color:#1677bc;}
 #search-input{flex:1;min-width:140px;}
@@ -19,7 +19,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 #filter-toggles{display:none;}
 #filters-toggle-btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:14px;color:#475569;cursor:pointer;display:flex;align-items:center;gap:5px;}
 #filters-toggle-btn.active{border-color:#1677bc;color:#1677bc;background:#eff6ff;}
-#clear-btn{height:38px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:15px;color:#475569;cursor:pointer;white-space:nowrap}
+#clear-btn{height:44px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:15px;color:#475569;cursor:pointer;white-space:nowrap}
 #clear-btn:hover{background:#f1f5f9;}
 #result-count{font-size:15px;color:#94a3b8;white-space:nowrap;}
 
@@ -29,7 +29,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 #list-pane{width:380px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid #e2e8f0;background:#f8fafc;overflow:hidden;}
 #list-header{padding:8px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:white;flex-shrink:0;gap:6px;flex-wrap:wrap;}
 #list-count{font-size:15px;font-weight:700;color:#1677bc;}
-#sort-sel{height:28px;border:1px solid #e2e8f0;border-radius:5px;font-size:14px;color:#64748b;padding:0 6px;background:white;cursor:pointer;}
+#sort-sel{height:36px;border:1px solid #e2e8f0;border-radius:5px;font-size:14px;color:#64748b;padding:0 6px;background:white;cursor:pointer;}
 #card-scroll{flex:1;overflow-y:auto;padding:8px;}
 #card-scroll::-webkit-scrollbar{width:4px;}
 #card-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px;}
@@ -142,7 +142,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 </style>
 </head>
 <body>
-
+<a href="#main" id="skip-nav" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;background:white;padding:8px 16px;font-family:Roboto,sans-serif;font-size:14px;color:#1565C0;" onfocus="this.style.left='8px';this.style.width='auto';this.style.height='auto';" onblur="this.style.left='-9999px';this.style.width='1px';this.style.height='1px';">Skip to project list</a>
 <div id="loading"><div class="spinner"></div>Loading projects…</div>
 
 <div id="app" style="display:none;height:100%;">
@@ -150,17 +150,17 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <div id="filter-toggles">
         <button id="filters-toggle-btn" onclick="toggleFilters()">&#9776; Filters</button>
       </div>
-      <input id="search-input" type="text" placeholder="Search by name or organization…" oninput="applyFilters()">
-    <select id="f-org"     onchange="applyFilters()"><option value="">All organizations</option></select>
-    <select id="f-hab"     onchange="applyFilters()"><option value="">All habitat types</option></select>
-    <select id="f-fy"      onchange="applyFilters()"><option value="">All fiscal years</option></select>
-    <select id="f-scale"   onchange="applyFilters()"><option value="">All scales</option></select>
-    <select id="f-species" onchange="applyFilters()"><option value="">All focal species</option></select>
-    <select id="f-goals"   onchange="applyFilters()"><option value="">All project goals</option></select>
-    <select id="f-stage"   onchange="applyFilters()"><option value="">All stages</option></select>
-    <select id="f-impl"    onchange="applyFilters()"><option value="">All implementer types</option></select>
-    <select id="f-county"  onchange="applyFilters()"><option value="">All counties</option></select>
-    <button id="clear-btn" onclick="clearFilters()">Clear all</button>
+      <input id="search-input" type="text" placeholder="Search by name or organization…" aria-label="Search projects" …>
+    <select id="f-org"     aria-label="Filter by organization" onchange="applyFilters()"><option value="">All organizations</option></select>
+    <select id="f-hab"     aria-label="Filter by habitat type" onchange="applyFilters()"><option value="">All habitat types</option></select>
+    <select id="f-fy"      aria-label="Filter by fiscal year" onchange="applyFilters()"><option value="">All fiscal years</option></select>
+    <select id="f-scale"   aria-label="Filter by project scale" onchange="applyFilters()"><option value="">All scales</option></select>
+    <select id="f-species" aria-label="Filter by focal species" onchange="applyFilters()"><option value="">All focal species</option></select>
+    <select id="f-goals"   aria-label="Filter by project goals" onchange="applyFilters()"><option value="">All project goals</option></select>
+    <select id="f-stage"   aria-label="Filter by project stage" onchange="applyFilters()"><option value="">All stages</option></select>
+    <select id="f-impl"    aria-label="Filter by implementer type" onchange="applyFilters()"><option value="">All implementer types</option></select>
+    <select id="f-county"  aria-label="Filter by county" onchange="applyFilters()"><option value="">All counties</option></select>
+    <button id="clear-btn" aria-label="Clear all filters" onclick="clearFilters()">Clear all</button>
     <span id="result-count"></span>
   </div>
 
