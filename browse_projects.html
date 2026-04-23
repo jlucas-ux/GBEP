@@ -648,7 +648,7 @@ function applyFilters(){
       var loc=(clean(d.general_project_location)||"").toLowerCase();
       if(t.indexOf(search)<0&&o.indexOf(search)<0&&loc.indexOf(search)<0)return false;
     }
-    if(org&&clean(d.lead_organization_name)!==org)return false;
+    if(org&&normalizeOrg(clean(d.lead_organization_name))!==org)return false;
     if(hab){var lt=normalizeVal(clean(d.project_landscape_type)||"");if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
     if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
     if(scale&&normalizeVal(clean(d.project_scale))!==scale)return false;
@@ -684,7 +684,7 @@ function applyFilters(){
 
 function clearFilters(){
   document.getElementById("search-input").value="";
-  ["f-org","f-hab","f-fy","f-scale","f-species","f-goals","f-stage","f-impl"].forEach(function(id){
+  ["f-org","f-hab","f-fy","f-scale","f-species","f-goals","f-stage","f-impl","f-county"].forEach(function(id){
     document.getElementById(id).selectedIndex=0;
 
   });
