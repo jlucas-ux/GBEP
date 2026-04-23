@@ -19,7 +19,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 #filter-toggles{display:none;}
 #filters-toggle-btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:14px;color:#475569;cursor:pointer;display:flex;align-items:center;gap:5px;}
 #filters-toggle-btn.active{border-color:#1677bc;color:#1677bc;background:#eff6ff;}
-#clear-btn{height:38px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:15px;color:#64748b;cursor:pointer;white-space:nowrap;}
+#clear-btn{height:38px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:15px;color:#475569;cursor:pointer;white-space:nowrap}
 #clear-btn:hover{background:#f1f5f9;}
 #result-count{font-size:15px;color:#94a3b8;white-space:nowrap;}
 
@@ -220,7 +220,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <div id="detail-pane">
       <div id="back-btn" onclick="closeDetail()">&#8592; Back to results</div>
       <div id="detail-empty">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
           <rect x="8" y="6" width="32" height="36" rx="4" stroke="#94a3b8" stroke-width="2"/>
           <line x1="15" y1="16" x2="33" y2="16" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
           <line x1="15" y1="22" x2="33" y2="22" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
@@ -957,8 +957,8 @@ function showDetail(d){
     ["Year 2 amount",             d.year_2_amount?fmtDollars(d.year_2_amount):null],
     ["Year 3 amount",             d.year_3_amount?fmtDollars(d.year_3_amount):null],
     ["Additional funding types",  valWithOther(d.what_were_your_additional_fundi, d.additional_funding_types_other)||valWithOther(d.were_there_any_additional_fundin, d.additional_funding_types_other)],
-    ["In-kind leveraging",        val(d.in_kind_leveraging_amount)],
-    ["Cash leveraging",           val(d.cash_leveraging_amount)],
+    ["In-kind leveraging",        d.in_kind_leveraging_amount > 0 ? '$' + Math.round(d.in_kind_leveraging_amount).toLocaleString() : null],
+    ["Cash leveraging",           d.cash_leveraging_amount > 0 ? '$' + Math.round(d.cash_leveraging_amount).toLocaleString() : null],
     ["Leveraging notes",          val(d.leveraging_in_kind_and_cash_)||val(d.other_additional_leveraging_non)],
     ["Costs exceeded estimates",  val(d.did_costs_exceed_estimates_)],
     ["Planning costs",            val(d.what_is_a_general_estimate_of_p)||val(d.what_is_a_general_estimate_of_pl)],
