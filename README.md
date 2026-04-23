@@ -17,7 +17,7 @@ Think of it this way: ESRI is the frame on the wall, and these files are the act
 
 ## Why the Repo Has to Be Public
 
-GitHub Pages (free hosting) only works with public repositories. This is a platform requirement, not a choice. **This does not create a security risk.** No passwords, usernames, or sensitive credentials are ever stored in this code — those live in GitHub Secrets, which are encrypted and never visible to anyone viewing the repository. See the Security section below.
+GitHub Pages (free hosting) only works with public repositories. This is a platform requirement, not a choice. Additionally, in order for the html to be functional and public facing, the repository needs to be public. **This does not create a security risk.** No passwords, usernames, or sensitive credentials are ever stored in this code — those live in GitHub Secrets, which are encrypted and never visible to anyone viewing the repository. See the Security section below.
 
 ---
 
