@@ -1225,7 +1225,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Riparian",
+    "project_landscape_type": "Riparian,Urban/Suburban_Park",
     "site_name_long_term_project_nam": "White Oak Bayou",
     "lead_organization_name": "Houston Parks and Recreation Department",
     "gbep_award_amount": 50000,
@@ -1274,7 +1274,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Water Column/Open Bay",
+    "project_landscape_type": "None-_this_project_was_research",
     "site_name_long_term_project_nam": "Galveston Bay",
     "lead_organization_name": "Texas A&M University Galveston",
     "gbep_award_amount": 96453,
@@ -1421,7 +1421,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Wetland,other",
+    "project_landscape_type": "None-_this_project_was_research,other",
     "site_name_long_term_project_nam": "Lower Galveston Bay Watershed",
     "lead_organization_name": "Texas A&M University",
     "gbep_award_amount": 174235,
@@ -1429,7 +1429,7 @@
     "total_cost_of_project": 174235,
     "fiscal_year_awarded": 2025,
     "numeric_approximate_project_siz": null,
-    "project_scale": "Physical project",
+    "project_scale": "Large scale representative proj",
     "nps_1": "No",
     "nps_2": "No",
     "nps_3": "No",
@@ -1470,7 +1470,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Shoreline",
+    "project_landscape_type": "Estuarine_Shoreline,Estuarine_Wetland,Living_Shoreline",
     "site_name_long_term_project_nam": "Galveston Bay Coastal Habitat Management ",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 175000,
@@ -1519,7 +1519,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Forest/Woodland,Riparian,Urban/Suburban_Park",
+    "project_landscape_type": "Coastal_Prairie,Forest/Woodland,Riparian,Urban/Suburban_Park",
     "site_name_long_term_project_nam": "Sylvan Rodriguez Park",
     "lead_organization_name": "Houston Parks and Recreation Department ",
     "gbep_award_amount": 100000,
@@ -1568,7 +1568,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Agriculture/Ranch Land,Coastal Prairie,Estuarine Shoreline,Estuarine Wetland,Forest/Woodland,Forested Wetland,Freshwater Marsh",
+    "project_landscape_type": "Agriculture/Ranch_Land,Beach,Coastal_Prairie,Estuarine_Shoreline,Estuarine_Wetland,Forest/Woodland,Freshwater_Marsh,Riparian",
     "site_name_long_term_project_nam": "Conservation Assistance Program",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 600000,
@@ -1617,7 +1617,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Shoreline,Estuarine Wetland,Living Shoreline",
+    "project_landscape_type": "Estuarine_Shoreline,Estuarine_Wetland,Living_Shoreline",
     "site_name_long_term_project_nam": "Kemah Living Shoreline ",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 100000,
@@ -1715,7 +1715,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Estuarine Wetland,Forested Wetland",
+    "project_landscape_type": "Coastal_Prairie,Forest/Woodland,Forested_Wetland,Freshwater_Marsh,Riparian",
     "site_name_long_term_project_nam": "Armand Bayou Nature Center",
     "lead_organization_name": "Armand Bayou Nature Center",
     "gbep_award_amount": 500000,
@@ -1764,7 +1764,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Shoreline,Estuarine Wetland,Living Shoreline,SAV (Submerged Aquatic Vegetati",
+    "project_landscape_type": "Estuarine_Shoreline,Estuarine_Water_Column/Open_Bay,Estuarine_Wetland,Intertidal_reef,Living_Shoreline",
     "site_name_long_term_project_nam": null,
     "lead_organization_name": "Texas Parks and Wildlife Department",
     "gbep_award_amount": 200000,
@@ -1813,7 +1813,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Estuarine Shoreline,Rookery Island",
+    "project_landscape_type": "Beach,Estuarine_Shoreline,Intertidal_reef,Living_Shoreline,Rookery_Island",
     "site_name_long_term_project_nam": "Bay Harbor Island",
     "lead_organization_name": "Galveston Bay Foundation",
     "gbep_award_amount": 132700,
@@ -1862,7 +1862,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Forest/Woodland,Riparian,Urban/Suburban Park",
+    "project_landscape_type": "Forest/Woodland,Riparian,Urban/Suburban_Park",
     "site_name_long_term_project_nam": "Herman Brown Park",
     "lead_organization_name": "Houston Parks and Recreation Department",
     "gbep_award_amount": 295000,
@@ -1911,7 +1911,7 @@
     "acs_3": "No"
   },
   {
-    "project_landscape_type": "Coastal Prairie,Freshwater Marsh",
+    "project_landscape_type": "Coastal_Prairie,Forest/Woodland,Forested_Wetland,Freshwater_Marsh",
     "site_name_long_term_project_nam": "Sheldon Lake State Park",
     "lead_organization_name": "Texas A&M AgriLife Extension Service",
     "gbep_award_amount": 157453,
