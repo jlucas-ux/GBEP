@@ -11,11 +11,10 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;background:#f4f6f9;color:#1a2332;}
 
 #filter-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;flex-wrap:wrap;}
-#filter-bar input{height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;min-width:170px;flex:1;max-width:280px;}
-#search-input{cursor:text;flex:1;min-width:140px;}
-#filter-bar input:focus{border-color:#1677bc;}
+#filter-bar input{height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:170px;flex:1;max-width:280px;}
 #filter-bar select{height:38px;border:1px solid #cbd5e1;border-radius:6px;padding:0 28px 0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:200px;max-width:300px;}
-#filter-bar select:focus{border-color:#1677bc;}
+#filter-bar select:focus,#filter-bar input:focus{border-color:#1677bc;}
+#search-input{flex:1;min-width:140px;}
 #filter-drawer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 #filter-toggles{display:none;}
 #filters-toggle-btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:14px;color:#475569;cursor:pointer;display:flex;align-items:center;gap:5px;}
@@ -139,7 +138,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
   text-align:center;line-height:1.2;flex-shrink:0;
   box-shadow:0 1px 3px rgba(0,0,0,0.2);
   white-space:nowrap;letter-spacing:0.3px;
-}
+};text-align:center;line-height:1.3;width:100%;}
 </style>
 </head>
 <body>
@@ -149,15 +148,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 <div id="app" style="display:none;height:100%;">
   <div id="filter-bar">
     <div id="filter-toggles">
-      <button id="filters-toggle-btn" onclick="toggleFilters()">&#9776; Filters</button>
-    </div>
-    <!-- FIX C-5: oninput fires on every keystroke; onkeydown Enter fires on submit -->
-    <!-- FIX cursor: search input cursor set to text via CSS -->
-    <input id="search-input" type="text"
-      placeholder="Search by name or organization…"
-      aria-label="Search projects"
-      oninput="applyFilters()"
-      onkeydown="if(event.key==='Enter')applyFilters()">
+        <button id="filters-toggle-btn" onclick="toggleFilters()">&#9776; Filters</button>
+      </div>
+      <input id="search-input" type="text" placeholder="Search by name or organization…" aria-label="Search projects" …>
     <select id="f-org"     aria-label="Filter by organization" onchange="applyFilters()"><option value="">All organizations</option></select>
     <select id="f-hab"     aria-label="Filter by habitat type" onchange="applyFilters()"><option value="">All habitat types</option></select>
     <select id="f-fy"      aria-label="Filter by fiscal year" onchange="applyFilters()"><option value="">All fiscal years</option></select>
@@ -170,6 +163,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <button id="clear-btn" aria-label="Clear all filters" onclick="clearFilters()">Clear all</button>
     <span id="result-count"></span>
   </div>
+
 
   <div id="main">
     <div id="list-pane">
@@ -260,33 +254,38 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 <script>
 var LAYER_URL="https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
 
-function scaleStyle(scale){
-  if(!scale)return null;
-  var s=scale.toLowerCase();
-  if(s.indexOf("large scale")>-1||s.indexOf("large-scale")>-1)
-    return "background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;";
-  if(s.indexOf("physical")>-1)
-    return "background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;";
-  return null;
-}
+// Action plan category colors
+  // Scale tag colors — only two types tagged
+  function scaleStyle(scale){
+    if(!scale)return null;
+    var s=scale.toLowerCase();
+    if(s.indexOf("large scale")>-1||s.indexOf("large-scale")>-1)
+      return "background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;";
+    if(s.indexOf("physical")>-1)
+      return "background:#f3e5f5;color:#6a1b9a;border:1px solid #ce93d8;";
+    return null;
+  }
 
-var AP_GROUPS=[
-  {color:"#2e7d32", prefixes:["HC","SC","FWI"]},
-  {color:"#1565c0", prefixes:["NPS","PS","PHA"]},
-  {color:"#6a1b9a", prefixes:["SPO","PEA"]},
-  {color:"#e65100", prefixes:["RES","ACS"]}
-];
+  // 4 AP color groups
+  var AP_GROUPS=[
+    {color:"#2e7d32", prefixes:["HC","SC","FWI"]},
+    {color:"#1565c0", prefixes:["NPS","PS","PHA"]},
+    {color:"#6a1b9a", prefixes:["SPO","PEA"]},
+    {color:"#e65100", prefixes:["RES","ACS"]}
+  ];
 
-function groupApTags(allTags){
-  return AP_GROUPS.map(function(g){
-    var matched=allTags.filter(function(t){
-      return g.prefixes.indexOf(t.split("-")[0])>-1;
-    });
-    return matched.length ? {color:g.color, tags:matched} : null;
-  }).filter(Boolean);
-}
+  // Returns array of {color, label, tags} for groups that have any tags
+  function groupApTags(allTags){
+    return AP_GROUPS.map(function(g){
+      var matched=allTags.filter(function(t){
+        return g.prefixes.indexOf(t.split("-")[0])>-1;
+      });
+      return matched.length ? {color:g.color, tags:matched} : null;
+    }).filter(Boolean);
+  }
 
-var HAB_TYPE_COLORS={
+  // Exact normalized habitat name → color
+  var HAB_TYPE_COLORS={
   "estuarine wetland":                   "#2e7d32",
   "estuarine shoreline":                 "#e65100",
   "coastal prairie":                     "#827717",
@@ -309,6 +308,7 @@ function habitatColor(val){
   if(!val)return "#1677bc";
   var key=val.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
   if(HAB_TYPE_COLORS[key])return HAB_TYPE_COLORS[key];
+  // prefix match for truncated values
   for(var k in HAB_TYPE_COLORS){if(key.indexOf(k)===0||k.indexOf(key)===0)return HAB_TYPE_COLORS[k];}
   return "#1677bc";
 }
@@ -331,114 +331,135 @@ function fmtFY(v){
   return "FY "+s.slice(0,4);
 }
 function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?String(v).trim():null;}
-
-// FIX C-1: normalizeOrg must be applied consistently in BOTH populateFilters and applyFilters
-function normalizeOrg(s){
-  if(!s)return s;
-  return s
-    .replace(/^County of Galveston$/i,'Galveston County')
-    .replace(/^County of Harris$/i,'Harris County')
-    .replace(/^County of ([A-Za-z ]+)$/i,function(m,n){return n.trim()+' County';});
-}
-
-var LABEL_FIXES={
-  "restore historical that become":           "Restore Historical (That Became Unusable)",
-  "restore historical  that become":          "Restore Historical (That Became Unusable)",
-  "create new habitat where none":            "Create New Habitat (Where None Was Previously)",
-  "restore enhance habitat":                  "Restore/Enhance Habitat",
-  "restore sustain water quality":            "Restore/Sustain Water Quality",
-  "research monitoring":                      "Research/Monitoring",
-  "education outreach publications":          "Education/Outreach/Publications",
-  "land acquisition":                         "Land Acquisition",
-  "invasive species control eradic":          "Invasive Species Control/Eradication",
-  "invasive species control eradication":     "Invasive Species Control/Eradication",
-  "state listed species species of":          "State Listed Species/Species of Greatest Conservation Need",
-  "state listed species/species of":          "State Listed Species/Species of Greatest Conservation Need",
-  "state listed species/species":             "State Listed Species/Species of Greatest Conservation Need",
-  "state listed species species of greatest": "State Listed Species/Species of Greatest Conservation Need",
-  "endangered threatened species":            "Endangered/Threatened Species",
-  "nongame wildlife":                         "Nongame Wildlife",
-  "no focal species during planning":         "No Focal Species During Planning",
-  "submerged aquatic veg":                    "Submerged Aquatic Vegetation (SAV)",
-  "sav (submerged":                           "Submerged Aquatic Vegetation (SAV)",
-  "sav":                                      "Submerged Aquatic Vegetation (SAV)",
-  "submerged aquatic vegetation":             "Submerged Aquatic Vegetation (SAV)",
-  "estuarine water column open":              "Estuarine Water Column/Open Bay",
-  "estuarine water column":                   "Estuarine Water Column/Open Bay",
-  "urban suburban":                           "Urban/Suburban",
-  "forest woodland":                          "Forest/Woodland",
-  "intertidal reef":                          "Intertidal/Reef",
-  "agriculture ranch":                        "Agriculture/Ranch",
-  "large scale representative":               "Large Scale Representative Project",
-  "large scale":                              "Large Scale Representative Project",
-  "landscape scale":                          "Landscape Scale",
-  "local site scale":                         "Local/Site Scale",
-  "local scale":                              "Local/Site Scale",
-  "site scale":                               "Local/Site Scale",
-  "physical project":                         "Physical Project",
-  "demonstration project":                    "Demonstration Project",
-  "federal state or local government":        "Federal, State, or Local Government",
-  "federal  state  or local government":      "Federal, State, or Local Government",
-  "federal state local government":           "Federal, State, or Local Government",
-  "federal, state, or local government":      "Federal, State, or Local Government",
-  "federal, state, or local govern":          "Federal, State, or Local Government",
-  "federal, state, or local gover":           "Federal, State, or Local Government",
-  "federal, state, or local":                 "Federal, State, or Local Government",
-  "non profit organization":                  "Non-profit Organization",
-  "non-profit organization":                  "Non-profit Organization",
-  "nonprofit organization":                   "Non-profit Organization",
-  "university academic institution":          "University/Academic Institution",
-  "university academic":                      "University/Academic Institution",
-  "private landowner":                        "Private Landowner",
-  "federal agency":                           "Federal Agency",
-  "state agency":                             "State Agency",
-  "local government":                         "Local Government",
-  "land trust":                               "Land Trust",
-  "water district":                           "Water District",
-  "port authority":                           "Port Authority",
-};
-
-function applyLabelFix(raw){
-  if(!raw)return raw;
-  var cleaned=String(raw).replace(/_/g," ").replace(/\s+/g," ").trim();
-  var key=cleaned.toLowerCase().replace(/[()\/\\,]/g," ").replace(/\s+/g," ").trim();
-  var keyComma=cleaned.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
-  if(LABEL_FIXES[key])return LABEL_FIXES[key];
-  if(LABEL_FIXES[keyComma])return LABEL_FIXES[keyComma];
-  for(var k in LABEL_FIXES){
-    var kNorm=k.replace(/[,]/g," ").replace(/\s+/g," ").trim();
-    if(key.indexOf(kNorm)===0||kNorm.indexOf(key)===0)return LABEL_FIXES[k];
-    if(keyComma.indexOf(k)===0||k.indexOf(keyComma)===0)return LABEL_FIXES[k];
+  function normalizeOrg(s){
+    if(!s)return s;
+    return s
+      .replace(/^County of Galveston$/i,'Galveston County')
+      .replace(/^County of Harris$/i,'Harris County')
+      .replace(/^County of ([A-Za-z ]+)$/i,function(m,n){return n.trim()+' County';});
   }
-  return cleaned;
-}
 
-function normalizeVal(s){
-  var base=String(s).replace(/_/g," ").replace(/\s+/g," ").replace(/^[\s\-]+|[\s\-]+$/g,"").trim();
-  return applyLabelFix(base);
-}
+  // Normalize Survey123 values: underscores→spaces, collapse whitespace, trim dashes
+  // ── Label correction maps — fixes Survey123 truncated coded values ──────
+  // Keys are lowercased, underscores→spaces, slashes→spaces for fuzzy match
+  var LABEL_FIXES={
+    // Broad project goals
+    "restore historical that become":           "Restore Historical (That Became Unusable)",
+    "restore historical  that become":          "Restore Historical (That Became Unusable)",
+    "create new habitat where none":            "Create New Habitat (Where None Was Previously)",
+    "restore enhance habitat":                  "Restore/Enhance Habitat",
+    "restore sustain water quality":            "Restore/Sustain Water Quality",
+    "research monitoring":                      "Research/Monitoring",
+    "education outreach publications":          "Education/Outreach/Publications",
+    "land acquisition":                         "Land Acquisition",
+    // Focal species
+    "invasive species control eradic":          "Invasive Species Control/Eradication",
+    "invasive species control eradication":     "Invasive Species Control/Eradication",
+    "state listed species species of":          "State Listed Species/Species of Greatest Conservation Need",
+    "state listed species/species of":          "State Listed Species/Species of Greatest Conservation Need",
+    "state listed species/species":             "State Listed Species/Species of Greatest Conservation Need",
+    "state listed species species of greatest": "State Listed Species/Species of Greatest Conservation Need",
+    "endangered threatened species":            "Endangered/Threatened Species",
+    "nongame wildlife":                         "Nongame Wildlife",
+    "no focal species during planning":         "No Focal Species During Planning",
+    // Habitat types
+    "submerged aquatic veg":                    "Submerged Aquatic Vegetation (SAV)",
+    "sav (submerged":                           "Submerged Aquatic Vegetation (SAV)",
+    "sav":                                      "Submerged Aquatic Vegetation (SAV)",
+    "submerged aquatic vegetation":             "Submerged Aquatic Vegetation (SAV)",
+    "estuarine water column open":              "Estuarine Water Column/Open Bay",
+    "estuarine water column":                   "Estuarine Water Column/Open Bay",
+    "urban suburban":                           "Urban/Suburban",
+    "forest woodland":                          "Forest/Woodland",
+    "intertidal reef":                          "Intertidal/Reef",
+    "agriculture ranch":                        "Agriculture/Ranch",
+    // Project scale
+    "large scale representative":               "Large Scale Representative Project",
+    "large scale":                              "Large Scale Representative Project",
+    "landscape scale":                          "Landscape Scale",
+    "local site scale":                         "Local/Site Scale",
+    "local scale":                              "Local/Site Scale",
+    "site scale":                               "Local/Site Scale",
+    "physical project":                         "Physical Project",
+    "demonstration project":                    "Demonstration Project",
+    // Implementer types — Survey123 stores with commas, truncated at ~30 chars
+    "federal state or local government":        "Federal, State, or Local Government",
+    "federal  state  or local government":      "Federal, State, or Local Government",
+    "federal state local government":           "Federal, State, or Local Government",
+    "federal, state, or local government":      "Federal, State, or Local Government",
+    "federal, state, or local govern":          "Federal, State, or Local Government",
+    "federal, state, or local gover":           "Federal, State, or Local Government",
+    "federal, state, or local":                 "Federal, State, or Local Government",
+    "non profit organization":                  "Non-profit Organization",
+    "non-profit organization":                  "Non-profit Organization",
+    "nonprofit organization":                   "Non-profit Organization",
+    "university academic institution":          "University/Academic Institution",
+    "university academic":                      "University/Academic Institution",
+    "private landowner":                        "Private Landowner",
+    "federal agency":                           "Federal Agency",
+    "state agency":                             "State Agency",
+    "local government":                         "Local Government",
+    "land trust":                               "Land Trust",
+    "water district":                           "Water District",
+    "port authority":                           "Port Authority",
+  };
 
-function dedupList(raw){
-  if(!raw)return [];
-  var seen={};
-  return String(raw).split(",").map(function(s){return normalizeVal(s.trim());}).filter(function(s){
-    if(!s||s.toLowerCase()==="null")return false;
-    var key=s.toLowerCase();if(seen[key])return false;seen[key]=true;return true;
-  });
-}
+  function applyLabelFix(raw){
+    if(!raw)return raw;
+    var cleaned=String(raw).replace(/_/g," ").replace(/\s+/g," ").trim();
+    // Normalize for key lookup: lowercase + slashes/parens/commas → space
+    var key=cleaned.toLowerCase().replace(/[()\/\\,]/g," ").replace(/\s+/g," ").trim();
+    // Also try with commas preserved for comma-keyed entries
+    var keyComma=cleaned.toLowerCase().replace(/[()\/\\]/g," ").replace(/\s+/g," ").trim();
+    // Exact match first (both with and without commas)
+    if(LABEL_FIXES[key])return LABEL_FIXES[key];
+    if(LABEL_FIXES[keyComma])return LABEL_FIXES[keyComma];
+    // Prefix match for truncated values
+    for(var k in LABEL_FIXES){
+      var kNorm=k.replace(/[,]/g," ").replace(/\s+/g," ").trim();
+      if(key.indexOf(kNorm)===0||kNorm.indexOf(key)===0)return LABEL_FIXES[k];
+      if(keyComma.indexOf(k)===0||k.indexOf(keyComma)===0)return LABEL_FIXES[k];
+    }
+    return cleaned;
+  }
 
-function cleanDisplay(v){var c=clean(v);return c?normalizeVal(c):null;}
+  function normalizeVal(s){
+    var base=String(s).replace(/_/g," ").replace(/\s+/g," ").replace(/^[\s\-]+|[\s\-]+$/g,"").trim();
+    return applyLabelFix(base);
+  }
+
+  // Split comma-separated field, normalize each part, deduplicate case-insensitively
+  function dedupList(raw){
+    if(!raw)return [];
+    var seen={};
+    return String(raw).split(",").map(function(s){return normalizeVal(s.trim());}).filter(function(s){
+      if(!s||s.toLowerCase()==="null")return false;
+      var key=s.toLowerCase();if(seen[key])return false;seen[key]=true;return true;
+    });
+  }
+
+  // clean() + underscore normalization for single display values
+  function cleanDisplay(v){var c=clean(v);return c?normalizeVal(c):null;}
 
 var allData=[], filtered=[], activeId=null;
 
 async function fetchData(){
+  // outFields=* fetches everything — avoids any field-name mismatch causing a silent error.
+  // where=1=1 is the safest universal filter (URL encoded as 1%3D1).
   var url=LAYER_URL+"?where=1%3D1&outFields=*&f=json&resultRecordCount=2000";
   try{
     var res=await fetch(url);
     if(!res.ok)throw new Error("HTTP "+res.status);
     var json=await res.json();
-    if(json.error){showError("ArcGIS error: "+json.error.message+" (code "+json.error.code+")");return [];}
-    if(!json.features||!json.features.length){showError("No features returned from service.");return [];}
+    if(json.error){
+      showError("ArcGIS error: "+json.error.message+" (code "+json.error.code+")");
+      return [];
+    }
+    if(!json.features||!json.features.length){
+      showError("No features returned from service.");
+      return [];
+    }
+    // Sort by award descending here since orderByFields can be finicky with some services
     var rows=json.features.map(function(f,i){var a=f.attributes;a._id=i;return a;});
     rows.sort(function(a,b){return (b.gbep_award_amount||0)-(a.gbep_award_amount||0);});
     return rows;
@@ -471,15 +492,14 @@ function getActionPlanTags(row){
     var v=row[pp[label]];
     if(v===1||v===true||v==="1"||v==="true"||v==="yes"||v==="Yes")tags.push(label);
   });
+  
   return tags;
 }
 
 function populateFilters(){
-  // FIX C-1: normalizeOrg applied here — must also be applied in applyFilters comparison
-  var orgs=Array.from(new Set(allData.map(function(d){
-    return normalizeOrg(clean(d.lead_organization_name));
-  }).filter(Boolean))).sort();
+  var orgs=Array.from(new Set(allData.map(function(d){return normalizeOrg(clean(d.lead_organization_name));}).filter(Boolean))).sort();
 
+  // Normalize underscores→spaces, deduplicate case-insensitively
   var habs=(function(){
     var seen={},out=[];
     allData.forEach(function(d){
@@ -517,9 +537,14 @@ function populateFilters(){
       String(d.targeted_focal_species).split(",").forEach(function(s){
         s=s.trim();
         var sLow=s.toLowerCase().replace(/_/g," ");
+        // If "Other", use the _other field for the actual species name
         if((sLow==="other"||sLow==="other focal species"||sLow.indexOf("other_targeted")===0||sLow.indexOf("other targeted")===0)&&d.targeted_focal_species_other){
           var desc=String(d.targeted_focal_species_other).trim().replace(/_/g," ").replace(/\s+/g," ");
-          if(desc){var label="Other: "+desc;var key=label.toLowerCase();if(!seen[key]){seen[key]=true;out.push(label);}}
+          if(desc){
+            var label="Other: "+desc;
+            var key=label.toLowerCase();
+            if(!seen[key]){seen[key]=true;out.push(label);}
+          }
           return;
         }
         var norm=normalizeVal(s);
@@ -567,6 +592,21 @@ function populateFilters(){
     return out.sort();
   })();
 
+  function fill(id,items){
+    var sel=document.getElementById(id);
+    items.forEach(function(v){
+      var o=document.createElement("option");
+      o.value=v;
+      o.textContent=v;
+      o.title=v;
+      sel.appendChild(o);
+    });
+    // width:auto lets browser calculate intrinsic width from its options.
+    // Read offsetWidth immediately while auto, then lock it in.
+    sel.style.width="auto";
+    var w=sel.offsetWidth;
+    sel.style.width=Math.min(Math.max(w,180),300)+"px";
+  }
   var counties=(function(){
     var seen={},out=[];
     allData.forEach(function(d){
@@ -582,25 +622,13 @@ function populateFilters(){
     return out.sort();
   })();
 
-  function fill(id,items){
-    var sel=document.getElementById(id);
-    items.forEach(function(v){
-      var o=document.createElement("option");
-      o.value=v;o.textContent=v;o.title=v;
-      sel.appendChild(o);
-    });
-    sel.style.width="auto";
-    var w=sel.offsetWidth;
-    sel.style.width=Math.min(Math.max(w,180),300)+"px";
-  }
-
-  fill("f-org",orgs);fill("f-hab",habs);fill("f-fy",fys);fill("f-scale",scales);
-  fill("f-species",species);fill("f-goals",goals);fill("f-stage",stages);fill("f-impl",impls);
+  fill("f-org",orgs); fill("f-hab",habs); fill("f-fy",fys); fill("f-scale",scales);
+  fill("f-species",species); fill("f-goals",goals); fill("f-stage",stages); fill("f-impl",impls);
   fill("f-county",counties);
+
 }
 
 function applyFilters(){
-  // FIX C-5: .replace(/_/g," ") added so underscore-stored titles match spaced search terms
   var search=(document.getElementById("search-input").value||"").toLowerCase().trim();
   var org=document.getElementById("f-org").value;
   var hab=document.getElementById("f-hab").value;
@@ -610,18 +638,16 @@ function applyFilters(){
   var goals=document.getElementById("f-goals").value;
   var stage=document.getElementById("f-stage").value;
   var impl=document.getElementById("f-impl").value;
-  var county=document.getElementById("f-county")?document.getElementById("f-county").value:"";
+  var county=document.getElementById("f-county") ? document.getElementById("f-county").value : "";
   var sort=document.getElementById("sort-sel").value;
 
   filtered=allData.filter(function(d){
     if(search){
-      // FIX C-5: strip underscores before comparing so "bay harbor" matches "Bay_Harbor_..."
-      var t=(clean(d.nru_project_title)||"").replace(/_/g," ").toLowerCase();
-      var o=(clean(d.lead_organization_name)||"").replace(/_/g," ").toLowerCase();
-      var loc=(clean(d.general_project_location)||"").replace(/_/g," ").toLowerCase();
+      var t=(clean(d.nru_project_title)||"").toLowerCase();
+      var o=(clean(d.lead_organization_name)||"").toLowerCase();
+      var loc=(clean(d.general_project_location)||"").toLowerCase();
       if(t.indexOf(search)<0&&o.indexOf(search)<0&&loc.indexOf(search)<0)return false;
     }
-    // FIX C-1: normalizeOrg applied to data value to match how dropdown was built
     if(org&&normalizeOrg(clean(d.lead_organization_name))!==org)return false;
     if(hab){var lt=normalizeVal(clean(d.project_landscape_type)||"");if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
     if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
@@ -658,9 +684,9 @@ function applyFilters(){
 
 function clearFilters(){
   document.getElementById("search-input").value="";
-  // FIX C-2: f-county added to reset array so county filter clears with everything else
   ["f-org","f-hab","f-fy","f-scale","f-species","f-goals","f-stage","f-impl","f-county"].forEach(function(id){
     document.getElementById(id).selectedIndex=0;
+
   });
   applyFilters();
 }
@@ -668,14 +694,12 @@ function clearFilters(){
 function renderCards(){
   var scroll=document.getElementById("card-scroll");
   var noRes=document.getElementById("no-results");
+  // remove existing cards
   Array.from(scroll.querySelectorAll(".pcard")).forEach(function(c){c.remove();});
 
-  if(!filtered.length){
-    noRes.style.display="block";
-    document.getElementById("list-count").textContent="0 projects";
+  if(!filtered.length){noRes.style.display="block";document.getElementById("list-count").textContent="0 projects";
     var lbl=document.getElementById("dl-count-label");if(lbl)lbl.textContent="0";
-    return;
-  }
+    return;}
   noRes.style.display="none";
   document.getElementById("list-count").textContent=filtered.length+" project"+(filtered.length!==1?"s":"");
   var lbl=document.getElementById("dl-count-label");if(lbl)lbl.textContent=filtered.length;
@@ -686,6 +710,7 @@ function renderCards(){
     var award=fmtDollars(d.gbep_award_amount);
     var fy=fmtFY(d.fiscal_year_awarded);
     var acres=fmtAcres(d.numeric_approximate_project_siz);
+    var hab=clean(d.project_landscape_type)||"";
     var habList=dedupList(d.project_landscape_type);
     var habFirst=habList[0]||"";
     var color=habitatColor(habFirst);
@@ -693,9 +718,9 @@ function renderCards(){
     var card=document.createElement("div");
     card.className="pcard"+(activeId===d._id?" active":"");
     card.dataset.id=d._id;
-
+    var allApTags=getActionPlanTags(d);
     card.innerHTML=
-      '<div class="pcard-accent" style="background:'+color+'"></div>'+
+      '<div class="pcard-accent" style="background:#1677bc"></div>'+
       '<div class="pcard-body">'+
         '<div class="pcard-title">'+title+'</div>'+
         '<div class="pcard-org">'+org+'</div>'+
@@ -709,6 +734,7 @@ function renderCards(){
           (function(){var sc=normalizeVal(clean(d.project_scale));var st=sc?scaleStyle(sc):null;return st?'<span class="ptag" style="'+st+'">'+sc+'</span>':'';})()+
           (function(){var g=String(d.edited_broad_project_goals||d.broad_project_goals||'').replace(/_/g,' ').toLowerCase();return g.indexOf('land acqui')>-1?'<span class="ptag" style="background:#fde8e8;color:#ac4341;border:1px solid #f5b7b7;font-weight:600;">Land Acquisition</span>':'';})()+
           (function(){if(!d.county_counties_impacted)return '';return String(d.county_counties_impacted).split(',').map(function(c){var n=c.replace(/_/g,' ').replace(/[ ]+/g,' ').trim().split(' ').map(function(w){return w?w[0].toUpperCase()+w.slice(1).toLowerCase():w;}).join(' ');return n?'<span class="ptag" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;font-size:11px;">'+n+'</span>':'';}).join('');})()+
+
         '</div>'+
       '</div>';
 
@@ -719,40 +745,75 @@ function renderCards(){
 
 function selectCard(d){
   activeId=d._id;
+  // update active state on cards
   document.querySelectorAll(".pcard").forEach(function(c){
     c.classList.toggle("active",parseInt(c.dataset.id)===d._id);
   });
   showDetail(d);
+  // scroll card into view
   var active=document.querySelector(".pcard.active");
   if(active)active.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
 
 async function downloadProject(){
-  var d=allData.find(function(r){return r._id===activeId;});
-  if(!d){alert("No project selected.");return;}
-  var btn=document.getElementById("project-dl-btn");
-  var origText=btn.innerHTML;
-  btn.innerHTML='<span style="font-size:15px;line-height:1;">⏳</span> Preparing…';
-  btn.disabled=true;
-  try{
-    var projRow=allData.filter(function(r){return r._id===activeId;});
+  var d = allData.find(function(r){ return r._id === activeId; });
+  if(!d){ alert("No project selected."); return; }
+
+  var btn = document.getElementById("project-dl-btn");
+  var origText = btn.innerHTML;
+  btn.innerHTML = '<span style="font-size:15px;line-height:1;">⏳</span> Preparing…';
+  btn.disabled = true;
+
+  try {
+    var title = (clean(d.nru_project_title)||"project").replace(/[^a-z0-9]/gi,"_").slice(0,30);
+
+    // 1. CSV of project fields
+    var cols = Object.keys(d).filter(function(k){ return k!=="geometry"&&k!=="_id"; });
+    var csvLines = [cols.map(function(c){return '"'+c+'"';}).join(",")];
+    csvLines.push(cols.map(function(c){
+      var v=d[c]; if(v===null||v===undefined)return "";
+      var s=String(v).replace(/"/g,'""');
+      return s.indexOf(",")>-1||s.indexOf('"')>-1||s.indexOf("\n")>-1?'"'+s+'"':s;
+    }).join(","));
+    var csvText = csvLines.join("\n");
+
+    // 2. GeoJSON
+    var objId = d.OBJECTID||d.objectid||d.ObjectID;
+    var geojsonText = null;
+    if(objId){
+      try {
+        var gres = await fetch(LAYER_URL+"?where=OBJECTID="+objId+"&outFields=*&returnGeometry=true&f=geojson");
+        if(gres.ok) geojsonText = await gres.text();
+      } catch(e){}
+    }
+
+    // Build combined text for modal
+    var combined = "=== PROJECT DATA: "+clean(d.nru_project_title)+" ===\n\n";
+    combined += "--- CSV ---\n" + csvText + "\n\n";
+    if(geojsonText) combined += "--- GeoJSON ---\n" + geojsonText + "\n\n";
+
+    // Download CSV + GeoJSON for this project
+    var projRow = allData.filter(function(r){ return r._id===activeId; });
     var ptitle=(clean(projRow[0]&&projRow[0].nru_project_title)||"project").replace(/[^a-z0-9]/gi,"_").slice(0,30);
     var pdate=new Date().toISOString().slice(0,10);
     var csvT=rowsToCSV(projRow);
-    openWindowDownload(csvT,"GBEP_"+ptitle+"_"+pdate+".csv","text/csv;charset=utf-8;","Project CSV","Project data as a spreadsheet.");
+    openWindowDownload(csvT,"GBEP_"+ptitle+"_"+pdate+".csv","text/csv;charset=utf-8;",
+      "Project CSV","Project data as a spreadsheet.");
     try{
       var gjT=await rowsToGeoJSON(projRow);
       if(gjT){
         setTimeout(function(){
-          openWindowDownload(gjT,"GBEP_"+ptitle+"_"+pdate+".geojson","application/geo+json;charset=utf-8;","Project GeoJSON","Geographic data with coordinates for GIS applications.");
+          openWindowDownload(gjT,"GBEP_"+ptitle+"_"+pdate+".geojson","application/geo+json;charset=utf-8;",
+            "Project GeoJSON","Geographic data with coordinates for GIS applications.");
         },700);
       }
     }catch(e){console.warn("GeoJSON fetch failed",e);}
-  }catch(err){
+
+  } catch(err){
     alert("Download error: "+err.message);
-  }finally{
-    btn.innerHTML=origText;
-    btn.disabled=false;
+  } finally {
+    btn.innerHTML = origText;
+    btn.disabled = false;
   }
 }
 
@@ -769,18 +830,15 @@ function showDetail(d){
   document.getElementById("dh-fy").textContent=fmtFY(d.fiscal_year_awarded);
   document.getElementById("dh-acres").textContent=fmtAcres(d.numeric_approximate_project_siz);
 
+  // Tags row
   var tagsRow=document.getElementById("detail-tags-row");
   tagsRow.innerHTML="";
   var hab=clean(d.project_landscape_type)||"";
   if(hab){hab.split(",").forEach(function(h){h=h.trim();if(h){var sp=document.createElement("span");sp.className="ptag ptag-hab";sp.textContent=normalizeVal(h);tagsRow.appendChild(sp);}});}
-  if(clean(d.project_scale)){
-    var sp=document.createElement("span");
-    var _sc=normalizeVal(clean(d.project_scale));
-    var _st=_sc?scaleStyle(_sc):null;
-    if(_st){sp.style.cssText="border-radius:10px;padding:2px 7px;font-size:13px;font-weight:500;line-height:1.4;"+_st;sp.textContent=_sc;tagsRow.appendChild(sp);}
-  }
+  if(clean(d.project_scale)){var sp=document.createElement("span");var _sc=normalizeVal(clean(d.project_scale));var _st=_sc?scaleStyle(_sc):null;
+    if(_st){sp.style.cssText="border-radius:10px;padding:2px 7px;font-size:13px;font-weight:500;line-height:1.4;"+_st;sp.textContent=_sc;}tagsRow.appendChild(sp);}
   if(clean(d.project_current_stage)){var sp=document.createElement("span");sp.className="ptag";sp.style.cssText="background:#fef3c7;color:#92400e;";sp.textContent=clean(d.project_current_stage);tagsRow.appendChild(sp);}
-
+  // AP grouped bubbles in detail panel
   var apTags=getActionPlanTags(d);
   var apGroups=groupApTags(apTags);
   if(apGroups.length){
@@ -807,33 +865,43 @@ function showDetail(d){
   function val(v){return cleanDisplay(v);}
   function valList(v){return dedupList(v).join(", ")||null;}
 
+  // Expands "other" tokens in a field using its companion description field
+  // e.g. valWithOther(d.broad_project_goals, d.broad_project_goals_other)
+  // Normalize a comma-delimited county field — clean underscores, trim,
+  // capitalize each word, deduplicate, never abbreviate
   function normalizeCounty(raw){
-    if(!raw)return null;
-    var seen={};
+    if(!raw) return null;
+    var seen = {};
     return String(raw).split(',').map(function(c){
       return c.replace(/_/g,' ').replace(/[ ]+/g,' ').trim();
     }).filter(function(c){
-      if(!c||seen[c.toLowerCase()])return false;
-      seen[c.toLowerCase()]=true;return true;
+      if(!c || seen[c.toLowerCase()]) return false;
+      seen[c.toLowerCase()] = true;
+      return true;
     }).join(', ');
   }
 
-  function valWithOther(mainField,otherField){
-    var list=dedupList(mainField);
-    if(!list.length)return null;
-    var desc=clean(otherField);
-    var expanded=list.map(function(item){
-      var k=item.toLowerCase().replace(/_/g," ").trim();
-      if((k==="other"||k.indexOf("other")===0)&&desc){return "Other: "+normalizeVal(desc);}
+  function valWithOther(mainField, otherField){
+    var list = dedupList(mainField);
+    if(!list.length) return null;
+    var desc = clean(otherField);
+    var expanded = list.map(function(item){
+      var k = item.toLowerCase().replace(/_/g," ").trim();
+      if((k==="other"||k.indexOf("other")===0) && desc){
+        return "Other: "+normalizeVal(desc);
+      }
       return normalizeVal(item);
     });
     return expanded.join(", ");
   }
 
-  function valOrOther(mainField,otherField){
-    var v=cleanDisplay(mainField);
-    if(!v)return null;
-    if(v.toLowerCase().indexOf("other")===0&&clean(otherField)){return "Other: "+normalizeVal(clean(otherField));}
+  // Same as valWithOther but for single-value fields
+  function valOrOther(mainField, otherField){
+    var v = cleanDisplay(mainField);
+    if(!v) return null;
+    if(v.toLowerCase().indexOf("other")===0 && clean(otherField)){
+      return "Other: "+normalizeVal(clean(otherField));
+    }
     return v;
   }
 
@@ -847,13 +915,16 @@ function showDetail(d){
       var row=document.createElement("div");row.className="dfield-row";
       var lbl=document.createElement("div");lbl.className="dfield-label";lbl.textContent=r[0];
       var v=document.createElement("div");v.className="dfield-value";
-      if(r[2]==="link"){v.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">Open link ↗</a>';}
-      else{v.textContent=r[1];}
+      if(r[2]==="link"){v.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">'+r[1]+'</a>';}
+      else if(r[2]==="long"){v.style.whiteSpace="pre-wrap";}
+      v.textContent=r[2]==="link"?v.textContent:r[1];
+      if(r[2]==="link")v.innerHTML='<a href="'+r[1]+'" target="_blank" rel="noopener">Open link ↗</a>';
       row.appendChild(lbl);row.appendChild(v);sec.appendChild(row);
     });
     body.appendChild(sec);
   }
 
+  // Abstract — full width block if present
   var abstract=val(d.project_abstract)||val(d.project_abstract_);
   if(abstract){
     var absDiv=document.createElement("div");
@@ -870,7 +941,7 @@ function showDetail(d){
     ["Lead implementer type",     val(d.lead_implementer_type)],
     ["PI contact",                val(d.project_pi_contact_information)],
     ["Organization link",         val(d.pi_organization_link),"link"],
-    ["Current stage",             valOrOther(d.project_current_stage,d.project_current_stage_other)],
+    ["Current stage",             valOrOther(d.project_current_stage, d.project_current_stage_other)],
     ["Date status updated",       val(d.date_that_this_current_status_wa)],
     ["Part of larger project",    val(d.is_this_a_phase_part_of_a_larger)],
     ["Related projects",          val(d.if_project_is_part_of_a_phase_p)],
@@ -885,9 +956,9 @@ function showDetail(d){
     ["Year 1 amount",             d.year_1_amount?fmtDollars(d.year_1_amount):null],
     ["Year 2 amount",             d.year_2_amount?fmtDollars(d.year_2_amount):null],
     ["Year 3 amount",             d.year_3_amount?fmtDollars(d.year_3_amount):null],
-    ["Additional funding types",  valWithOther(d.what_were_your_additional_fundi,d.additional_funding_types_other)||valWithOther(d.were_there_any_additional_fundin,d.additional_funding_types_other)],
-    ["In-kind leveraging",        d.in_kind_leveraging_amount>0?'$'+Math.round(d.in_kind_leveraging_amount).toLocaleString():null],
-    ["Cash leveraging",           d.cash_leveraging_amount>0?'$'+Math.round(d.cash_leveraging_amount).toLocaleString():null],
+    ["Additional funding types",  valWithOther(d.what_were_your_additional_fundi, d.additional_funding_types_other)||valWithOther(d.were_there_any_additional_fundin, d.additional_funding_types_other)],
+    ["In-kind leveraging",        d.in_kind_leveraging_amount > 0 ? '$' + Math.round(d.in_kind_leveraging_amount).toLocaleString() : null],
+    ["Cash leveraging",           d.cash_leveraging_amount > 0 ? '$' + Math.round(d.cash_leveraging_amount).toLocaleString() : null],
     ["Leveraging notes",          val(d.leveraging_in_kind_and_cash_)||val(d.other_additional_leveraging_non)],
     ["Costs exceeded estimates",  val(d.did_costs_exceed_estimates_)],
     ["Planning costs",            val(d.what_is_a_general_estimate_of_p)||val(d.what_is_a_general_estimate_of_pl)],
@@ -899,13 +970,13 @@ function showDetail(d){
   ]);
 
   section("Conservation focus",[
-    ["Broad project goals",       valWithOther(d.edited_broad_project_goals||d.broad_project_goals,d.broad_project_goals_other)],
-    ["Main physical goals",       valWithOther(d.what_were_the_main_physical_goa,d.if_main_physical_goal_was_other)||valWithOther(d.what_were_the_main_physical_goal,d.if_main_physical_goal_was_other)],
+    ["Broad project goals",       valWithOther(d.edited_broad_project_goals||d.broad_project_goals, d.broad_project_goals_other)],
+    ["Main physical goals",       valWithOther(d.what_were_the_main_physical_goa, d.if_main_physical_goal_was_other)||valWithOther(d.what_were_the_main_physical_goal, d.if_main_physical_goal_was_other)],
     ["Long-term goals",           valList(d.what_were_the_long_term_goals_o)||valList(d.what_were_the_long_term_goals_of)],
-    ["Landscape / habitat type",  valWithOther(d.project_landscape_type,d.project_landscape_other)],
+    ["Landscape / habitat type",  valWithOther(d.project_landscape_type, d.project_landscape_other)],
     ["Project scale",             val(d.project_scale)],
     ["Approx. project size",      d.numeric_approximate_project_siz>0?fmtAcres(d.numeric_approximate_project_siz):null],
-    ["Focal species targeted",    valWithOther(d.edited_focal_species||d.targeted_focal_species,d.targeted_focal_species_other)||valWithOther(d.what_focal_species_were_targeted,d.targeted_focal_species_other)],
+    ["Focal species targeted",    valWithOther(d.edited_focal_species||d.targeted_focal_species, d.targeted_focal_species_other)||valWithOther(d.what_focal_species_were_targeted, d.targeted_focal_species_other)],
     ["Other benefiting species",  valList(d.what_other_species_were_identif)||valList(d.what_other_species_were_identifi)],
   ]);
 
@@ -945,6 +1016,7 @@ function showDetail(d){
     ["Partnership development",   val(d.how_was_partnership_developed_a)||val(d.how_was_partnership_developed_an)],
   ]);
 
+  // Narrative / reflections — long text fields get their own styled blocks
   var narratives=[
     ["Lessons learned",           val(d.whether_or_not_the_project_was_)||val(d.lessons_learned)],
     ["Policy & regulatory barriers",val(d.were_there_policy_incentives_or)||val(d.were_there_policy_incentives_or_)],
@@ -967,6 +1039,7 @@ function showDetail(d){
     body.appendChild(nsec);
   }
 
+  // Report link
   var reportLink=val(d.if_available_provide_the_gbep_li)||val(d.if_available_provide_the_gbep_l);
   if(reportLink&&reportLink.toLowerCase()!=="view"){
     var rsec=document.createElement("div");rsec.className="dfield-section";
@@ -978,21 +1051,23 @@ function showDetail(d){
     body.appendChild(rsec);
   }
 
+  // Attachments section — fetched async
   var attSec=document.createElement("div");attSec.className="dfield-section";attSec.id="att-section";
   var atth=document.createElement("div");atth.className="dfield-section-title";atth.textContent="Attachments";attSec.appendChild(atth);
   var attBody=document.createElement("div");attBody.id="att-body";
   attBody.style.cssText="font-size:13px;color:#94a3b8;";attBody.textContent="Loading…";
   attSec.appendChild(attBody);
   body.appendChild(attSec);
-  loadAttachments(d.OBJECTID||d.objectid||d.ObjectID,attBody);
+  loadAttachments(d.OBJECTID||d.objectid||d.ObjectID, attBody);
 
   dc.scrollTop=0;
 }
 
-async function loadAttachments(objectId,container){
+// Fetch attachments from ArcGIS Feature Service attachments endpoint
+async function loadAttachments(objectId, container){
   if(!objectId){container.textContent="No attachment data.";return;}
   try{
-    var url=LAYER_URL.replace("/query","")+"/"+objectId+"/attachments?f=json";
+    var url=LAYER_URL.replace("/query","")+"/"+ objectId+"/attachments?f=json";
     var res=await fetch(url);
     if(!res.ok)throw new Error("HTTP "+res.status);
     var json=await res.json();
@@ -1025,6 +1100,7 @@ function fmtSize(bytes){
   return bytes+" B";
 }
 
+// ── MOBILE HELPERS ────────────────────────────────────────────────────────────
 function toggleFilters(){
   var drawer=document.getElementById("filter-drawer");
   var btn=document.getElementById("filters-toggle-btn");
@@ -1036,6 +1112,7 @@ function closeDetail(){
   document.getElementById("detail-pane").classList.remove("open");
 }
 
+// ── DOWNLOAD ──────────────────────────────────────────────────────────────────
 function toggleDlMenu(){
   var m=document.getElementById("dl-menu");
   m.style.display=m.style.display==="none"?"block":"none";
@@ -1050,24 +1127,51 @@ function downloadCSV(useAll){
   document.getElementById("dl-menu").style.display="none";
   var rows=useAll?allData:filtered;
   if(!rows.length){alert("No data to download.");return;}
+  // Build column list from first row keys, excluding internal _id
+  var cols=Object.keys(rows[0]).filter(function(k){return k!=="geometry"&&k!=="_id";});
+  var lines=[cols.map(function(c){return '"'+c+'"';}).join(",")];
+  rows.forEach(function(row){
+    lines.push(cols.map(function(c){
+      var v=row[c];
+      if(v===null||v===undefined)return "";
+      var s=String(v).replace(/"/g,'""');
+      return s.indexOf(",")>-1||s.indexOf('"')>-1||s.indexOf("\n")>-1?'"'+s+'"':s;
+    }).join(","));
+  });
+  // CSV only
   var csvText=rowsToCSV(rows);
   var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".csv";
-  openWindowDownload(csvText,fname,"text/csv;charset=utf-8;","CSV Spreadsheet","Comma-separated values — open in Excel, Google Sheets, or any spreadsheet app.");
+  openWindowDownload(csvText, fname, "text/csv;charset=utf-8;", "CSV Spreadsheet",
+    "Comma-separated values — open in Excel, Google Sheets, or any spreadsheet app.");
 }
 
 async function downloadGeoJSON(useAll){
   var rows=useAll?allData:filtered;
   if(!rows.length)return;
   document.getElementById("dl-menu").style.display="none";
+
+  // Show loading state
   var btn=document.getElementById("download-btn");
   var orig=btn.innerHTML;
   btn.textContent="Fetching geometry…";btn.disabled=true;
+
   try{
+    // ArcGIS supports f=geojson natively — re-query with geometry for these OBJECTIDs
+    var ids=rows.map(function(r){return r.OBJECTID||r.objectid||r.ObjectID;}).filter(Boolean);
+    var where=ids.length?("OBJECTID IN ("+ids.join(",")+")"):"1=1";
+    var url=LAYER_URL+"?where="+encodeURIComponent(where)+"&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=2000";
+    var res=await fetch(url);
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    var geojson=await res.text(); // keep as text to preserve precision
+    var blob=new Blob([geojson],{type:"application/geo+json;charset=utf-8;"});
+    var fname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".geojson";
+    // GeoJSON only
     var gjText=await rowsToGeoJSON(rows);
     if(gjText){
       var gfname="GBEP_projects"+(useAll?"_all":"_filtered")+"_"+new Date().toISOString().slice(0,10)+".geojson";
-      openWindowDownload(gjText,gfname,"application/geo+json;charset=utf-8;","GeoJSON Geographic Data","Geographic data including coordinates — import into ArcGIS, QGIS, or Mapbox.");
-    }else{
+      openWindowDownload(gjText, gfname, "application/geo+json;charset=utf-8;", "GeoJSON Geographic Data",
+        "Geographic data including coordinates — import into ArcGIS, QGIS, or Mapbox.");
+    } else {
       alert("Could not fetch geometry data from ArcGIS. Try again.");
     }
   }catch(err){
@@ -1077,39 +1181,104 @@ async function downloadGeoJSON(useAll){
   }
 }
 
-function openWindowDownload(text,filename,mimeType,label,description){
-  label=label||filename;
-  description=description||'Click the button below to download.';
-  var win=window.open('about:blank','_blank');
-  if(!win){showCopyModal(text,filename);return;}
-  var safeData=JSON.stringify(text);
-  var safeName=JSON.stringify(filename);
-  var safeMime=JSON.stringify(mimeType);
-  var color=filename.indexOf('.geojson')>-1?'#0d47a1':filename.indexOf('.csv')>-1?'#1565c0':'#1e293b';
-  var icon=filename.indexOf('.geojson')>-1?'🗺️':filename.indexOf('.csv')>-1?'📊':'📄';
-  var page='<!DOCTYPE html><html><head>'+
+function triggerDownload(blob, filename){
+  // Strategy 1: createObjectURL (works outside iframe)
+  try {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+    return;
+  } catch(e1) {}
+
+  // Strategy 2: FileReader data URI (works in some sandboxed iframes)
+  var reader = new FileReader();
+  reader.onload = function(){
+    var uri = reader.result;
+    try {
+      var a = document.createElement('a');
+      a.href = uri;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+      setTimeout(function(){ if(document.body.contains(a)) document.body.removeChild(a); }, 400);
+    } catch(e2) {
+      // Strategy 3: window.open (works if iframe has allow-popups)
+      try { window.open(uri, '_blank'); } catch(e3) {}
+    }
+  };
+  reader.onerror = function(){};
+  reader.readAsDataURL(blob);
+}
+
+// Show data in a copy-paste modal (guaranteed to work everywhere)
+// ── Download via new window (bypasses iframe sandbox) ─────────────────────────
+// ESRI sandbox includes allow-popups, so window.open() works.
+// The new window is NOT sandboxed, so downloads work there.
+
+function openWindowDownload(text, filename, mimeType, label, description){
+  label = label || filename;
+  description = description || 'Click the button below to download.';
+  var win = window.open('about:blank', '_blank');
+  if(!win){
+    showCopyModal(text, filename);
+    return;
+  }
+  var safeData = JSON.stringify(text);
+  var safeName = JSON.stringify(filename);
+  var safeMime = JSON.stringify(mimeType);
+  // Choose accent color based on file type
+  var color = filename.indexOf('.geojson')>-1 ? '#0d47a1' :
+              filename.indexOf('.csv')>-1     ? '#1565c0' : '#1e293b';
+  var icon  = filename.indexOf('.geojson')>-1 ? '🗺️' :
+              filename.indexOf('.csv')>-1     ? '📊' : '📄';
+  var page = '<!DOCTYPE html><html><head>'+
     '<title>Download: '+filename+'</title>'+
-    '<style>body{font-family:-apple-system,Roboto,sans-serif;margin:0;padding:40px;background:#f8fafc;display:flex;align-items:flex-start;justify-content:center;}'+
-    '.card{background:white;border-radius:12px;padding:32px;max-width:480px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,0.10);border-top:5px solid '+color+';}'+
-    'h2{margin:0 0 6px;font-size:20px;color:'+color+';}p{color:#64748b;font-size:13px;line-height:1.6;margin:0 0 20px;}'+
-    '.fname{font-family:monospace;background:#f1f5f9;padding:4px 8px;border-radius:4px;font-size:12px;color:#334155;word-break:break-all;}'+
-    'button{width:100%;padding:13px;background:'+color+';color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;}'+
-    'button:hover{opacity:0.88;}</style></head><body>'+
-    '<div class="card"><h2>'+icon+' '+label+'</h2><p>'+description+'</p>'+
+    '<style>body{font-family:-apple-system,Roboto,sans-serif;margin:0;padding:40px;'+
+    'background:#f8fafc;display:flex;align-items:flex-start;justify-content:center;}'+
+    '.card{background:white;border-radius:12px;padding:32px;max-width:480px;width:100%;'+
+    'box-shadow:0 4px 24px rgba(0,0,0,0.10);border-top:5px solid '+color+';}'+
+    'h2{margin:0 0 6px;font-size:20px;color:'+color+';}'+
+    'p{color:#64748b;font-size:13px;line-height:1.6;margin:0 0 20px;}'+
+    '.fname{font-family:monospace;background:#f1f5f9;padding:4px 8px;border-radius:4px;'+
+    'font-size:12px;color:#334155;word-break:break-all;}'+
+    'button{width:100%;padding:13px;background:'+color+';color:white;border:none;'+
+    'border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;}'+
+    'button:hover{opacity:0.88;}'+
+    '</style></head><body>'+
+    '<div class="card">'+
+    '<h2>'+icon+' '+label+'</h2>'+
+    '<p>'+description+'</p>'+
     '<div class="fname">'+filename+'</div>'+
     '<button id="dlbtn">↓ Download '+filename+'</button>'+
-    '<p style="margin-top:12px;font-size:11px;color:#94a3b8;">Download should begin automatically. If not, click the button above.</p>'+
+    '<p style="margin-top:12px;font-size:11px;color:#94a3b8;">'+
+    'Download should begin automatically. If not, click the button above.</p>'+
     '</div>'+
     '<scr'+'ipt>(function(){'+
-    'var data='+safeData+';var mime='+safeMime+';var name='+safeName+';'+
-    'var blob=new Blob([data],{type:mime});var url=URL.createObjectURL(blob);'+
-    'function go(){var a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},600);}'+
-    'document.getElementById("dlbtn").onclick=go;setTimeout(go,400);'+
+    'var data='+safeData+';'+
+    'var mime='+safeMime+';'+
+    'var name='+safeName+';'+
+    'var blob=new Blob([data],{type:mime});'+
+    'var url=URL.createObjectURL(blob);'+
+    'function go(){'+
+      'var a=document.createElement("a");'+
+      'a.href=url;a.download=name;'+
+      'document.body.appendChild(a);a.click();'+
+      'setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},600);'+
+    '}'+
+    'document.getElementById("dlbtn").onclick=go;'+
+    'setTimeout(go,400);'+
     '})();<\/sc'+'ript></body></html>';
   win.document.write(page);
   win.document.close();
 }
 
+// Build CSV from a rows array
 function rowsToCSV(rows){
   if(!rows.length)return "";
   var cols=Object.keys(rows[0]).filter(function(k){return k!=="geometry"&&k!=="_id";});
@@ -1125,6 +1294,7 @@ function rowsToCSV(rows){
   return lines.join("\n");
 }
 
+// Build GeoJSON from rows + geometry fetched from ArcGIS
 async function rowsToGeoJSON(rows){
   var ids=rows.map(function(r){return r.OBJECTID||r.objectid||r.ObjectID;}).filter(Boolean);
   if(!ids.length)return null;
@@ -1133,37 +1303,49 @@ async function rowsToGeoJSON(rows){
   var res=await fetch(url);
   if(!res.ok)throw new Error("HTTP "+res.status);
   var data=await res.json();
+  // Convert Esri JSON to GeoJSON
   var features=(data.features||[]).map(function(f){
     var geom=f.geometry;
     var geoGeom=null;
     if(geom){
-      if(geom.x!==undefined){geoGeom={type:"Point",coordinates:[geom.x,geom.y]};}
-      else if(geom.rings){geoGeom={type:"Polygon",coordinates:geom.rings};}
-      else if(geom.paths){geoGeom={type:"MultiLineString",coordinates:geom.paths};}
+      if(geom.x!==undefined){
+        geoGeom={type:"Point",coordinates:[geom.x,geom.y]};
+      } else if(geom.rings){
+        geoGeom={type:"Polygon",coordinates:geom.rings};
+      } else if(geom.paths){
+        geoGeom={type:"MultiLineString",coordinates:geom.paths};
+      }
     }
     return{type:"Feature",geometry:geoGeom,properties:f.attributes};
   });
   return JSON.stringify({type:"FeatureCollection",features:features},null,2);
 }
 
-function showCopyModal(text,filename){
+// Copy-paste modal (last resort if popup blocked)
+function showCopyModal(text, filename){
   var existing=document.getElementById('dl-modal');
-  if(existing)document.body.removeChild(existing);
+  if(existing) document.body.removeChild(existing);
   var overlay=document.createElement('div');
   overlay.id='dl-modal';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
   var box=document.createElement('div');
   box.style.cssText='background:white;border-radius:12px;padding:20px;width:min(560px,92vw);max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 40px rgba(0,0,0,0.3);';
-  var hdr=document.createElement('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;';
-  var ttl=document.createElement('strong');ttl.style.cssText='font-size:14px;color:#1a2332;';ttl.textContent='Copy Data — '+filename;
-  var xBtn=document.createElement('button');xBtn.textContent='×';xBtn.style.cssText='background:none;border:none;font-size:24px;cursor:pointer;color:#64748b;';
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;';
+  var ttl=document.createElement('strong');
+  ttl.style.cssText='font-size:14px;color:#1a2332;';
+  ttl.textContent='Copy Data — '+filename;
+  var xBtn=document.createElement('button');
+  xBtn.textContent='×';
+  xBtn.style.cssText='background:none;border:none;font-size:24px;cursor:pointer;color:#64748b;';
   xBtn.onclick=function(){document.body.removeChild(overlay);};
   hdr.appendChild(ttl);hdr.appendChild(xBtn);
-  var p=document.createElement('p');p.style.cssText='font-size:12px;color:#64748b;margin:0;';
+  var p=document.createElement('p');
+  p.style.cssText='font-size:12px;color:#64748b;margin:0;';
   p.textContent='Your browser blocked the popup. Copy the data below and paste into a text editor, then save as '+filename;
   var ta=document.createElement('textarea');
   ta.style.cssText='flex:1;min-height:180px;font-family:monospace;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;padding:8px;resize:vertical;';
-  ta.readOnly=true;ta.value=text;
+  ta.readOnly=true; ta.value=text;
   var cpBtn=document.createElement('button');
   cpBtn.style.cssText='padding:9px;background:#1565c0;color:white;border:none;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;';
   cpBtn.textContent='Copy to Clipboard';
@@ -1174,13 +1356,47 @@ function showCopyModal(text,filename){
   };
   var clBtn=document.createElement('button');
   clBtn.style.cssText='padding:9px 16px;background:white;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer;color:#64748b;font-family:inherit;';
-  clBtn.textContent='Close';clBtn.onclick=function(){document.body.removeChild(overlay);};
-  var bRow=document.createElement('div');bRow.style.cssText='display:flex;gap:8px;';
+  clBtn.textContent='Close';
+  clBtn.onclick=function(){document.body.removeChild(overlay);};
+  var bRow=document.createElement('div');
+  bRow.style.cssText='display:flex;gap:8px;';
   bRow.appendChild(cpBtn);bRow.appendChild(clBtn);
   box.appendChild(hdr);box.appendChild(p);box.appendChild(ta);box.appendChild(bRow);
-  overlay.appendChild(box);document.body.appendChild(overlay);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
   overlay.addEventListener('click',function(e){if(e.target===overlay)document.body.removeChild(overlay);});
 }
+
+function showDownloadModal(text,filename){showCopyModal(text,filename);}
+function showDownloadLinks(rows,context){downloadProjectData(rows);}
+function downloadCSVWithFallback(text,filename){openWindowDownload(text,filename,'text/csv;charset=utf-8;');}
+
+async function downloadProjectData(rows){
+  if(!rows||!rows.length){alert("No data selected.");return;}
+  var n=rows.length;
+  var date=new Date().toISOString().slice(0,10);
+  var label=n===1?(rows[0].nru_project_title||"project").replace(/[^a-z0-9]/gi,"_").slice(0,30):"filtered_"+n+"_projects";
+  // CSV — immediately available
+  var csvText=rowsToCSV(rows);
+  openWindowDownload(csvText,"GBEP_"+label+"_"+date+".csv","text/csv;charset=utf-8;");
+  // GeoJSON — needs geometry fetch
+  var btn=document.getElementById("project-dl-btn");
+  if(btn){btn.disabled=true;btn.innerHTML='<span style="font-size:15px;">⏳</span> Fetching GeoJSON…';}
+  try{
+    var gj=await rowsToGeoJSON(rows);
+    if(gj){
+      setTimeout(function(){
+        openWindowDownload(gj,"GBEP_"+label+"_"+date+".geojson","application/geo+json;charset=utf-8;");
+      },600);
+    }
+  }catch(e){console.warn("GeoJSON fetch failed:",e);}
+  finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<span style="font-size:15px;line-height:1;">↓</span> Download Project';}
+  }
+}
+
+
+
 
 async function init(){
   allData=await fetchData();
