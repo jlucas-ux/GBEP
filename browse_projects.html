@@ -643,9 +643,9 @@ function applyFilters(){
 
   filtered=allData.filter(function(d){
     if(search){
-      var t=(clean(d.nru_project_title)||"").toLowerCase();
-      var o=(clean(d.lead_organization_name)||"").toLowerCase();
-      var loc=(clean(d.general_project_location)||"").toLowerCase();
+      var t=(clean(d.nru_project_title)||"").replace(/_/g," ").toLowerCase();
+      var o=(clean(d.lead_organization_name)||"").replace(/_/g," ").toLowerCase();
+      var loc=(clean(d.general_project_location)||"").replace(/_/g," ").toLowerCase();
       if(t.indexOf(search)<0&&o.indexOf(search)<0&&loc.indexOf(search)<0)return false;
     }
     if(org&&normalizeOrg(clean(d.lead_organization_name))!==org)return false;
