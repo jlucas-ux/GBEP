@@ -10,6 +10,7 @@
   html,body{width:100%;height:auto;overflow:hidden;font-family:'Roboto',sans-serif;}
 
   #card{
+    width:100%;
     background:white;
     border-radius:10px;
     border:1px solid #e2e8f0;
@@ -18,17 +19,17 @@
     flex-direction:column;
   }
 
-  /* ── TOP STAT: Years of Data ─────────────────────────── */
+  /* ── TOP: Years of Data ───────────────────────────────── */
   #top{
     background:white;
-    padding:clamp(12px,1.5vw,20px) clamp(14px,2vw,24px) clamp(8px,1vw,14px);
+    padding:clamp(16px,2vw,28px) clamp(14px,2vw,24px) clamp(12px,1.5vw,20px);
     display:flex;
     align-items:center;
     gap:clamp(10px,1.2vw,18px);
     border-bottom:2px solid #e8f5e9;
   }
   #years-number{
-    font-size:clamp(42px,5vw,72px);
+    font-size:clamp(52px,6vw,80px);
     font-weight:900;
     color:#217c31;
     line-height:1;
@@ -38,10 +39,10 @@
   #years-label{
     display:flex;
     flex-direction:column;
-    gap:2px;
+    gap:4px;
   }
   #years-label .big{
-    font-size:clamp(13px,1.1vw,17px);
+    font-size:clamp(14px,1.2vw,19px);
     font-weight:700;
     color:#1a2332;
     line-height:1.2;
@@ -49,28 +50,26 @@
     letter-spacing:.04em;
   }
   #years-label .sub{
-    font-size:clamp(10px,0.8vw,13px);
+    font-size:clamp(11px,0.9vw,14px);
     color:#64748b;
     font-weight:500;
   }
 
-  /* ── BOTTOM ROW: Avg Acres + Avg Award ───────────────── */
+  /* ── MIDDLE: Two metrics ──────────────────────────────── */
   #bottom{
     display:flex;
     flex-wrap:wrap;
   }
   .metric{
     flex:1 1 120px;
-    padding:clamp(10px,1.2vw,18px) clamp(14px,2vw,24px);
+    padding:clamp(14px,1.6vw,24px) clamp(14px,2vw,24px) clamp(10px,1.2vw,18px);
     display:flex;
     flex-direction:column;
-    gap:3px;
+    gap:4px;
   }
   .metric:first-child{
     border-right:1px solid #e2e8f0;
-    border-bottom:1px solid transparent; /* shows on wrap */
   }
-  /* when stacked vertically on narrow screens */
   @media(max-width:260px){
     .metric:first-child{
       border-right:none;
@@ -78,39 +77,40 @@
     }
   }
   .metric-val{
-    font-size:clamp(22px,2.6vw,40px);
+    font-size:clamp(26px,3vw,44px);
     font-weight:900;
     line-height:1;
     letter-spacing:-0.5px;
   }
   .metric-label{
-    font-size:clamp(10px,0.8vw,13px);
+    font-size:clamp(10px,0.85vw,14px);
     font-weight:700;
     text-transform:uppercase;
     letter-spacing:.05em;
     line-height:1.3;
   }
   .metric-sub{
-    font-size:clamp(9px,0.7vw,11px);
+    font-size:clamp(9px,0.7vw,12px);
     color:#94a3b8;
     font-weight:500;
     line-height:1.3;
   }
-  .blue  .metric-val{ color:#1677bc; }
-  .blue  .metric-label{ color:#1677bc; }
-  .teal  .metric-val{ color:#0097A7; }
-  .teal  .metric-label{ color:#0097A7; }
+  .blue .metric-val  { color:#1677bc; }
+  .blue .metric-label{ color:#1677bc; }
+  .teal .metric-val  { color:#0097A7; }
+  .teal .metric-label{ color:#0097A7; }
 
-  /* wave decoration between top and bottom */
-  #wave{
+  /* ── WAVES at bottom ──────────────────────────────────── */
+  #waves{
     width:100%;
-    height:18px;
     display:block;
     flex-shrink:0;
+    line-height:0;  /* removes gap below svg */
+    margin-top:4px;
   }
 
   #loading-msg{
-    padding:20px;
+    padding:24px;
     text-align:center;
     color:#94a3b8;
     font-size:13px;
@@ -158,22 +158,18 @@ async function init() {
     var json = await res.json();
     var rows = json.features.map(function(f) { return f.attributes; });
 
-    // Years of data
     var years = rows.map(getYear).filter(Boolean);
     var minYear = Math.min.apply(null, years);
     var maxYear = Math.max.apply(null, years);
     var yearSpan = maxYear - minYear + 1;
 
-    // Non-land-acquisition rows only
     var nonLand = rows.filter(function(r) {
       return !isLandAcq(r) && r.gbep_award_amount > 0;
     });
 
-    // Average award (non-land-acq)
     var totalAward = nonLand.reduce(function(s, r) { return s + (r.gbep_award_amount || 0); }, 0);
     var avgAward = nonLand.length ? totalAward / nonLand.length : 0;
 
-    // Average acres (non-land-acq, only rows with acres > 0)
     var withAcres = nonLand.filter(function(r) { return r.numeric_approximate_project_siz > 0; });
     var totalAcres = withAcres.reduce(function(s, r) { return s + (r.numeric_approximate_project_siz || 0); }, 0);
     var avgAcres = withAcres.length ? totalAcres / withAcres.length : 0;
@@ -188,21 +184,17 @@ async function init() {
 function render(yearSpan, minYear, maxYear, avgAcres, avgAward) {
   var card = document.getElementById("card");
   card.innerHTML =
-    // ── TOP: Years ──────────────────────────────────────────
+
+    // ── TOP: Years ─────────────────────────────────────────
     '<div id="top">' +
       '<div id="years-number">' + yearSpan + '</div>' +
       '<div id="years-label">' +
         '<div class="big">Years of<br>NRU Projects</div>' +
-        '<div class="sub">' + minYear + ' — ' + maxYear + '</div>' +
+        '<div class="sub">' + minYear + ' \u2014 ' + maxYear + '</div>' +
       '</div>' +
     '</div>' +
 
-    // ── Wave divider ─────────────────────────────────────────
-    '<svg id="wave" viewBox="0 0 300 18" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
-      '<path d="M0,9 C50,18 100,0 150,9 C200,18 250,0 300,9 L300,18 L0,18 Z" fill="#e8f5e9"/>' +
-    '</svg>' +
-
-    // ── BOTTOM: Two metrics ──────────────────────────────────
+    // ── METRICS ────────────────────────────────────────────
     '<div id="bottom">' +
       '<div class="metric blue">' +
         '<div class="metric-val">' + fmtAc(avgAcres) + '</div>' +
@@ -214,7 +206,22 @@ function render(yearSpan, minYear, maxYear, avgAcres, avgAward) {
         '<div class="metric-label">Avg GBEP<br>Award</div>' +
         '<div class="metric-sub">Excl. land acquisition</div>' +
       '</div>' +
-    '</div>';
+    '</div>' +
+
+    // ── LAYERED WATER WAVES ────────────────────────────────
+    // 5 wave layers from dark blue → light blue, matching reference image
+    '<svg id="waves" viewBox="0 0 400 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
+      // Layer 1 — darkest, top wave
+      '<path d="M0,30 C80,10 160,50 240,30 C320,10 360,40 400,25 L400,90 L0,90 Z" fill="#1565C0" opacity="1"/>' +
+      // Layer 2
+      '<path d="M0,42 C70,22 150,58 230,40 C310,22 370,52 400,38 L400,90 L0,90 Z" fill="#1976D2" opacity="0.88"/>' +
+      // Layer 3
+      '<path d="M0,54 C90,36 170,68 260,52 C330,38 370,62 400,50 L400,90 L0,90 Z" fill="#42A5F5" opacity="0.80"/>' +
+      // Layer 4
+      '<path d="M0,65 C80,50 160,78 250,62 C320,50 370,72 400,62 L400,90 L0,90 Z" fill="#90CAF9" opacity="0.75"/>' +
+      // Layer 5 — lightest, bottom
+      '<path d="M0,76 C100,62 180,88 280,74 C340,64 375,82 400,74 L400,90 L0,90 Z" fill="#BBDEFB" opacity="0.70"/>' +
+    '</svg>';
 
   reportHeight();
 }
