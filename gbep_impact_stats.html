@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>GBEP Impact Stats</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:auto;overflow:hidden;font-family:'Roboto',sans-serif;}
+
+  #card{
+    background:white;
+    border-radius:10px;
+    border:1px solid #e2e8f0;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ── TOP STAT: Years of Data ─────────────────────────── */
+  #top{
+    background:white;
+    padding:clamp(12px,1.5vw,20px) clamp(14px,2vw,24px) clamp(8px,1vw,14px);
+    display:flex;
+    align-items:center;
+    gap:clamp(10px,1.2vw,18px);
+    border-bottom:2px solid #e8f5e9;
+  }
+  #years-number{
+    font-size:clamp(42px,5vw,72px);
+    font-weight:900;
+    color:#217c31;
+    line-height:1;
+    letter-spacing:-2px;
+    flex-shrink:0;
+  }
+  #years-label{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  #years-label .big{
+    font-size:clamp(13px,1.1vw,17px);
+    font-weight:700;
+    color:#1a2332;
+    line-height:1.2;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  #years-label .sub{
+    font-size:clamp(10px,0.8vw,13px);
+    color:#64748b;
+    font-weight:500;
+  }
+
+  /* ── BOTTOM ROW: Avg Acres + Avg Award ───────────────── */
+  #bottom{
+    display:flex;
+    flex-wrap:wrap;
+  }
+  .metric{
+    flex:1 1 120px;
+    padding:clamp(10px,1.2vw,18px) clamp(14px,2vw,24px);
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+  }
+  .metric:first-child{
+    border-right:1px solid #e2e8f0;
+    border-bottom:1px solid transparent; /* shows on wrap */
+  }
+  /* when stacked vertically on narrow screens */
+  @media(max-width:260px){
+    .metric:first-child{
+      border-right:none;
+      border-bottom:1px solid #e2e8f0;
+    }
+  }
+  .metric-val{
+    font-size:clamp(22px,2.6vw,40px);
+    font-weight:900;
+    line-height:1;
+    letter-spacing:-0.5px;
+  }
+  .metric-label{
+    font-size:clamp(10px,0.8vw,13px);
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    line-height:1.3;
+  }
+  .metric-sub{
+    font-size:clamp(9px,0.7vw,11px);
+    color:#94a3b8;
+    font-weight:500;
+    line-height:1.3;
+  }
+  .blue  .metric-val{ color:#1677bc; }
+  .blue  .metric-label{ color:#1677bc; }
+  .teal  .metric-val{ color:#0097A7; }
+  .teal  .metric-label{ color:#0097A7; }
+
+  /* wave decoration between top and bottom */
+  #wave{
+    width:100%;
+    height:18px;
+    display:block;
+    flex-shrink:0;
+  }
+
+  #loading-msg{
+    padding:20px;
+    text-align:center;
+    color:#94a3b8;
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div id="card">
+  <div id="loading-msg">Loading…</div>
+</div>
+
+<script>
+var URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
+
+function fmtAc(v) {
+  if (v >= 1000) return (v / 1000).toFixed(1) + "K";
+  return Math.round(v).toLocaleString();
+}
+function fmtDollars(v) {
+  if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+  if (v >= 1000) return "$" + Math.round(v / 1000) + "K";
+  return "$" + Math.round(v).toLocaleString();
+}
+function isLandAcq(row) {
+  var g = String(row.edited_broad_project_goals || row.broad_project_goals || "")
+    .replace(/_/g, " ").toLowerCase();
+  return g.indexOf("land acqui") > -1;
+}
+function getYear(row) {
+  var fy = row.fiscal_year_awarded;
+  if (!fy) return null;
+  if (String(fy).length === 4) return parseInt(fy);
+  var p = new Date(fy);
+  if (!isNaN(p)) return p.getFullYear();
+  return parseInt(String(fy).slice(0, 4)) || null;
+}
+
+async function init() {
+  try {
+    var res = await fetch(
+      URL + "?where=1%3D1" +
+      "&outFields=fiscal_year_awarded,gbep_award_amount,numeric_approximate_project_siz,edited_broad_project_goals,broad_project_goals" +
+      "&f=json&resultRecordCount=2000"
+    );
+    var json = await res.json();
+    var rows = json.features.map(function(f) { return f.attributes; });
+
+    // Years of data
+    var years = rows.map(getYear).filter(Boolean);
+    var minYear = Math.min.apply(null, years);
+    var maxYear = Math.max.apply(null, years);
+    var yearSpan = maxYear - minYear + 1;
+
+    // Non-land-acquisition rows only
+    var nonLand = rows.filter(function(r) {
+      return !isLandAcq(r) && r.gbep_award_amount > 0;
+    });
+
+    // Average award (non-land-acq)
+    var totalAward = nonLand.reduce(function(s, r) { return s + (r.gbep_award_amount || 0); }, 0);
+    var avgAward = nonLand.length ? totalAward / nonLand.length : 0;
+
+    // Average acres (non-land-acq, only rows with acres > 0)
+    var withAcres = nonLand.filter(function(r) { return r.numeric_approximate_project_siz > 0; });
+    var totalAcres = withAcres.reduce(function(s, r) { return s + (r.numeric_approximate_project_siz || 0); }, 0);
+    var avgAcres = withAcres.length ? totalAcres / withAcres.length : 0;
+
+    render(yearSpan, minYear, maxYear, avgAcres, avgAward);
+  } catch(e) {
+    document.getElementById("loading-msg").textContent = "Data unavailable";
+    console.error(e);
+  }
+}
+
+function render(yearSpan, minYear, maxYear, avgAcres, avgAward) {
+  var card = document.getElementById("card");
+  card.innerHTML =
+    // ── TOP: Years ──────────────────────────────────────────
+    '<div id="top">' +
+      '<div id="years-number">' + yearSpan + '</div>' +
+      '<div id="years-label">' +
+        '<div class="big">Years of<br>NRU Projects</div>' +
+        '<div class="sub">' + minYear + ' — ' + maxYear + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // ── Wave divider ─────────────────────────────────────────
+    '<svg id="wave" viewBox="0 0 300 18" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M0,9 C50,18 100,0 150,9 C200,18 250,0 300,9 L300,18 L0,18 Z" fill="#e8f5e9"/>' +
+    '</svg>' +
+
+    // ── BOTTOM: Two metrics ──────────────────────────────────
+    '<div id="bottom">' +
+      '<div class="metric blue">' +
+        '<div class="metric-val">' + fmtAc(avgAcres) + '</div>' +
+        '<div class="metric-label">Avg Acres<br>per Project</div>' +
+        '<div class="metric-sub">Excl. land acquisition</div>' +
+      '</div>' +
+      '<div class="metric teal">' +
+        '<div class="metric-val">' + fmtDollars(avgAward) + '</div>' +
+        '<div class="metric-label">Avg GBEP<br>Award</div>' +
+        '<div class="metric-sub">Excl. land acquisition</div>' +
+      '</div>' +
+    '</div>';
+
+  reportHeight();
+}
+
+function reportHeight() {
+  var h = document.getElementById("card");
+  if (h) window.parent.postMessage({ type: "setHeight", height: h.scrollHeight }, "*");
+}
+
+window.addEventListener("resize", reportHeight);
+if (document.fonts) document.fonts.ready.then(reportHeight);
+
+init();
+</script>
+</body>
+</html>
