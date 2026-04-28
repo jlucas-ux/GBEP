@@ -32,7 +32,8 @@
   #years-number{
     font-size:clamp(52px,6vw,80px);
     font-weight:900;
-    color:#217c31;
+    /* Changed from #217c31 to #0097A7 to match teal palette used in metric values */
+    color:#0097A7;
     line-height:1;
     letter-spacing:-2px;
     flex-shrink:0;
@@ -71,7 +72,8 @@
   .metric:first-child{
     border-right:1px solid #e2e8f0;
   }
-  @media(max-width:260px){
+  /* Widened breakpoint from 260px → 320px so metrics stack before they get unreadably narrow */
+  @media(max-width:320px){
     .metric:first-child{
       border-right:none;
       border-bottom:1px solid #e2e8f0;
@@ -188,7 +190,7 @@ function render(yearSpan, minYear, maxYear, avgAcres, avgAward) {
 
     // ── TOP: Years ─────────────────────────────────────────
     '<div id="top">' +
-      '<div id="years-number">' + yearSpan + '</div>' +
+      '<div id="years-number" aria-hidden="true">' + yearSpan + '</div>' +
       '<div id="years-label">' +
         '<div class="big">Years of<br>NRU Projects</div>' +
         '<div class="sub">' + minYear + ' \u2014 ' + maxYear + '</div>' +
@@ -196,31 +198,26 @@ function render(yearSpan, minYear, maxYear, avgAcres, avgAward) {
     '</div>' +
 
     // ── METRICS ────────────────────────────────────────────
+    // "Habitat projects only" replaces "Excl. land acquisition" — clearer about what IS included
     '<div id="bottom">' +
       '<div class="metric blue">' +
         '<div class="metric-val">' + fmtAc(avgAcres) + '</div>' +
         '<div class="metric-label">Avg Acres<br>per Project</div>' +
-        '<div class="metric-sub">Excl. land acquisition</div>' +
+        '<div class="metric-sub">Habitat projects only</div>' +
       '</div>' +
       '<div class="metric teal">' +
         '<div class="metric-val">' + fmtDollars(avgAward) + '</div>' +
         '<div class="metric-label">Avg GBEP<br>Award</div>' +
-        '<div class="metric-sub">Excl. land acquisition</div>' +
+        '<div class="metric-sub">Habitat projects only</div>' +
       '</div>' +
     '</div>' +
 
-    // ── LAYERED WATER WAVES ────────────────────────────────
-    // 5 wave layers from dark blue → light blue, matching reference image
-    '<svg id="waves" viewBox="0 0 400 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
-      // Layer 1 — darkest, top wave
+    // ── LAYERED WATER WAVES — aria-hidden so screen readers skip decorative SVG ──
+    '<svg id="waves" viewBox="0 0 400 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
       '<path d="M0,30 C80,10 160,50 240,30 C320,10 360,40 400,25 L400,90 L0,90 Z" fill="#1565C0" opacity="1"/>' +
-      // Layer 2
       '<path d="M0,42 C70,22 150,58 230,40 C310,22 370,52 400,38 L400,90 L0,90 Z" fill="#1976D2" opacity="0.88"/>' +
-      // Layer 3
       '<path d="M0,54 C90,36 170,68 260,52 C330,38 370,62 400,50 L400,90 L0,90 Z" fill="#42A5F5" opacity="0.80"/>' +
-      // Layer 4
       '<path d="M0,65 C80,50 160,78 250,62 C320,50 370,72 400,62 L400,90 L0,90 Z" fill="#90CAF9" opacity="0.75"/>' +
-      // Layer 5 — lightest, bottom
       '<path d="M0,76 C100,62 180,88 280,74 C340,64 375,82 400,74 L400,90 L0,90 Z" fill="#BBDEFB" opacity="0.70"/>' +
     '</svg>';
 
