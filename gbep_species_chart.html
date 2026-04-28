@@ -11,11 +11,11 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;max-height:100vh;overflow:hidden;background:white;font-family:'Roboto',sans-serif;}
 #wrap{position:absolute;inset:0;display:flex;flex-direction:column;padding:10px 12px 6px;}
-.chart-title{font-size:15px;font-weight:700;color:#1a2332;margin-bottom:2px;flex-shrink:0;}
-.chart-subtitle{font-size:12px;color:#64748b;margin-bottom:6px;flex-shrink:0;}
+.chart-title{font-size:clamp(12px,1.2vw,15px);font-weight:700;color:#1a2332;margin-bottom:2px;flex-shrink:0;}
+.chart-subtitle{font-size:clamp(10px,0.9vw,12px);color:#64748b;margin-bottom:6px;flex-shrink:0;}
 #sc{flex:1;min-height:0;position:relative;overflow:hidden;}
 #tooltip{position:fixed;background:rgba(26,35,50,.92);color:white;padding:7px 10px;border-radius:6px;
-  font-size:12px;pointer-events:none;z-index:9999;display:none;line-height:1.5;}
+  font-size:clamp(10px,0.9vw,12px);pointer-events:none;z-index:9999;display:none;line-height:1.5;}
 </style>
 </head>
 <body>
@@ -103,16 +103,15 @@ function draw(data){
   var total=d3.sum(counts,function(d){return d.count;}), N=counts.length;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
-  var CR    = Math.min(Math.floor(W*0.068), 36);      // end circle radius
-  var DR    = Math.min(Math.floor((W-CR*4)*0.22), Math.floor(H*0.31), 92); // drop radius
+  var CR    = Math.min(Math.floor(W*0.068), 36);
+  var DR    = Math.min(Math.floor((W-CR*4)*0.22), Math.floor(H*0.31), 92);
   var cx    = W/2;
   var topY  = Math.max(10, CR);
   var bCy   = H - DR - Math.max(10, CR);
   var dropH = bCy + DR - topY;
 
-  // Font and arm height — scaled to N so all labels always fit
-  var FS    = Math.max(11, Math.min(14, Math.floor(H / (N * 2.4))));
-  // Arm height: enough for 2 lines of text with padding
+  // Font size scales with both container width and number of bands
+  var FS = Math.max(10, Math.min(14, Math.floor(Math.min(W * 0.025, H / (N * 2.4)))));
   var ARM_H = Math.max(FS * 2.8, Math.min(dropH / (N * 0.85), 58));
 
   function hw(y){
@@ -121,7 +120,14 @@ function draw(data){
   }
   var dp="M"+cx+","+topY+" L"+(cx+DR)+","+bCy+" A"+DR+","+DR+" 0 0,1 "+(cx-DR)+","+bCy+" Z";
 
-  var svg=d3.select("#sc").append("svg").attr("width",W).attr("height",H)
+  // Build aria-label summary for screen readers
+  var ariaDesc="Donut chart: Projects by Focal Species. "+
+    counts.map(function(c){return c.label+" "+Math.round(c.count/total*100)+"%";}).join(", ")+".";
+
+  var svg=d3.select("#sc").append("svg")
+    .attr("width",W).attr("height",H)
+    .attr("role","img")
+    .attr("aria-label",ariaDesc)
     .style("font-family","'Roboto',sans-serif").style("overflow","visible");
   var defs=svg.append("defs");
   defs.append("clipPath").attr("id","dc7").append("path").attr("d",dp);
@@ -140,30 +146,29 @@ function draw(data){
     cur=lt;
   });
 
-  // ══ LAYER 1: Arms from center to box edge (behind drop) ════════════════════
+  // ══ LAYER 1: Arms ══════════════════════════════════════════════════════════
   layers.forEach(function(lay){
     var midY=lay.midY;
-    // Arms stop at circle centerpoint
     if(lay.right){
-      var armEnd=W-CR-4; // right circle centre X
+      var armEnd=W-CR-4;
       svg.append("rect").attr("x",cx).attr("y",midY-ARM_H/2)
         .attr("width",Math.max(0,armEnd-cx)).attr("height",ARM_H)
         .attr("fill",lay.color).attr("rx",3);
     } else {
-      var armStart=CR+4; // left circle centre X
+      var armStart=CR+4;
       svg.append("rect").attr("x",armStart).attr("y",midY-ARM_H/2)
         .attr("width",Math.max(0,cx-armStart)).attr("height",ARM_H)
         .attr("fill",lay.color).attr("rx",3);
     }
   });
 
-  // ══ LAYER 2: Drop shadow over arms ══════════════════════════════════════════
+  // ══ LAYER 2: Drop shadow ════════════════════════════════════════════════════
   svg.append("path").attr("d",dp)
     .attr("transform","translate(7,9)")
     .attr("fill","rgba(8,40,120,0.28)")
     .style("filter","blur(9px)");
 
-  // ══ LAYER 3: Drop bands clipped to shape ════════════════════════════════════
+  // ══ LAYER 3: Drop bands clipped ════════════════════════════════════════════
   layers.forEach(function(lay){
     svg.append("rect")
       .attr("x",cx-DR-4).attr("y",lay.top)
@@ -178,14 +183,13 @@ function draw(data){
     }
   });
 
-  // ══ LAYER 4: Drop white outline ═════════════════════════════════════════════
+  // ══ LAYER 4: Drop white outline ════════════════════════════════════════════
   svg.append("path").attr("d",dp).attr("fill","none")
     .attr("stroke","white").attr("stroke-width",3);
 
-  // ══ LAYER 5: Icons inside drop (only when band is tall enough) ══════════════
+  // ══ LAYER 5: Icons inside drop ═════════════════════════════════════════════
   var MIN_ICON=28;
   layers.forEach(function(lay,i){
-    // Skip icon for topmost band (narrowest tip) and any band too small
     if(i===layers.length-1)return;
     if(lay.bandH<MIN_ICON)return;
     var sz=Math.max(16,Math.min(lay.bandH*0.58,28));
@@ -201,26 +205,27 @@ function draw(data){
         .style("width",(sz+4)+"px").style("height",(sz+4)+"px");
   });
 
-  // ══ LAYER 6: Arm labels using foreignObject for full CSS text handling ═══════
+  // ══ LAYER 6: Arm labels ═════════════════════════════════════════════════════
   layers.forEach(function(lay){
     var midY=lay.midY;
-    // Text region: from drop edge outward, leaving room for circle
-    // Use 6px gap from drop edge, 8px gap before circle
     var textGap=6;
     var circGap=CR*2+10;
-    var textX, textW, align;
+    var textX, textW, flexAlign, textAlign;
+
     if(lay.right){
       textX = cx + lay.edgeHW + textGap;
       textW = W - textX - circGap;
-      align = "left";
+      // RIGHT-SIDE FIX: text right-aligned so it reads flush against the circle bubble
+      flexAlign = "flex-end";
+      textAlign = "right";
     } else {
       textX = circGap;
       textW = cx - lay.edgeHW - textGap - circGap;
-      align = "left";
+      flexAlign = "flex-start";
+      textAlign = "left";
     }
     textW = Math.max(20, textW);
 
-    // foreignObject for text — CSS handles line wrap + overflow
     var fo=svg.append("foreignObject")
       .attr("x", textX)
       .attr("y", midY - ARM_H/2)
@@ -231,7 +236,7 @@ function draw(data){
       .style("height", ARM_H+"px")
       .style("display","flex")
       .style("align-items","center")
-      .style("justify-content", align)
+      .style("justify-content", flexAlign)
       .style("overflow","hidden")
       .append("xhtml:span")
         .style("font-family","'Roboto',sans-serif")
@@ -239,13 +244,15 @@ function draw(data){
         .style("font-weight","700")
         .style("color","white")
         .style("line-height","1.25")
+        .style("text-align", textAlign)
         .style("word-break","break-word")
         .style("overflow-wrap","break-word")
+        .style("white-space","normal")
         .style("max-height", ARM_H+"px")
         .style("overflow","hidden")
         .text(lay.label);
 
-    // End circle at box edge
+    // End circle
     var cX = lay.right ? W-CR-4 : CR+4;
     svg.append("circle").attr("cx",cX+2).attr("cy",midY+3).attr("r",CR)
       .attr("fill","rgba(0,0,0,0.13)").style("filter","blur(4px)");
@@ -257,18 +264,27 @@ function draw(data){
       .attr("fill",lay.color).style("pointer-events","none")
       .text(Math.round(lay.pct*100)+"%");
 
-    // Hover zone
+    // Hover zone — also keyboard accessible
     var hLeft  = lay.right ? cx+lay.edgeHW : cX-CR;
     var hRight = lay.right ? cX+CR         : cx-lay.edgeHW;
     svg.append("rect")
       .attr("x",hLeft).attr("y",midY-ARM_H/2-4)
       .attr("width",Math.max(0,hRight-hLeft)).attr("height",ARM_H+8)
       .attr("fill","transparent").style("cursor","pointer")
+      .attr("tabindex","0")
+      .attr("role","button")
+      .attr("aria-label",lay.label+": "+Math.round(lay.pct*100)+"% of projects, "+lay.count+" project"+(lay.count!==1?"s":""))
       .on("mousemove",function(ev){
         showTip(ev,"<strong>"+lay.label+"</strong><br>"+
           Math.round(lay.pct*100)+"% of projects — "+
           lay.count+" project"+(lay.count!==1?"s":""));
       })
+      .on("focus",function(ev){
+        showTip(ev,"<strong>"+lay.label+"</strong><br>"+
+          Math.round(lay.pct*100)+"% of projects — "+
+          lay.count+" project"+(lay.count!==1?"s":""));
+      })
+      .on("blur",hideTip)
       .on("mouseleave",hideTip);
   });
 }
