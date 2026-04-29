@@ -11,9 +11,11 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif;background:#f4f6f9;color:#1a2332;}
 
 #filter-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;flex-wrap:wrap;}
-#filter-bar input{height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:170px;flex:1;max-width:280px;}
-#filter-bar select{height:38px;border:1px solid #cbd5e1;border-radius:6px;padding:0 28px 0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;outline:none;cursor:pointer;min-width:200px;max-width:300px;}
-#filter-bar select:focus,#filter-bar input:focus{border-color:#1677bc;}
+#filter-bar input{height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;cursor:pointer;min-width:170px;flex:1;max-width:280px;}
+#filter-bar select{height:38px;border:1px solid #cbd5e1;border-radius:6px;padding:0 28px 0 10px;font-family:'Roboto',sans-serif;font-size:15px;color:#334155;background:white;cursor:pointer;min-width:200px;max-width:300px;}
+#filter-bar select:focus,#filter-bar input:focus{border-color:#1677bc;outline:3px solid rgba(22,119,188,0.35);outline-offset:1px;}
+#filter-bar select:focus-visible,#filter-bar input:focus-visible{border-color:#1677bc;outline:3px solid #1677bc;outline-offset:1px;}
+button:focus-visible,#back-btn:focus-visible{outline:3px solid #1677bc;outline-offset:2px;}
 #search-input{flex:1;min-width:140px;}
 #filter-drawer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 #filter-toggles{display:none;}
@@ -21,7 +23,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 #filters-toggle-btn.active{border-color:#1677bc;color:#1677bc;background:#eff6ff;}
 #clear-btn{height:44px;padding:0 12px;border-radius:6px;border:1px solid #cbd5e1;background:white;font-size:15px;color:#475569;cursor:pointer;white-space:nowrap}
 #clear-btn:hover{background:#f1f5f9;}
-#result-count{font-size:15px;color:#94a3b8;white-space:nowrap;}
+#result-count{font-size:15px;color:#6b7280;white-space:nowrap;}
 
 #app{width:100%;height:100%;display:flex;flex-direction:column;}
 #main{flex:1;display:flex;overflow:hidden;min-height:0;position:relative;}
@@ -43,7 +45,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .pcard-org{font-size:14px;color:#64748b;margin-bottom:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .pcard-stats{display:flex;gap:14px;margin-bottom:6px;}
 .pcard-stat-val{font-size:16px;font-weight:700;color:#1a2332;line-height:1;}
-.pcard-stat-lbl{font-size:13px;color:#94a3b8;margin-top:1px;line-height:1;}
+.pcard-stat-lbl{font-size:13px;color:#6b7280;margin-top:1px;line-height:1;}
 .pcard-tags{display:flex;gap:4px;flex-wrap:wrap;}
 .ptag{font-size:13px;padding:2px 7px;border-radius:10px;font-weight:500;line-height:1.4;}
 .ptag-hab{background:#e0f2f1;color:#00695c;}
@@ -54,7 +56,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 #back-btn:hover{background:#eff6ff;}
 
 #detail-pane{flex:1;display:flex;flex-direction:column;background:white;overflow:hidden;min-width:0;}
-#detail-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:10px;}
+#detail-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#6b7280;gap:10px;}
 #detail-empty svg{opacity:.3;}
 #detail-empty p{font-size:16px;}
 #detail-content{flex:1;overflow-y:auto;display:none;flex-direction:column;}
@@ -67,10 +69,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .dhero-stat{flex:1;min-width:80px;padding:10px 12px;text-align:center;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;}
 .dhero-stat:last-child{border-right:none;}
 .dhero-val{font-size:21px;font-weight:900;color:#1677bc;}
-.dhero-lbl{font-size:13px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+.dhero-lbl{font-size:13px;color:#6b7280;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
 #detail-body{padding:0 18px 20px;flex:1;}
 .dfield-section{margin-top:14px;}
-.dfield-section-title{font-size:13px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f1f5f9;}
+.dfield-section-title{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f1f5f9;}
 .dfield-row{display:flex;padding:5px 0;border-bottom:1px solid #f8fafc;gap:8px;}
 .dfield-label{font-size:14px;color:#64748b;width:170px;flex-shrink:0;line-height:1.4;}
 .dfield-value{font-size:14px;color:#1a2332;flex:1;line-height:1.4;min-width:0;word-break:break-word;}
@@ -89,12 +91,12 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 .dl-item:last-child{border-bottom:none;}
 .dl-item:hover{background:#f8fafc;}
 .dl-item-title{font-size:15px;font-weight:600;color:#1a2332;margin-bottom:2px;display:flex;align-items:center;}
-.dl-item-sub{font-size:13px;color:#94a3b8;line-height:1.4;}
+.dl-item-sub{font-size:13px;color:#6b7280;line-height:1.4;}
 
 #loading{position:fixed;inset:0;background:white;display:flex;align-items:center;justify-content:center;font-size:16px;color:#1677bc;font-weight:500;flex-direction:column;gap:12px;}
 .spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#1677bc;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-#no-results{display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:16px;}
+#no-results{display:none;padding:40px 20px;text-align:center;color:#6b7280;font-size:16px;}
 
 /* Tablet landscape */
 @media(max-width:1000px){
@@ -143,12 +145,12 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
 </head>
 <body>
 <a href="#main" id="skip-nav" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;background:white;padding:8px 16px;font-family:Roboto,sans-serif;font-size:14px;color:#1565C0;" onfocus="this.style.left='8px';this.style.width='auto';this.style.height='auto';" onblur="this.style.left='-9999px';this.style.width='1px';this.style.height='1px';">Skip to project list</a>
-<div id="loading"><div class="spinner"></div>Loading projects…</div>
+<div id="loading" role="status" aria-live="polite"><div class="spinner"></div>Loading projects…</div>
 
 <div id="app" style="display:none;height:100%;">
   <div id="filter-bar">
     <div id="filter-toggles">
-        <button id="filters-toggle-btn" onclick="toggleFilters()">&#9776; Filters</button>
+        <button id="filters-toggle-btn" aria-expanded="false" aria-controls="filter-drawer" onclick="toggleFilters()">&#9776; Filters</button>
       </div>
       <input id="search-input" type="text" placeholder="Search by name or organization…" aria-label="Search projects" oninput="applyFilters()">
     <select id="f-org"     aria-label="Filter by organization" onchange="applyFilters()"><option value="">All organizations</option></select>
@@ -161,14 +163,14 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     <select id="f-impl"    aria-label="Filter by implementer type" onchange="applyFilters()"><option value="">All implementer types</option></select>
     <select id="f-county"  aria-label="Filter by county" onchange="applyFilters()"><option value="">All counties</option></select>
     <button id="clear-btn" aria-label="Clear all filters" onclick="clearFilters()">Clear all</button>
-    <span id="result-count"></span>
+    <span id="result-count" aria-live="polite" aria-atomic="true"></span>
   </div>
 
 
   <div id="main">
     <div id="list-pane">
       <div id="list-header">
-        <span id="list-count">— projects</span>
+        <span id="list-count" aria-live="polite" aria-atomic="true">— projects</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <select id="sort-sel" onchange="applyFilters()">
             <option value="award">Sort: Award ↓</option>
@@ -183,10 +185,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
             <button onclick="downloadGeoJSON(false)" style="padding:5px 12px;border-radius:6px;border:none;background:#0d47a1;color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:'Roboto',sans-serif;display:flex;align-items:center;gap:5px;" title="Download filtered results as GeoJSON">
               ↓ GeoJSON
             </button>
-            <button id="download-btn" onclick="toggleDlMenu()" style="padding:5px 10px;border-radius:6px;border:1px solid #1565c0;background:white;color:#1565c0;font-size:12px;font-weight:700;cursor:pointer;" title="More download options">
+          <button id="download-btn" aria-expanded="false" aria-haspopup="true" aria-label="More download options" onclick="toggleDlMenu()" style="padding:5px 10px;border-radius:6px;border:1px solid #1565c0;background:white;color:#1565c0;font-size:12px;font-weight:700;cursor:pointer;" title="More download options">
               ⋯
             </button>
-            <div id="dl-menu" style="display:none;position:absolute;right:0;top:30px;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:100;min-width:210px;overflow:hidden;">
+            <div id="dl-menu" role="menu" aria-label="Download options" style="display:none;position:absolute;right:0;top:30px;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:100;min-width:210px;overflow:hidden;">
               <div class="dl-item" onclick="downloadCSV(false)">
                 <div class="dl-item-title">CSV — filtered results</div>
                 <div class="dl-item-sub">Spreadsheet of <span id="dl-count-label">all</span> shown projects, all attribute fields</div>
@@ -218,7 +220,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto',sans-serif
     </div>
 
     <div id="detail-pane">
-      <div id="back-btn" onclick="closeDetail()">&#8592; Back to results</div>
+      <div id="back-btn" role="button" tabindex="0" aria-label="Back to results" onclick="closeDetail()" onkeydown="if(event.key==='Enter'||event.key===' ')closeDetail()">&#8592; Back to results</div>
       <div id="detail-empty">
         <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
           <rect x="8" y="6" width="32" height="36" rx="4" stroke="#94a3b8" stroke-width="2"/>
@@ -327,10 +329,14 @@ function fmtFY(v){
 function clean(v){return v&&String(v).trim()!=""&&String(v).trim()!=="null"?String(v).trim():null;}
   function normalizeOrg(s){
     if(!s)return s;
-    return s
-      .replace(/^County of Galveston$/i,'Galveston County')
-      .replace(/^County of Harris$/i,'Harris County')
-      .replace(/^County of ([A-Za-z ]+)$/i,function(m,n){return n.trim()+' County';});
+    var n=s.trim();
+    n=n.replace(/^City of Houston(\s+Parks)/i,'Houston$1');
+    n=n.replace(/Houston Parks\s*&\s*Recreation/i,'Houston Parks and Recreation');
+    n=n.replace(/Houston Parks and Recreation Department,?\s*City of Houston/i,'Houston Parks and Recreation Department');
+    n=n.replace(/^County of Galveston$/i,'Galveston County');
+    n=n.replace(/^County of Harris$/i,'Harris County');
+    n=n.replace(/^County of ([A-Za-z ]+)$/i,function(m,nm){return nm.trim()+' County';});
+    return n;
   }
 
   var LABEL_FIXES={
@@ -619,7 +625,7 @@ function applyFilters(){
       var loc=(clean(d.general_project_location)||"").toLowerCase();
       if(t.indexOf(search)<0&&o.indexOf(search)<0&&loc.indexOf(search)<0)return false;
     }
-    if(org&&clean(d.lead_organization_name)!==org)return false;
+    if(org&&normalizeOrg(clean(d.lead_organization_name))!==org)return false;
     if(hab){var lt=normalizeVal(clean(d.project_landscape_type)||"");if(lt.toLowerCase().indexOf(hab.toLowerCase())<0)return false;}
     if(fy){var fyv=fmtFY(d.fiscal_year_awarded).replace("FY ","");if(fyv!==fy)return false;}
     if(scale&&normalizeVal(clean(d.project_scale))!==scale)return false;
@@ -655,8 +661,8 @@ function applyFilters(){
 
 function clearFilters(){
   document.getElementById("search-input").value="";
-  ["f-org","f-hab","f-fy","f-scale","f-species","f-goals","f-stage","f-impl"].forEach(function(id){
-    document.getElementById(id).selectedIndex=0;
+  ["f-org","f-hab","f-fy","f-scale","f-species","f-goals","f-stage","f-impl","f-county"].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.selectedIndex=0;
   });
   applyFilters();
 }
@@ -686,6 +692,10 @@ function renderCards(){
     var card=document.createElement("div");
     card.className="pcard"+(activeId===d._id?" active":"");
     card.dataset.id=d._id;
+    card.setAttribute("role","button");
+    card.setAttribute("tabindex","0");
+    card.setAttribute("aria-label",title+(org?" — "+org:"")+(award!=="—"?", "+award:""));
+    card.setAttribute("aria-pressed", activeId===d._id ? "true" : "false");
     var allApTags=getActionPlanTags(d);
     card.innerHTML=
       '<div class="pcard-accent" style="background:#1677bc"></div>'+
@@ -706,6 +716,7 @@ function renderCards(){
       '</div>';
 
     card.addEventListener("click",function(){selectCard(d);});
+    card.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();selectCard(d);}});
     scroll.appendChild(card);
   });
 }
@@ -713,7 +724,9 @@ function renderCards(){
 function selectCard(d){
   activeId=d._id;
   document.querySelectorAll(".pcard").forEach(function(c){
-    c.classList.toggle("active",parseInt(c.dataset.id)===d._id);
+    var isActive=parseInt(c.dataset.id)===d._id;
+    c.classList.toggle("active",isActive);
+    c.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
   showDetail(d);
   var active=document.querySelector(".pcard.active");
@@ -777,7 +790,7 @@ function showDetail(d){
     var apRow=document.createElement("div");
     apRow.style.cssText="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;";
     var apLabel=document.createElement("span");
-    apLabel.style.cssText="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;";
+    apLabel.style.cssText="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;";
     apLabel.textContent="Action Plans:";
     apRow.appendChild(apLabel);
     apGroups.forEach(function(g){
@@ -853,7 +866,7 @@ function showDetail(d){
   if(abstract){
     var absDiv=document.createElement("div");
     absDiv.style.cssText="margin-top:14px;padding:12px 14px;background:#f8fafc;border-radius:6px;border-left:3px solid #1677bc;";
-    absDiv.innerHTML='<div style="font-size:13px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Project abstract</div>'+
+    absDiv.innerHTML='<div style="font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Project abstract</div>'+
       '<div style="font-size:15px;color:#334155;line-height:1.7;">'+abstract+'</div>';
     body.appendChild(absDiv);
   }
@@ -1025,6 +1038,7 @@ function toggleFilters(){
   var btn=document.getElementById("filters-toggle-btn");
   var open=drawer.classList.toggle("open");
   btn.classList.toggle("active",open);
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
 function closeDetail(){
@@ -1033,7 +1047,10 @@ function closeDetail(){
 
 function toggleDlMenu(){
   var m=document.getElementById("dl-menu");
-  m.style.display=m.style.display==="none"?"block":"none";
+  var btn=document.getElementById("download-btn");
+  var open=m.style.display==="none";
+  m.style.display=open?"block":"none";
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
 }
 document.addEventListener("click",function(e){
   if(!document.getElementById("dl-wrap").contains(e.target)){
