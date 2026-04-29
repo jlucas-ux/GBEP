@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,7 +18,7 @@
     .chart-panel { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; display: none; padding: clamp(8px,1vw,16px) clamp(10px,1.2vw,20px); background: #f8fafc; }
     .chart-panel.active { display: flex; flex-direction: column; }
     .chart-title { font-size: clamp(13px,1.15vw,19px); font-weight: 700; color: #1677bc; margin-bottom: 3px; flex-shrink: 0; letter-spacing: -0.3px; }
-    .chart-subtitle { font-size: clamp(13px,0.95vw,16px); color: #888; margin-bottom: 8px; flex-shrink: 0; line-height: 1.5; }
+    .chart-subtitle { font-size: clamp(13px,0.95vw,16px); color: #555; margin-bottom: 8px; flex-shrink: 0; line-height: 1.5; }
     .chart-subtitle strong { color: #1677bc; font-weight: 700; }
     .chart-subtitle strong.green { color: #009988; }
     .chart-area { flex: 1; overflow-x: hidden; overflow-y: auto; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
@@ -27,6 +27,11 @@
     .grid-cell-title { font-size: clamp(9px,0.75vw,13px); font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
     .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
     svg { display: block; max-width: 100%; }
+    /* Focus styles — keyboard navigation */
+    .nav-btn:focus-visible,
+    button:focus-visible,
+    select:focus-visible { outline: 3px solid #1677bc; outline-offset: 2px; }
+    select:focus-visible { border-radius: 4px; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
     .tooltip { position: absolute; background: rgba(15,23,42,0.92); color: white; padding: 8px 12px; border-radius: 7px; font-size: clamp(11px,0.9vw,14px); pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 300px; line-height: 1.5; z-index: 999; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     #date-filter { font-size: clamp(11px,0.9vw,15px); }
@@ -37,26 +42,26 @@
   </style>
 </head>
 <body>
-<div id="loading">Loading data…</div>
+<div id="loading" role="status" aria-live="polite">Loading data…</div>
 <div id="tooltip" class="tooltip"></div>
-<div id="app" style="display:none">
+<div id="app" role="main" style="display:none">
   <div id="date-filter" style="display:flex;align-items:center;justify-content:center;gap:clamp(6px,0.8vw,12px);padding:clamp(6px,0.6vw,10px) clamp(8px,1vw,16px);background:white;border-bottom:1px solid #e8f0fe;flex-shrink:0;font-family:'Roboto',sans-serif;flex-wrap:wrap;">
-    <span style="font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
-    <select id="year-from" onchange="applyYearFilter()" style="border:2px solid #1677bc;border-radius:20px;font-family:'Roboto',sans-serif;color:#1677bc;background:white;cursor:pointer;outline:none;"><option value="">From</option></select>
-    <span style="color:#888;">—</span>
-    <select id="year-to" onchange="applyYearFilter()" style="border:2px solid #1677bc;border-radius:20px;font-family:'Roboto',sans-serif;color:#1677bc;background:white;cursor:pointer;outline:none;"><option value="">To</option></select>
-    <button onclick="clearYearFilter()" style="border:2px solid #aaa;border-radius:20px;font-family:'Roboto',sans-serif;color:#888;background:white;cursor:pointer;">Clear</button>
-    <span id="filter-count" style="color:#aaa;"></span>
+    <span id="filter-label" style="font-weight:600;color:#1677bc;">Filter by Fiscal Year:</span>
+    <select id="year-from" aria-label="Filter from fiscal year" onchange="applyYearFilter()" style="border:2px solid #1677bc;border-radius:20px;font-family:'Roboto',sans-serif;color:#1677bc;background:white;cursor:pointer;"><option value="">From</option></select>
+    <span aria-hidden="true" style="color:#555;">—</span>
+    <select id="year-to" aria-label="Filter to fiscal year" onchange="applyYearFilter()" style="border:2px solid #1677bc;border-radius:20px;font-family:'Roboto',sans-serif;color:#1677bc;background:white;cursor:pointer;"><option value="">To</option></select>
+    <button onclick="clearYearFilter()" aria-label="Clear fiscal year filter" style="border:2px solid #666;border-radius:20px;font-family:'Roboto',sans-serif;color:#444;background:white;cursor:pointer;">Clear</button>
+    <span id="filter-count" aria-live="polite" aria-atomic="true" style="color:#555;"></span>
   </div>
-  <div id="nav">
-    <button class="nav-btn active" onclick="showChart(0)">Habitat Types</button>
-    <button class="nav-btn" onclick="showChart(1)">Projects by Site</button>
-    <button class="nav-btn" onclick="showChart(2)">Projects by Organization</button>
-    <button class="nav-btn" onclick="showChart(3)">Plan Priorities</button>
-    <button class="nav-btn" onclick="showChart(4)">Projects by Fiscal Year</button>
-    <button class="nav-btn" onclick="showChart(5)">Org × Priority</button>
-    <button class="nav-btn" onclick="showChart(6)">Habitat Share</button>
-    <button class="nav-btn" onclick="showChart(7)">Funding by Site</button>
+  <div id="nav" role="tablist" aria-label="Chart tabs">
+    <button class="nav-btn active" role="tab" aria-pressed="true"  onclick="showChart(0)">Habitat Types</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(1)">Projects by Site</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(2)">Projects by Organization</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(3)">Plan Priorities</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(4)">Projects by Fiscal Year</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(5)">Org × Priority</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(6)">Habitat Share</button>
+    <button class="nav-btn"        role="tab" aria-pressed="false" onclick="showChart(7)">Funding by Site</button>
   </div>
   <div id="charts">
     <div class="chart-panel active" id="panel-0">
@@ -84,11 +89,11 @@
           </span>
         </span>
       </div>
-      <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;">
-        <button id="site-all" onclick="setSiteMode('all')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">All Projects</button>
-        <button id="site-physical" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects Only</button>
-        <button id="site-large" onclick="setSiteMode('large')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Large Scale Only</button>
-        <span id="site-count" style="font-size:12px;color:#64748b;margin-left:6px;align-self:center;"></span>
+      <div style="flex-shrink:0;margin-bottom:6px;display:flex;gap:6px;" role="group" aria-label="Project scale filter">
+        <button id="site-all" aria-pressed="true" onclick="setSiteMode('all')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">All Projects</button>
+        <button id="site-physical" aria-pressed="false" onclick="setSiteMode('physical')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Physical Projects Only</button>
+        <button id="site-large" aria-pressed="false" onclick="setSiteMode('large')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Large Scale Only</button>
+        <span id="site-count" style="font-size:12px;color:#555;margin-left:6px;align-self:center;" aria-live="polite"></span>
       </div>
       <div class="chart-area" id="site-chart"></div>
     </div>
@@ -98,9 +103,9 @@
           <div class="chart-title">Projects by Lead Organization</div>
           <div class="chart-subtitle">Count of GBEP-funded projects per lead organization. Each bar reflects that organization's share of all funded projects.</div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button id="org-sort-count" onclick="setOrgSort('count')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Count ↓</button>
-          <button id="org-sort-az" onclick="setOrgSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">A–Z</button>
+        <div style="display:flex;gap:6px;flex-shrink:0;" role="group" aria-label="Sort organizations by">
+          <button id="org-sort-count" aria-pressed="true" onclick="setOrgSort('count')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Count ↓</button>
+          <button id="org-sort-az" aria-pressed="false" onclick="setOrgSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">A–Z</button>
         </div>
       </div>
       <div class="chart-area" id="org-chart"></div>
@@ -141,9 +146,9 @@
       <div class="chart-title">Lead Organization × Plan Priority</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:6px;margin-top:2px;">
         <div class="chart-subtitle">Number of projects per organization per plan priority. Darker = more projects. Hover for count and dollar total.</div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button id="heat-sort-count" onclick="setHeatSort('count')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Count ↓</button>
-          <button id="heat-sort-az" onclick="setHeatSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">A–Z</button>
+        <div style="display:flex;gap:6px;flex-shrink:0;" role="group" aria-label="Sort by">
+          <button id="heat-sort-count" aria-pressed="true" onclick="setHeatSort('count')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">Count ↓</button>
+          <button id="heat-sort-az" aria-pressed="false" onclick="setHeatSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;">A–Z</button>
         </div>
       </div>
       <div class="chart-area" id="heatmap-chart"></div>
@@ -155,11 +160,11 @@
     </div>
     <div class="chart-panel" id="panel-7">
       <div class="chart-title">GBEP Funding by Site</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-shrink:0;">
-        <span style="font-size:12px;color:#64748b;font-weight:600;">Sort:</span>
-        <button id="bar-sort-funding" onclick="setBarSort('funding')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">Funding ↓</button>
-        <button id="bar-sort-az" onclick="setBarSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">A–Z</button>
-        <button id="bar-sort-org" onclick="setBarSort('org')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">By Organization</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-shrink:0;" role="group" aria-label="Sort funding by">
+        <span style="font-size:12px;color:#555;font-weight:600;">Sort:</span>
+        <button id="bar-sort-funding" aria-pressed="true" onclick="setBarSort('funding')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:#1677bc;color:white;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">Funding ↓</button>
+        <button id="bar-sort-az" aria-pressed="false" onclick="setBarSort('az')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">A–Z</button>
+        <button id="bar-sort-org" aria-pressed="false" onclick="setBarSort('org')" style="padding:4px 12px;border-radius:20px;border:2px solid #1677bc;background:white;color:#1677bc;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;font-weight:600;">By Organization</button>
       </div>
       <div class="chart-subtitle">
         <span>Each bar shows total GBEP award for that site. Segments within each bar represent individual projects — 
@@ -214,7 +219,7 @@
   function populateYearDropdowns(){var years=Array.from(new Set(allData.map(getYear).filter(Boolean))).sort();var fromSel=document.getElementById("year-from");var toSel=document.getElementById("year-to");years.forEach(function(y){var o1=document.createElement("option");o1.value=y;o1.textContent=y;fromSel.appendChild(o1);var o2=document.createElement("option");o2.value=y;o2.textContent=y;toSel.appendChild(o2);});toSel.value=years[years.length-1]||"";}
   function applyYearFilter(){var from=parseInt(document.getElementById("year-from").value)||null;var to=parseInt(document.getElementById("year-to").value)||null;filteredData=allData.filter(function(d){var y=getYear(d);if(!y)return true;if(from&&y<from)return false;if(to&&y>to)return false;return true;});document.getElementById("filter-count").textContent=filteredData.filter(function(d){return d.gbep_award_amount;}).length+" funded projects";redrawAll();}
   function clearYearFilter(){document.getElementById("year-from").value="";document.getElementById("year-to").value="";filteredData=allData.slice();document.getElementById("filter-count").textContent="";redrawAll();}
-  function redrawAll(){chartDrawn=[false,false,false,false,false,false,false];var active=document.querySelector(".chart-panel.active");if(active){var idx=parseInt(active.id.replace("panel-",""));chartDrawn[idx]=false;showChart(idx);}}
+  function redrawAll(){chartDrawn=[false,false,false,false,false,false,false,false];var active=document.querySelector(".chart-panel.active");if(active){var idx=parseInt(active.id.replace("panel-",""));chartDrawn[idx]=false;showChart(idx);}}
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.pageX+14)+"px";tooltip.style.top=(evt.pageY-32)+"px";}
   function hideTooltip(){tooltip.style.opacity=0;}
   function isYes(v){if(v===null||v===undefined)return false;if(v===true||v===1)return true;var s=String(v).toLowerCase().trim();return s==="1"||s==="true"||s==="yes"||s==="y";}
@@ -222,7 +227,10 @@
 
   function showChart(i){
     document.querySelectorAll('.chart-panel').forEach(function(p,j){p.classList.toggle('active',i===j);});
-    document.querySelectorAll('.nav-btn').forEach(function(b,j){b.classList.toggle('active',i===j);});
+    document.querySelectorAll('.nav-btn').forEach(function(b,j){
+      b.classList.toggle('active',i===j);
+      b.setAttribute('aria-pressed', i===j ? 'true' : 'false');
+    });
     if(!chartDrawn[i]&&filteredData.length>0){
       setTimeout(function(){
         if(i===0)drawUpset(filteredData,"upset-chart");
@@ -1145,8 +1153,8 @@ function drawTreemap() {
     ["all","physical","large"].forEach(function(m){
       var btn=document.getElementById("site-"+m);
       if(!btn)return;
-      if(m===mode){btn.style.background="#1677bc";btn.style.color="white";}
-      else{btn.style.background="white";btn.style.color="#1677bc";}
+      if(m===mode){btn.style.background="#1677bc";btn.style.color="white";btn.setAttribute("aria-pressed","true");}
+      else{btn.style.background="white";btn.style.color="#1677bc";btn.setAttribute("aria-pressed","false");}
     });
     requestAnimationFrame(function(){
       requestAnimationFrame(function(){drawSiteChart();});
@@ -1317,7 +1325,6 @@ function drawTreemap() {
 
   function setOrgSort(mode){
     window._orgSortMode=mode;
-    // Update button styles
     var active={background:'#1677bc',color:'white'};
     var inactive={background:'white',color:'#1677bc'};
     var countBtn=document.getElementById('org-sort-count');
@@ -1325,6 +1332,8 @@ function drawTreemap() {
     if(countBtn&&azBtn){
       Object.assign(countBtn.style,mode==='count'?active:inactive);
       Object.assign(azBtn.style,mode==='az'?active:inactive);
+      countBtn.setAttribute('aria-pressed', mode==='count' ? 'true' : 'false');
+      azBtn.setAttribute('aria-pressed', mode==='az' ? 'true' : 'false');
     }
     drawOrgChart();
   }
@@ -1337,6 +1346,8 @@ function drawTreemap() {
     if(countBtn&&azBtn){
       Object.assign(countBtn.style,mode==='count'?active:inactive);
       Object.assign(azBtn.style,mode==='az'?active:inactive);
+      countBtn.setAttribute('aria-pressed', mode==='count' ? 'true' : 'false');
+      azBtn.setAttribute('aria-pressed', mode==='az' ? 'true' : 'false');
     }
     drawHeatmap();
   }
@@ -1369,8 +1380,8 @@ function drawTreemap() {
     ["funding","az","org"].forEach(function(m){
       var btn=document.getElementById("bar-sort-"+m);
       if(!btn)return;
-      if(m===mode){btn.style.background="#1677bc";btn.style.color="white";}
-      else{btn.style.background="white";btn.style.color="#1677bc";}
+      if(m===mode){btn.style.background="#1677bc";btn.style.color="white";btn.setAttribute("aria-pressed","true");}
+      else{btn.style.background="white";btn.style.color="#1677bc";btn.setAttribute("aria-pressed","false");}
     });
     requestAnimationFrame(function(){requestAnimationFrame(function(){drawBarChart();});});
   }
