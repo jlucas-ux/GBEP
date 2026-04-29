@@ -133,8 +133,8 @@
       </div>
     </div>
     <div class="chart-panel" id="panel-4">
-      <div class="chart-title">GBEP Projects by Fiscal Year</div>
-      <div class="chart-subtitle" id="fy-subtitle">Number of GBEP-funded projects per fiscal year.</div>
+      <div class="chart-title">GBEP Funding by Fiscal Year</div>
+      <div class="chart-subtitle" id="fy-subtitle">Award dollars (bars) and project count (line) per fiscal year.</div>
       <div class="chart-area" id="fy-chart"></div>
     </div>
     <div class="chart-panel" id="panel-5">
@@ -666,7 +666,81 @@ function drawTreemap() {
 }
 
 
-  function drawFiscalYear(){var el=document.getElementById("fy-chart");var width=el.clientWidth||window.innerWidth;var height=el.clientHeight||(window.innerHeight-100);var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});var byYear=d3.rollups(funded,function(v){return v.length;},function(d){var fy=d.fiscal_year_awarded;if(!fy)return null;if(String(fy).length===4)return parseInt(fy);var parsed=new Date(fy);if(!isNaN(parsed))return parsed.getFullYear();return parseInt(String(fy).slice(0,4));}).filter(function(r){return r[0]!==null;}).map(function(r){return{year:r[0],count:r[1]};}).sort(function(a,b){return a.year-b.year;});if(byYear.length===0)return;var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;var subtitleEl=document.getElementById("fy-subtitle");if(subtitleEl)subtitleEl.textContent="Number of GBEP-funded projects per fiscal year, "+minY+"\u2013"+maxY+".";el.style.overflowX="auto";el.style.overflowY="hidden";var minBarW=28,mL=Math.round(vfs(55)),mR=30,mT=20,mB=Math.round(vfs(85));var chartW=Math.max(width,byYear.length*minBarW+mL+mR),w=chartW-mL-mR,h=height-mT-mB;var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);var yMax=d3.max(byYear,function(d){return d.count;})||1;var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));d3.select("#fy-chart").select("svg").remove();var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format("d"))).call(function(ax){ax.select(".domain").remove();}).call(function(ax){ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",vfs(13)).attr("fill","#666");});g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(32,mL-12)).attr("text-anchor","middle").attr("font-size",vfs(13)).attr("fill","#888").attr("font-weight","500").text("Projects");g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar").attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.count);}).attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.count);}).attr("fill",function(d){return colorScale(d.count);}).attr("rx",3).attr("opacity",0.9).on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":""));}).on("mouseleave",hideTooltip);g.selectAll(".bar-label").data(byYear).enter().append("text").attr("class","bar-label").attr("x",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("y",function(d){return yScale(d.count)-4;}).attr("text-anchor","middle").attr("font-size",vfs(13)).attr("font-weight","700").attr("fill","#555").attr("font-family",FONT).text(function(d){return d.count;});g.append("g").attr("transform","translate(0,"+h+")").call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);})).call(function(ax){ax.select(".domain").attr("stroke","#ddd");}).call(function(ax){ax.selectAll("text").attr("font-size",vfs(12)).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});}
+  function drawFiscalYear(){
+    var el=document.getElementById("fy-chart");
+    if(!el||el.clientWidth<10)return;
+    var width=el.clientWidth||window.innerWidth;
+    var height=Math.max(el.clientHeight||0,260);
+    var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});
+    var byYear=d3.rollups(funded,
+      function(v){return{count:v.length,award:d3.sum(v,function(d){return d.gbep_award_amount||0;})};},
+      function(d){var fy=d.fiscal_year_awarded;if(!fy)return null;if(String(fy).length===4)return parseInt(fy);var p=new Date(fy);if(!isNaN(p))return p.getFullYear();return parseInt(String(fy).slice(0,4));})
+      .filter(function(r){return r[0]!==null;})
+      .map(function(r){return{year:r[0],count:r[1].count,award:r[1].award};})
+      .sort(function(a,b){return a.year-b.year;});
+    if(!byYear.length)return;
+    var minY=byYear[0].year,maxY=byYear[byYear.length-1].year;
+    var subtitleEl=document.getElementById("fy-subtitle");
+    if(subtitleEl)subtitleEl.textContent="Award dollars (bars) and project count (line) per fiscal year, "+minY+"\u2013"+maxY+".";
+    el.style.overflowX="auto";el.style.overflowY="hidden";
+    var minBarW=28,mL=Math.max(58,Math.round(vfs(64))),mR=40;
+    var mT=Math.min(20,Math.round(height*0.07));
+    var mB=Math.min(75,Math.max(55,Math.round(height*0.26)));
+    var chartW=Math.max(width,byYear.length*minBarW+mL+mR),w=chartW-mL-mR,h=height-mT-mB;
+    if(h<40){mB=Math.max(30,mB-40);h=height-mT-mB;}
+    if(h<20)return;
+    var xScale=d3.scaleBand().domain(byYear.map(function(d){return d.year;})).range([0,w]).padding(0.3);
+    var yMax=d3.max(byYear,function(d){return d.award;})||1;
+    var yScale=d3.scaleLinear().domain([0,yMax*1.15]).range([h,0]);
+    var yMaxC=d3.max(byYear,function(d){return d.count;})||1;
+    var yScaleC=d3.scaleLinear().domain([0,yMaxC*1.15]).range([h,0]);
+    var colorScale=d3.scaleSequential().domain([0,yMax]).interpolator(d3.interpolate("#90caf9","#0d47a1"));
+    function fmt$(v){if(v>=1e6)return"$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return"$"+Math.round(v/1e3)+"K";return"$"+Math.round(v);}
+    d3.select("#fy-chart").select("svg").remove();
+    var svg=d3.select("#fy-chart").append("svg").attr("width",chartW).attr("height",height);
+    var g=svg.append("g").attr("transform","translate("+mL+","+mT+")");
+    // Left axis — award dollars
+    g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(function(v){return fmt$(v);}))
+      .call(function(ax){ax.select(".domain").remove();ax.selectAll(".tick line").attr("x2",w).attr("stroke","#eee").attr("stroke-dasharray","3,3");ax.selectAll("text").attr("font-size",Math.max(12,vfs(12))).attr("fill","#666");});
+    g.append("text").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-Math.max(34,mL-10))
+      .attr("text-anchor","middle").attr("font-size",Math.max(12,vfs(12))).attr("fill","#555").text("GBEP Award ($)");
+    // Right axis — project count
+    var yAxisR=g.append("g").attr("transform","translate("+w+",0)")
+      .call(d3.axisRight(yScaleC).ticks(5).tickFormat(d3.format("d")));
+    yAxisR.select(".domain").remove();
+    yAxisR.selectAll(".tick line").remove();
+    yAxisR.selectAll("text").attr("font-size",Math.max(11,vfs(11))).attr("fill","#1D9E75");
+    g.append("text").attr("transform","rotate(90)").attr("x",h/2).attr("y",-w-Math.max(28,mR-8))
+      .attr("text-anchor","middle").attr("font-size",Math.max(11,vfs(11))).attr("fill","#1D9E75").text("Projects");
+    // Bars
+    g.selectAll(".bar").data(byYear).enter().append("rect").attr("class","bar")
+      .attr("x",function(d){return xScale(d.year);}).attr("y",function(d){return yScale(d.award);})
+      .attr("width",xScale.bandwidth()).attr("height",function(d){return h-yScale(d.award);})
+      .attr("fill",function(d){return colorScale(d.award);}).attr("rx",3).attr("opacity",0.9)
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+fmt$(d.award)+"<br>"+d.count+" project"+(d.count!==1?"s":""));})
+      .on("mouseleave",hideTooltip);
+    // Count line
+    var lineGen=d3.line().x(function(d){return xScale(d.year)+xScale.bandwidth()/2;}).y(function(d){return yScaleC(d.count);}).curve(d3.curveCatmullRom.alpha(0.5));
+    g.append("path").datum(byYear).attr("fill","none").attr("stroke","#1D9E75").attr("stroke-width",2.5).attr("d",lineGen);
+    g.selectAll(".dot").data(byYear).enter().append("circle").attr("class","dot")
+      .attr("cx",function(d){return xScale(d.year)+xScale.bandwidth()/2;}).attr("cy",function(d){return yScaleC(d.count);})
+      .attr("r",4).attr("fill","white").attr("stroke","#1D9E75").attr("stroke-width",2)
+      .on("mousemove",function(event,d){showTooltip(event,"<strong>FY "+d.year+"</strong><br>"+d.count+" project"+(d.count!==1?"s":"")+"<br>"+fmt$(d.award));})
+      .on("mouseleave",hideTooltip);
+    // X axis
+    g.append("g").attr("transform","translate(0,"+h+")")
+      .call(d3.axisBottom(xScale).tickFormat(function(d){return String(d);}))
+      .call(function(ax){ax.select(".domain").attr("stroke","#ddd");ax.selectAll("text").attr("font-size",Math.max(12,vfs(12))).attr("fill","#555").attr("transform","rotate(-45)").attr("text-anchor","end");});
+    g.append("text").attr("x",w/2).attr("y",h+48)
+      .attr("text-anchor","middle").attr("font-size",Math.max(12,vfs(12))).attr("fill","#555").attr("font-family",FONT).text("Fiscal Year");
+    // Legend
+    var legX=w-120,legY=-mT+4;
+    g.append("rect").attr("x",legX).attr("y",legY).attr("width",10).attr("height",10).attr("fill","#1677bc").attr("rx",2);
+    g.append("text").attr("x",legX+14).attr("y",legY+9).attr("font-size",Math.max(10,vfs(11))).attr("fill","#555").text("Award $");
+    g.append("line").attr("x1",legX+60).attr("x2",legX+70).attr("y1",legY+5).attr("y2",legY+5).attr("stroke","#1D9E75").attr("stroke-width",2.5);
+    g.append("circle").attr("cx",legX+65).attr("cy",legY+5).attr("r",3.5).attr("fill","white").attr("stroke","#1D9E75").attr("stroke-width",2);
+    g.append("text").attr("x",legX+74).attr("y",legY+9).attr("font-size",Math.max(10,vfs(11))).attr("fill","#555").text("Projects");
+  }
 
   function drawHeatmap(){var el=document.getElementById("heatmap-chart");if(!el||el.clientWidth<10)return;var width=el.clientWidth||window.innerWidth;var height=Math.max(el.clientHeight||0,200);var funded=filteredData.filter(function(d){return d.gbep_award_amount&&d.lead_organization_name&&d.lead_organization_name.trim()!="";});var priorities=["PP1","PP2","PP3","PP4"],ppLabels={"PP1":"Priority 1","PP2":"Priority 2","PP3":"Priority 3","PP4":"Priority 4"},cellMap={},orgs=[],orgSet={};funded.forEach(function(row){var org=row.lead_organization_name.trim();if(!orgSet[org]){orgSet[org]=true;orgs.push(org);}priorities.forEach(function(pp){var hasAny=PP_FIELD_MAP[pp].some(function(f){return isYes(row[f]);});if(hasAny){var key=org+"||"+pp;cellMap[key]=(cellMap[key]||0)+1;}});});var heatSortMode=window._heatSortMode||'count';
   orgs.sort(function(a,b){
@@ -689,7 +763,7 @@ function drawTreemap() {
     var H=Math.max(el.clientHeight||el.offsetHeight||
            (el.parentElement?el.parentElement.clientHeight-40:0)||300,150);
 
-    var mL=52,mR=20,mT=14,mB=62;
+    var mL=52,mR=20,mT=14,mB=76;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<60||plotH<60)return;
@@ -736,7 +810,7 @@ function drawTreemap() {
 
     var fs=Math.max(13,Math.round(vfs(14)));
     var axFs=Math.max(14,Math.round(vfs(15)));
-    var xTickCount=Math.max(3,Math.min(6,Math.floor(plotW/90)));
+    var xTickCount=Math.max(3,Math.min(5,Math.floor(plotW/120)));
     var yTicks=[0,25,50,75,100];
 
     var svg=d3.select("#"+containerId).append("svg")
@@ -807,8 +881,8 @@ function drawTreemap() {
       xAxisG.select(".domain").attr("stroke","#e2e8f0");
       xAxisG.selectAll(".tick line").attr("stroke","#e2e8f0");
       xAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569")
-        .attr("text-anchor","end").attr("transform","rotate(-35)")
-        .attr("dx","-0.4em").attr("dy","0.3em");
+        .attr("text-anchor","end").attr("transform","rotate(-50)")
+        .attr("dx","-0.6em").attr("dy","0.1em");
 
       // Bubbles — repositioned using current xScale, Y unchanged
       bubbleLayer.selectAll("g.bubble").remove();
