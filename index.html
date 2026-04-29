@@ -8,8 +8,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: 'Roboto', sans-serif; }
-    #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+    html, body { width: 100%; height: 100%; overflow-x: hidden; overflow-y: hidden; background: #f8fafc; font-family: 'Roboto', sans-serif; }
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; overflow-x: hidden; }
     #nav { display: flex; align-items: center; justify-content: center; gap: clamp(4px,0.5vw,8px); padding: clamp(6px,0.8vw,12px) clamp(8px,1vw,16px); background: white; border-bottom: 2px solid #e8f0fe; flex-shrink: 0; flex-wrap: wrap; }
     .nav-btn { padding: clamp(5px,0.5vw,10px) clamp(10px,1.2vw,24px); border: 2px solid #1677bc; border-radius: 20px; background: white; color: #1677bc; font-family: 'Roboto', sans-serif; font-size: clamp(11px,0.95vw,16px); font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
     .nav-btn:hover { background: #e8f4fb; }
@@ -21,12 +21,12 @@
     .chart-subtitle { font-size: clamp(13px,0.95vw,16px); color: #888; margin-bottom: 8px; flex-shrink: 0; line-height: 1.5; }
     .chart-subtitle strong { color: #1677bc; font-weight: 700; }
     .chart-subtitle strong.green { color: #009988; }
-    .chart-area { flex: 1; overflow: auto; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
+    .chart-area { flex: 1; overflow-x: hidden; overflow-y: auto; min-height: 0; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 8px; }
     .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; width: 100%; height: 100%; }
     .grid-cell { overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); display: flex; flex-direction: column; padding: 8px; }
     .grid-cell-title { font-size: clamp(9px,0.75vw,13px); font-weight: 700; padding: 2px 4px 4px; flex-shrink: 0; }
     .grid-chart { flex: 1; overflow: hidden; min-height: 0; }
-    svg { display: block; }
+    svg { display: block; max-width: 100%; }
     #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #1677bc; font-weight: 500; }
     .tooltip { position: absolute; background: rgba(15,23,42,0.92); color: white; padding: 8px 12px; border-radius: 7px; font-size: clamp(11px,0.9vw,14px); pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 300px; line-height: 1.5; z-index: 999; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     #date-filter { font-size: clamp(11px,0.9vw,15px); }
