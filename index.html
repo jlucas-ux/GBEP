@@ -426,7 +426,7 @@ function drawTreemap() {
   var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.24, 300)) : 0;
   var chartW   = availW - STAT_W - (STAT_W > 0 ? 12 : 0);
   var GAP      = Math.max(6, Math.round(chartW * 0.007));
-  var Y_PAD    = 28; // left padding for y-axis labels
+  var Y_PAD    = 46; // left padding: 22px for rotated "% of Projects" + 24px for % numbers
   var colW     = Math.floor((chartW - GAP*(N-1) - Y_PAD) / N);
 
   var nameFontPx = Math.max(12, Math.min(Math.round(colW*0.10), 16));
@@ -447,6 +447,19 @@ function drawTreemap() {
     "position:relative;width:"+chartW+"px;box-sizing:border-box;"+
     "padding-left:"+Y_PAD+"px;";
 
+  // Rotated y-axis label
+  var yAxisLbl = document.createElement("div");
+  yAxisLbl.style.cssText =
+    "position:absolute;left:0;top:0;bottom:0;width:20px;"+
+    "display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;";
+  var yAxisText = document.createElement("div");
+  yAxisText.style.cssText =
+    "font-size:12px;font-weight:700;color:#475569;font-family:'Roboto',sans-serif;"+
+    "white-space:nowrap;transform:rotate(-90deg);transform-origin:center center;letter-spacing:.02em;";
+  yAxisText.textContent = "% of Projects";
+  yAxisLbl.appendChild(yAxisText);
+  chart.appendChild(yAxisLbl);
+
   // Gridlines + y-labels
   [0,25,50,75,100].forEach(function(v){
     var gl = document.createElement("div");
@@ -457,9 +470,9 @@ function drawTreemap() {
     chart.appendChild(gl);
     var lbl = document.createElement("div");
     lbl.style.cssText =
-      "position:absolute;left:0;bottom:"+(v/100*availH-7)+"px;"+
-      "font-size:12px;color:rgba(0,0,0,0.35);font-family:'Roboto',sans-serif;"+
-      "pointer-events:none;z-index:0;width:24px;text-align:right;";
+      "position:absolute;left:22px;bottom:"+(v/100*availH-7)+"px;"+
+      "font-size:12px;color:rgba(0,0,0,0.45);font-family:'Roboto',sans-serif;"+
+      "pointer-events:none;z-index:0;width:20px;text-align:right;";
     lbl.textContent = v+"%";
     chart.appendChild(lbl);
   });
@@ -666,11 +679,24 @@ function drawTreemap() {
       totalTags+" total tags · "+avgPerProj+" habitats per project on average. "+
       "Bars are independent — values won't add to 100%.";
     el.appendChild(wrapper);
+    var xAxisLblN = document.createElement("div");
+    xAxisLblN.style.cssText = "text-align:center;font-size:12px;font-weight:700;color:#475569;font-family:'Roboto',sans-serif;padding-top:5px;";
+    xAxisLblN.textContent = "Habitat Type";
+    el.appendChild(xAxisLblN);
     el.appendChild(noteEl);
     return;
   }
 
   el.appendChild(wrapper);
+
+  // X-axis label
+  var xAxisLbl = document.createElement("div");
+  xAxisLbl.style.cssText =
+    "text-align:center;font-size:12px;font-weight:700;color:#475569;"+
+    "font-family:'Roboto',sans-serif;padding-top:5px;letter-spacing:.02em;"+
+    "padding-right:"+(STAT_W>0?STAT_W+12:0)+"px;";
+  xAxisLbl.textContent = "Habitat Type";
+  el.appendChild(xAxisLbl);
 }
 
 
@@ -678,7 +704,7 @@ function drawTreemap() {
     var el=document.getElementById("fy-chart");
     if(!el||el.clientWidth<10)return;
     var width=el.clientWidth||window.innerWidth;
-    var height=Math.max(el.clientHeight||0,260);
+    var height=Math.min(Math.max(el.clientHeight||0,260),380);
     var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});
     var byYear=d3.rollups(funded,
       function(v){return{count:v.length,award:d3.sum(v,function(d){return d.gbep_award_amount||0;})};},
@@ -771,7 +797,7 @@ function drawTreemap() {
     var H=Math.max(el.clientHeight||el.offsetHeight||
            (el.parentElement?el.parentElement.clientHeight-40:0)||300,150);
 
-    var mL=72,mR=20,mT=14,mB=76;
+    var mL=72,mR=20,mT=14,mB=92;
     var plotW=W-mL-mR;
     var plotH=H-mT-mB;
     if(plotW<60||plotH<60)return;
@@ -851,7 +877,7 @@ function drawTreemap() {
     yAxisG.selectAll("text").attr("font-size",fs).attr("fill","#475569");
 
     // Axis labels
-    root.append("text").attr("x",plotW/2).attr("y",plotH+50)
+    root.append("text").attr("x",plotW/2).attr("y",plotH+66)
       .attr("text-anchor","middle").attr("font-size",axFs)
       .attr("font-weight","600").attr("fill","#475569")
       .text("Total Project Cost (All Funding Sources)");
@@ -1451,10 +1477,10 @@ function drawTreemap() {
     function fmtAc(v){return v>=1000?Math.round(v/1000)+"K ac":Math.round(v)+" ac";}
 
     // ── Layout ───────────────────────────────────────────────────────────────
-    var W=el.clientWidth||600;
+    var W=Math.max(100,(el.clientWidth||600)-18); // subtract padding to prevent right-edge clip
     // Label column uses foreignObject — allow multi-line so no truncation
     var LABEL_W=Math.min(W*0.30, 210);
-    var TOTAL_W=Math.min(W*0.10, 72);
+    var TOTAL_W=Math.min(W*0.14, 90);  // wider to fit "$10.0M" without clipping
     var BAR_W=W-LABEL_W-TOTAL_W-28;
     var FONT=Math.max(MIN_FONT, Math.min(14, Math.floor(W*0.022)));
     var LINE_H=FONT*1.3;
