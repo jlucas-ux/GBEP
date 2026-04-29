@@ -110,9 +110,11 @@ function draw(data){
   var bCy   = H - DR - Math.max(10, CR);
   var dropH = bCy + DR - topY;
 
-  // Font size scales with both container width and number of bands
-  var FS = Math.max(10, Math.min(14, Math.floor(Math.min(W * 0.025, H / (N * 2.4)))));
-  var ARM_H = Math.max(FS * 2.8, Math.min(dropH / (N * 0.85), 58));
+  // Font size — conservative cap so labels fit even at high browser zoom
+  // (browser zoom shrinks the CSS-pixel container in ExB panels)
+  var FS = Math.max(9, Math.min(12, Math.floor(Math.min(W * 0.022, H / (N * 2.5)))));
+  // ARM_H — tall enough for 3-line labels; capped so bands don't visually overlap
+  var ARM_H = Math.max(FS * 3.4, Math.min(dropH / (N * 0.80), 66));
 
   function hw(y){
     if(y>=bCy) return Math.sqrt(Math.max(0, DR*DR-(y-bCy)*(y-bCy)));
@@ -188,21 +190,29 @@ function draw(data){
     .attr("stroke","white").attr("stroke-width",3);
 
   // ══ LAYER 5: Icons inside drop ═════════════════════════════════════════════
+  // Centering fix: <div> flex wrapper around <i>.
+  // Using line-height or flex directly on <i> is unreliable — icon fonts have
+  // descender space that shifts the glyph off-center at zoom.
   var MIN_ICON=28;
   layers.forEach(function(lay,i){
     if(i===layers.length-1)return;
     if(lay.bandH<MIN_ICON)return;
-    var sz=Math.max(16,Math.min(lay.bandH*0.58,28));
+    var sz=Math.round(Math.max(16,Math.min(lay.bandH*0.58,28)));
+    var foSz=sz+10;
+    var foX=Math.round(cx-foSz/2), foY=Math.round(lay.midY-foSz/2);
     svg.append("foreignObject")
-      .attr("x",cx-sz/2).attr("y",lay.midY-sz/2)
-      .attr("width",sz+4).attr("height",sz+4)
-      .append("xhtml:i")
-        .attr("class","ph-bold "+getIcon(lay.label))
-        .style("font-size",sz+"px")
-        .style("color","rgba(255,255,255,0.92)")
+      .attr("x",foX).attr("y",foY)
+      .attr("width",foSz).attr("height",foSz)
+      .append("xhtml:div")
         .style("display","flex").style("align-items","center")
-        .style("justify-content","center")
-        .style("width",(sz+4)+"px").style("height",(sz+4)+"px");
+        .style("justify-content","center").style("overflow","hidden")
+        .style("width",foSz+"px").style("height",foSz+"px")
+        .append("xhtml:i")
+          .attr("class","ph-bold "+getIcon(lay.label))
+          .style("font-size",sz+"px")
+          .style("color","rgba(255,255,255,0.92)")
+          .style("display","block").style("line-height","1")
+          .style("flex-shrink","0");
   });
 
   // ══ LAYER 6: Arm labels ═════════════════════════════════════════════════════
@@ -245,12 +255,16 @@ function draw(data){
         .style("color","white")
         .style("line-height","1.25")
         .style("text-align", textAlign)
-        .style("word-break","break-word")
-        .style("overflow-wrap","break-word")
+        // word-break:normal means only spaces cause line breaks, not "/" or "-"
+        // overflow-wrap:anywhere is the last-resort fallback if a single word won't fit
+        .style("word-break","normal")
+        .style("overflow-wrap","anywhere")
         .style("white-space","normal")
         .style("max-height", ARM_H+"px")
         .style("overflow","hidden")
-        .text(lay.label);
+        // ZWS after "/" gives the browser a break opportunity at the slash
+        // without adding visible space — fixes "Endangered/Threatened" splitting mid-word
+        .text(lay.label.replace(/\//g,"/\u200b"));
 
     // End circle
     var cX = lay.right ? W-CR-4 : CR+4;
@@ -275,14 +289,20 @@ function draw(data){
       .attr("role","button")
       .attr("aria-label",lay.label+": "+Math.round(lay.pct*100)+"% of projects, "+lay.count+" project"+(lay.count!==1?"s":""))
       .on("mousemove",function(ev){
+        var sgcNote = lay.label.indexOf("SGC") > -1
+          ? "<br><span style='color:rgba(200,230,255,0.85);font-size:11px'>SGC = Species of Greatest Conservation Need</span>"
+          : "";
         showTip(ev,"<strong>"+lay.label+"</strong><br>"+
           Math.round(lay.pct*100)+"% of projects — "+
-          lay.count+" project"+(lay.count!==1?"s":""));
+          lay.count+" project"+(lay.count!==1?"s":"")+sgcNote);
       })
       .on("focus",function(ev){
+        var sgcNote = lay.label.indexOf("SGC") > -1
+          ? "<br><span style='color:rgba(200,230,255,0.85);font-size:11px'>SGC = Species of Greatest Conservation Need</span>"
+          : "";
         showTip(ev,"<strong>"+lay.label+"</strong><br>"+
           Math.round(lay.pct*100)+"% of projects — "+
-          lay.count+" project"+(lay.count!==1?"s":""));
+          lay.count+" project"+(lay.count!==1?"s":"")+sgcNote);
       })
       .on("blur",hideTip)
       .on("mouseleave",hideTip);
