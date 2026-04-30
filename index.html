@@ -81,7 +81,7 @@
           </span>
           <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
             <span style="width:12px;height:12px;border-radius:50%;background:#2e6b78;display:inline-block;flex-shrink:0;"></span>
-            <span>Both land acquisition &amp; restoration</span>
+            <span>Land Acquisition and Other Project Goals</span>
           </span>
           <span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">
             <span style="width:12px;height:12px;border-radius:50%;background:#ea940d;display:inline-block;flex-shrink:0;"></span>
@@ -187,11 +187,12 @@
   var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
-  function classifyGoals(raw){
-    if(!raw)return'other';
-    var g=String(raw).replace(/_/g,' ').toLowerCase();
-    var hasL=g.indexOf('land acqui')>-1;
-    var hasO=/restoration|stewardship|research|monitoring|outreach|education|planning|conservation|enhancement/.test(g);
+  function classifyGoals(raw, otherGoals){
+    var g=String(raw||'').replace(/_/g,' ').toLowerCase();
+    var go=String(otherGoals||'').replace(/_/g,' ').toLowerCase().trim();
+    var combined=g+' '+go;
+    var hasL=combined.indexOf('land acqui')>-1;
+    var hasO=/restoration|stewardship|research|monitoring|outreach|education|planning|conservation|enhancement/.test(g)||go.length>2;
     if(hasL&&hasO)return'both';
     if(hasL)return'land';
     return'other';
@@ -265,7 +266,7 @@
 
   async function fetchData(){
     var ppFields=[];for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
-    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","in_kind_leveraging_amount","cash_leveraging_amount"];
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","broad_project_goals_other","in_kind_leveraging_amount","cash_leveraging_amount"];
     var url=LAYER_URL+"?where=1%3D1&outFields="+base.concat(ppFields).join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
@@ -413,8 +414,8 @@ function drawTreemap() {
   var COLORS = ["#0d47a1","#1565c0","#2e7d32","#00695c","#1b5e20","#006994","#78909c"];
   var N      = main.length;
   var availW = el.clientWidth  || 600;
-  var availH = el.clientHeight || 280;
-  availH = Math.max(availH, 220);
+  var X_LABEL_H = 28;
+  var availH = Math.max((el.clientHeight || 280) - X_LABEL_H, 192);
 
   // Reserve right side for stat panel if wide enough
   var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.24, 300)) : 0;
@@ -440,6 +441,19 @@ function drawTreemap() {
     "border-bottom:2px solid rgba(0,0,0,0.15);"+
     "position:relative;width:"+chartW+"px;box-sizing:border-box;"+
     "padding-left:"+Y_PAD+"px;";
+
+  // Y-axis label — rotated, parallel to y-axis
+  var yAxisLabelEl = document.createElement("div");
+  yAxisLabelEl.style.cssText =
+    "position:absolute;left:0;top:0;bottom:0;width:"+Y_PAD+"px;"+
+    "display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;";
+  var yAxisTextEl = document.createElement("div");
+  yAxisTextEl.style.cssText =
+    "font-size:12px;font-weight:700;color:#475569;font-family:'Roboto',sans-serif;"+
+    "white-space:nowrap;transform:rotate(-90deg);letter-spacing:.02em;";
+  yAxisTextEl.textContent = "% of Projects";
+  yAxisLabelEl.appendChild(yAxisTextEl);
+  chart.appendChild(yAxisLabelEl);
 
   // Gridlines + y-labels
   [0,25,50,75,100].forEach(function(v){
@@ -663,6 +677,15 @@ function drawTreemap() {
   }
 
   el.appendChild(wrapper);
+
+  // X-axis label — horizontal, below chart, parallel to x-axis
+  var xAxisLabelEl = document.createElement("div");
+  xAxisLabelEl.style.cssText =
+    "text-align:center;font-size:13px;font-weight:700;color:#475569;"+
+    "font-family:'Roboto',sans-serif;padding-top:7px;letter-spacing:.02em;"+
+    "padding-right:"+(STAT_W>0?STAT_W+12:0)+"px;";
+  xAxisLabelEl.textContent = "Habitat Type";
+  el.appendChild(xAxisLabelEl);
 }
 
 
@@ -906,7 +929,7 @@ function drawTreemap() {
           (d.acres>0?"Approx. "+fmtAc(d.acres)+"<br>":"")+
           "<br>"+
           (d.landCount>0?"<span style='color:#f98989'>"+d.landCount+" Land Acquisition only</span><br>":"")+
-          (d.bothCount>0?"<span style='color:#6dbbc4'>"+(d.bothCount)+" Both land acquisition &amp; restoration</span><br>":"")+
+          (d.bothCount>0?"<span style='color:#6dbbc4'>"+(d.bothCount)+" Land Acquisition and Other Project Goals</span><br>":"")+
           (d.otherCount>0?"<span style='color:#fbbf24'>"+(d.otherCount)+" Restoration, Stewardship, &amp; Research</span>":"")+
           (!d.landCount&&!d.bothCount&&!d.otherCount?"No project goal data":"");
 
@@ -1111,7 +1134,7 @@ function drawTreemap() {
         siteMap[site].totalCost+=Math.max(c,a);
         siteMap[site].acres+=(row.numeric_approximate_project_siz||0);
       }
-      var goalType=classifyGoals(row.edited_broad_project_goals||row.broad_project_goals);
+      var goalType=classifyGoals(row.edited_broad_project_goals||row.broad_project_goals, row.broad_project_goals_other);
       if(goalType==='land')siteMap[site].landCount++;
       else if(goalType==='both')siteMap[site].bothCount++;
       else siteMap[site].otherCount++;
@@ -1396,7 +1419,7 @@ function drawTreemap() {
       var title=(row.nru_project_title||"Untitled").trim();
       var key=site+"|||"+title;
       if(seen[key])return; seen[key]=true;
-      var goalType=classifyGoals(row.edited_broad_project_goals||row.broad_project_goals);
+      var goalType=classifyGoals(row.edited_broad_project_goals||row.broad_project_goals, row.broad_project_goals_other);
       var isLand=goalType==='land';
       var isBoth=goalType==='both';
       var acres=row.numeric_approximate_project_siz||0;
@@ -1586,7 +1609,7 @@ function drawTreemap() {
           (p.isLand
             ?"<span style='color:#f98989'>\u25a0 Land Acquisition</span>"
             :(p.isBoth
-              ?"<span style='color:#6dbbc4'>\u25a0 Both land acquisition &amp; restoration</span>"
+              ?"<span style='color:#6dbbc4'>\u25a0 Land Acquisition and Other Project Goals</span>"
               :"<span style='color:#fbbf24'>\u25a0 Restoration/Stewardship/Research</span>"))+
           (p.acres>0&&p.isLand?"<br>Approx. "+fmtAc(p.acres)+" protected":"");
 
