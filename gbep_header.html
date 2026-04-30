@@ -17,8 +17,8 @@
       top: 0; left: 0; right: 0; bottom: 0;
       display: flex;
       align-items: center;
-      gap: clamp(6px, 0.8vw, 12px);
-      padding: 0 clamp(4px, 0.5vw, 8px);
+      gap: 10px;
+      padding: 0 8px;
     }
     .logo {
       height: 100%;
@@ -29,12 +29,11 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      line-height: 1.15;
+      line-height: 1.2;
     }
     .line1 {
       font-family: 'Roboto', sans-serif;
       font-weight: 900;
-      font-size: clamp(15px, 2vw, 26px);
       color: #007ac2;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -43,7 +42,6 @@
     .line2 {
       font-family: 'Roboto', sans-serif;
       font-weight: 700;
-      font-size: clamp(10px, 1.3vw, 18px);
       color: #25b7d3;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -53,15 +51,22 @@
 </head>
 <body>
   <div class="header">
-    <img
-      class="logo"
-      src="https://jlucas-ux.github.io/GBEP/nru_logo.png"
-      alt="NRU Data Logo"
-    >
+    <img class="logo" src="https://jlucas-ux.github.io/GBEP/nru_logo.png" alt="NRU Logo">
     <div class="title-block">
-      <span class="line1">Galveston Bay</span>
-      <span class="line2">Habitat Project Database</span>
+      <span class="line1" id="l1">Galveston Bay</span>
+      <span class="line2" id="l2">Habitat Project Database</span>
     </div>
   </div>
+  <script>
+    function scale() {
+      var h = document.body.clientHeight || 60;
+      var w = document.body.clientWidth || 300;
+      var base = Math.min(h, w * 0.06);
+      document.getElementById('l1').style.fontSize = Math.max(12, Math.round(base * 0.42)) + 'px';
+      document.getElementById('l2').style.fontSize = Math.max(9,  Math.round(base * 0.28)) + 'px';
+    }
+    scale();
+    window.addEventListener('resize', scale);
+  </script>
 </body>
 </html>
