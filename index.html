@@ -670,7 +670,7 @@ function drawTreemap() {
     var el=document.getElementById("fy-chart");
     if(!el||el.clientWidth<10)return;
     var width=el.clientWidth||window.innerWidth;
-    var height=Math.min(Math.max(el.clientHeight||0,260),380);
+    var height=Math.max(el.clientHeight||0,260);
     var funded=filteredData.filter(function(d){return d.fiscal_year_awarded;});
     var byYear=d3.rollups(funded,
       function(v){return{count:v.length,award:d3.sum(v,function(d){return d.gbep_award_amount||0;})};},
@@ -904,10 +904,11 @@ function drawTreemap() {
           (coFunding>0?"Outside co-funding: "+fmt$(coFunding):"All GBEP-funded")+"<br>"+
           "GBEP share: "+d.pctGbep+"%<br>"+
           (d.acres>0?"Approx. "+fmtAc(d.acres)+"<br>":"")+
-          (d.landCount>0?"<span style='color:#f98989'>"+d.landCount+" land acquisition only</span>"+(d.bothCount>0?"<br>":""):"")+ 
-          (d.bothCount>0?"<span style='color:#6dbbc4'>"+(d.bothCount)+" land acq + restoration</span>"+(d.otherCount>0?"<br>":""):"")+ 
-          (d.otherCount>0?"<span style='color:#fbbf24'>"+(d.otherCount)+" restoration only</span>":"")+ 
-          (!d.landCount&&!d.bothCount?"No land acquisition projects":"");
+          "<br>"+
+          (d.landCount>0?"<span style='color:#f98989'>"+d.landCount+" Land Acquisition only</span><br>":"")+
+          (d.bothCount>0?"<span style='color:#6dbbc4'>"+(d.bothCount)+" Both land acquisition &amp; restoration</span><br>":"")+
+          (d.otherCount>0?"<span style='color:#fbbf24'>"+(d.otherCount)+" Restoration, Stewardship, &amp; Research</span>":"")+
+          (!d.landCount&&!d.bothCount&&!d.otherCount?"No project goal data":"");
 
         var bG=bubbleLayer.append("g").attr("class","bubble")
           .style("cursor","pointer")
