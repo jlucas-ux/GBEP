@@ -19,11 +19,12 @@
       align-items: center;
       gap: 10px;
       padding: 0 8px;
+      overflow: hidden;
     }
     .logo {
-      height: 100%;
       width: auto;
       flex-shrink: 0;
+      display: block;
     }
     .title-block {
       display: flex;
@@ -51,7 +52,7 @@
 </head>
 <body>
   <div class="header">
-    <img class="logo" src="https://jlucas-ux.github.io/GBEP/nru_logo.png" alt="NRU Logo">
+    <img class="logo" id="logo" src="https://jlucas-ux.github.io/GBEP/nru_logo.png" alt="NRU Logo">
     <div class="title-block">
       <span class="line1" id="l1">Galveston Bay</span>
       <span class="line2" id="l2">Habitat Project Database</span>
@@ -59,11 +60,10 @@
   </div>
   <script>
     function scale() {
-      var h = document.body.clientHeight || 60;
-      var w = document.body.clientWidth || 300;
-      var base = Math.min(h, w * 0.06);
-      document.getElementById('l1').style.fontSize = Math.max(12, Math.round(base * 0.42)) + 'px';
-      document.getElementById('l2').style.fontSize = Math.max(9,  Math.round(base * 0.28)) + 'px';
+      var h = document.body.clientHeight || 100;
+      document.getElementById('logo').style.height = h + 'px';
+      document.getElementById('l1').style.fontSize = Math.round(h * 0.26) + 'px';
+      document.getElementById('l2').style.fontSize = Math.round(h * 0.16) + 'px';
     }
     scale();
     window.addEventListener('resize', scale);
