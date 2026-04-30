@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: clamp(6px, 0.8vw, 12px);
+      height: 100%;
+      padding: 0 clamp(4px, 0.5vw, 8px);
+    }
+    .logo {
+      height: clamp(36px, 5vh, 60px);
+      width: auto;
+      flex-shrink: 0;
+    }
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      line-height: 1.15;
+    }
+    .line1 {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 900;
+      font-size: clamp(13px, 1.5vw, 22px);
+      color: #007ac2;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .line2 {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 700;
+      font-size: clamp(9px, 1vw, 15px);
+      color: #25b7d3;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img
+      class="logo"
+      src="https://jlucas-ux.github.io/GBEP/nru%20data%20logo.png"
+      alt="NRU Data Logo"
+    >
+    <div class="title-block">
+      <span class="line1">Galveston Bay</span>
+      <span class="line2">Habitat Project Database</span>
+    </div>
+  </div>
+</body>
+</html>
