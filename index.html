@@ -187,18 +187,16 @@
   var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
-  function classifyGoals(editedGoals, broadGoals, otherGoals, capProgram){
-    // All goal fields are additive — combine before analysis
-    var combined=[editedGoals,broadGoals,otherGoals]
-      .map(function(v){return String(v||'').replace(/_/g,' ').toLowerCase();})
-      .join(' ');
-    var hasL=combined.indexOf('land acqui')>-1;
-    // Strip land acquisition — anything meaningful remaining = other goals exist
-    var remaining=combined.replace(/land\s*acqui\w*/g,'').replace(/[,;]+/g,' ').trim();
-    var hasO=remaining.length>2;
-    // CAP projects inherently involve both land acquisition and stewardship practices
-    var isCap=String(capProgram||'').toLowerCase().trim()==='yes';
-    if(hasL&&isCap)hasO=true;
+function classifyGoals(editedGoals, broadGoals, otherGoals, capProgram){
+    var cap=String(capProgram||'').toLowerCase().trim();
+    var bpg=String(broadGoals||'').replace(/_/g,' ').toLowerCase();
+    var hasL=cap==='yes'||bpg.indexOf('land acquisition')>-1;
+    var hasO=false;
+    var goals=bpg.split(',');
+    for(var i=0;i<goals.length;i++){
+      var goal=goals[i].trim();
+      if(goal!==''&&goal!=='land acquisition'){hasO=true;break;}
+    }
     if(hasL&&hasO)return'both';
     if(hasL)return'land';
     return'other';
