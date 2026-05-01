@@ -56,9 +56,9 @@ button:focus-visible,#back-btn:focus-visible{outline:3px solid #1677bc;outline-o
 #panel-footer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e2e8f0;flex-shrink:0;}
 #panel-apply-btn{flex:1;height:40px;border-radius:6px;border:none;background:#1677bc;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:'Roboto',sans-serif;}
 #panel-apply-btn:hover{background:#1260a8;}
-#panel-clear-btn{height:40px;padding:0 16px;border-radius:6px;border:1px solid #cbd5e1;background:white;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;}
-#panel-clear-btn:hover{background:#f1f5f9;}
-
+#panel-clear-btn{height:40px;padding:0 16px;border-radius:6px;border:1px solid #e2e8f0;background:#fef2f2;color:#dc2626;font-size:14px;font-weight:700;cursor:pointer;font-family:'Roboto',sans-serif;}
+#panel-clear-btn:hover{background:#fee2e2;}
+  
 /* ── APP LAYOUT ── */
 #app{width:100%;height:100%;display:flex;flex-direction:column;}
 #main{flex:1;display:flex;overflow:hidden;min-height:0;position:relative;}
@@ -563,6 +563,13 @@ function renderChips(){
   var badge=document.getElementById('filter-badge');
   if(badge){badge.textContent=activeCount>0?activeCount:'';badge.style.display=activeCount>0?'flex':'none';}
   chipBar.style.display=activeCount>0?'flex':'none';
+  if(activeCount>0){
+  var clearAll=document.createElement('button');
+  clearAll.style.cssText='background:none;border:none;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;padding:4px 8px;font-family:Roboto,sans-serif;text-decoration:underline;flex-shrink:0;';
+  clearAll.textContent='Clear all';
+  clearAll.onclick=clearFilters;
+  chipBar.appendChild(clearAll);
+}
 }
 
 // ── CORE FILTER LOGIC (unchanged) ──
