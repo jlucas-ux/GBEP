@@ -187,15 +187,18 @@
   var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
-  function classifyGoals(editedGoals, broadGoals, otherGoals){
-    // All three fields are additive — combine all before analysis
+  function classifyGoals(editedGoals, broadGoals, otherGoals, capProgram){
+    // All goal fields are additive — combine before analysis
     var combined=[editedGoals,broadGoals,otherGoals]
       .map(function(v){return String(v||'').replace(/_/g,' ').toLowerCase();})
       .join(' ');
     var hasL=combined.indexOf('land acqui')>-1;
-    // Strip land acquisition from combined — if anything meaningful remains, other goals exist
+    // Strip land acquisition — anything meaningful remaining = other goals exist
     var remaining=combined.replace(/land\s*acqui\w*/g,'').replace(/[,;]+/g,' ').trim();
     var hasO=remaining.length>2;
+    // CAP projects inherently involve both land acquisition and stewardship practices
+    var isCap=String(capProgram||'').toLowerCase().trim()==='yes';
+    if(hasL&&isCap)hasO=true;
     if(hasL&&hasO)return'both';
     if(hasL)return'land';
     return'other';
@@ -269,7 +272,7 @@
 
   async function fetchData(){
     var ppFields=[];for(var p=1;p<=4;p++)PLAN_DEFS[p].forEach(function(it){ppFields.push(it.field);});
-    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","broad_project_goals_other","in_kind_leveraging_amount","cash_leveraging_amount"];
+    var base=["project_landscape_type","site_name_long_term_project_nam","lead_organization_name","gbep_award_amount","nru_project_title","total_cost_of_project","fiscal_year_awarded","numeric_approximate_project_siz","project_scale","broad_project_goals","edited_broad_project_goals","broad_project_goals_other","conservation_assist_program","in_kind_leveraging_amount","cash_leveraging_amount"];
     var url=LAYER_URL+"?where=1%3D1&outFields="+base.concat(ppFields).join(",")+"&f=json&resultRecordCount=2000";
     var res=await fetch(url);var json=await res.json();
     return json.features.map(function(f){return f.attributes;});
@@ -1137,7 +1140,7 @@ function drawTreemap() {
         siteMap[site].totalCost+=Math.max(c,a);
         siteMap[site].acres+=(row.numeric_approximate_project_siz||0);
       }
-      var goalType=classifyGoals(row.edited_broad_project_goals, row.broad_project_goals, row.broad_project_goals_other);
+      var goalType=classifyGoals(row.edited_broad_project_goals, row.broad_project_goals, row.broad_project_goals_other, row.conservation_assist_program);
       if(goalType==='land')siteMap[site].landCount++;
       else if(goalType==='both')siteMap[site].bothCount++;
       else siteMap[site].otherCount++;
@@ -1422,7 +1425,7 @@ function drawTreemap() {
       var title=(row.nru_project_title||"Untitled").trim();
       var key=site+"|||"+title;
       if(seen[key])return; seen[key]=true;
-      var goalType=classifyGoals(row.edited_broad_project_goals, row.broad_project_goals, row.broad_project_goals_other);
+      var goalType=classifyGoals(row.edited_broad_project_goals, row.broad_project_goals, row.broad_project_goals_other, row.conservation_assist_program);
       var isLand=goalType==='land';
       var isBoth=goalType==='both';
       var acres=row.numeric_approximate_project_siz||0;
