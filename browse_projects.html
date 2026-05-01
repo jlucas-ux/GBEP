@@ -217,6 +217,7 @@ button:focus-visible,#back-btn:focus-visible{outline:3px solid #1677bc;outline-o
     <div id="search-group">
       <input id="search-input" type="text" placeholder="Search by name or organization…" aria-label="Search projects" oninput="applyFilters()" onkeydown="if(event.key==='Enter')applyFilters()">
       <button id="search-btn" onclick="applyFilters()" aria-label="Submit search">Search</button>
+      <button id="clear-all-btn" onclick="clearFilters()" style="display:none;height:38px;padding:0 14px;border-radius:6px;border:1px solid #e2e8f0;background:#fef2f2;color:#dc2626;font-size:14px;font-weight:600;cursor:pointer;font-family:'Roboto',sans-serif;white-space:nowrap;flex-shrink:0;">Clear all</button>
     </div>
     <div id="filter-actions">
       <span id="result-count" aria-live="polite" aria-atomic="true"></span>
@@ -560,16 +561,13 @@ function renderChips(){
     })(sel);
     chipBar.appendChild(chip);
   });
-  var badge=document.getElementById('filter-badge');
+ var badge=document.getElementById('filter-badge');
+  var clearAllBtn=document.getElementById('clear-all-btn');
+  var searchVal=document.getElementById('search-input').value||'';
+  var anyActive=activeCount>0||searchVal.trim().length>0;
   if(badge){badge.textContent=activeCount>0?activeCount:'';badge.style.display=activeCount>0?'flex':'none';}
+  if(clearAllBtn){clearAllBtn.style.display=anyActive?'inline-flex':'none';}
   chipBar.style.display=activeCount>0?'flex':'none';
-  if(activeCount>0){
-  var clearAll=document.createElement('button');
-  clearAll.style.cssText='background:none;border:none;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;padding:4px 8px;font-family:Roboto,sans-serif;text-decoration:underline;flex-shrink:0;';
-  clearAll.textContent='Clear all';
-  clearAll.onclick=clearFilters;
-  chipBar.appendChild(clearAll);
-}
 }
 
 // ── CORE FILTER LOGIC (unchanged) ──
