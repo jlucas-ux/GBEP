@@ -188,14 +188,14 @@
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
   function classifyGoals(editedGoals, broadGoals, otherGoals){
-    // Use edited field if populated, fall back to broad project goals
-    var primary=String(editedGoals||broadGoals||'').replace(/_/g,' ').toLowerCase();
-    var other=String(otherGoals||'').replace(/_/g,' ').toLowerCase().trim();
-    // Check for land acquisition in either field
-    var hasL=primary.indexOf('land acqui')>-1||other.indexOf('land acqui')>-1;
-    // Strip land acquisition text out of primary — anything meaningful left = other goals present
-    var remaining=primary.replace(/land\s*acqui\w*/g,'').replace(/[,;]+/g,' ').trim();
-    var hasO=remaining.length>2||other.length>2;
+    // All three fields are additive — combine all before analysis
+    var combined=[editedGoals,broadGoals,otherGoals]
+      .map(function(v){return String(v||'').replace(/_/g,' ').toLowerCase();})
+      .join(' ');
+    var hasL=combined.indexOf('land acqui')>-1;
+    // Strip land acquisition from combined — if anything meaningful remains, other goals exist
+    var remaining=combined.replace(/land\s*acqui\w*/g,'').replace(/[,;]+/g,' ').trim();
+    var hasO=remaining.length>2;
     if(hasL&&hasO)return'both';
     if(hasL)return'land';
     return'other';
