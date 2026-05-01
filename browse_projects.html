@@ -566,7 +566,7 @@ function renderChips(){
   var searchVal=document.getElementById('search-input').value||'';
   var anyActive=activeCount>0||searchVal.trim().length>0;
   if(badge){badge.textContent=activeCount>0?activeCount:'';badge.style.display=activeCount>0?'flex':'none';}
-  if(clearAllBtn){clearAllBtn.style.display=anyActive?'inline-flex':'none';}
+  if(clearAllBtn){clearAllBtn.style.display='inline-flex';}
   chipBar.style.display=activeCount>0?'flex':'none';
 }
 
