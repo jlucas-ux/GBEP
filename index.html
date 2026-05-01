@@ -187,12 +187,15 @@
   var LAYER_URL = "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query";
   var C1="#1677bc",C2="#54a9ad",C3="#25b7d3",C4="#54c6c7",EMPTY="#e0e0e0";
   var FONT="Roboto, sans-serif";
-  function classifyGoals(raw, otherGoals){
-    var g=String(raw||'').replace(/_/g,' ').toLowerCase();
-    var go=String(otherGoals||'').replace(/_/g,' ').toLowerCase().trim();
-    var combined=g+' '+go;
-    var hasL=combined.indexOf('land acqui')>-1;
-    var hasO=/restoration|stewardship|research|monitoring|outreach|education|planning|conservation|enhancement/.test(g)||go.length>2;
+  function classifyGoals(editedGoals, broadGoals, otherGoals){
+    // Use edited field if populated, fall back to broad project goals
+    var primary=String(editedGoals||broadGoals||'').replace(/_/g,' ').toLowerCase();
+    var other=String(otherGoals||'').replace(/_/g,' ').toLowerCase().trim();
+    // Check for land acquisition in either field
+    var hasL=primary.indexOf('land acqui')>-1||other.indexOf('land acqui')>-1;
+    // Strip land acquisition text out of primary — anything meaningful left = other goals present
+    var remaining=primary.replace(/land\s*acqui\w*/g,'').replace(/[,;]+/g,' ').trim();
+    var hasO=remaining.length>2||other.length>2;
     if(hasL&&hasO)return'both';
     if(hasL)return'land';
     return'other';
@@ -1134,7 +1137,7 @@ function drawTreemap() {
         siteMap[site].totalCost+=Math.max(c,a);
         siteMap[site].acres+=(row.numeric_approximate_project_siz||0);
       }
-      var goalType=classifyGoals(row.edited_broad_project_goals||row.broad_project_goals, row.broad_project_goals_other);
+      var goalType=classifyGoals(row.edited_broad_project_goals, row.broad_project_goals, row.broad_project_goals_other);
       if(goalType==='land')siteMap[site].landCount++;
       else if(goalType==='both')siteMap[site].bothCount++;
       else siteMap[site].otherCount++;
@@ -1419,7 +1422,7 @@ function drawTreemap() {
       var title=(row.nru_project_title||"Untitled").trim();
       var key=site+"|||"+title;
       if(seen[key])return; seen[key]=true;
-      var goalType=classifyGoals(row.edited_broad_project_goals||row.broad_project_goals, row.broad_project_goals_other);
+      var goalType=classifyGoals(row.edited_broad_project_goals, row.broad_project_goals, row.broad_project_goals_other);
       var isLand=goalType==='land';
       var isBoth=goalType==='both';
       var acres=row.numeric_approximate_project_siz||0;
@@ -1468,10 +1471,10 @@ function drawTreemap() {
     function fmtAc(v){return v>=1000?Math.round(v/1000)+"K ac":Math.round(v)+" ac";}
 
     // ── Layout ───────────────────────────────────────────────────────────────
-    var W=el.clientWidth||600;
+    var W=Math.max(200,(el.clientWidth||600)-20);
     // Label column uses foreignObject — allow multi-line so no truncation
     var LABEL_W=Math.min(W*0.30, 210);
-    var TOTAL_W=Math.min(W*0.10, 72);
+    var TOTAL_W=Math.max(64,Math.min(W*0.12, 88));
     var BAR_W=W-LABEL_W-TOTAL_W-28;
     var FONT=Math.max(MIN_FONT, Math.min(14, Math.floor(W*0.022)));
     var LINE_H=FONT*1.3;
