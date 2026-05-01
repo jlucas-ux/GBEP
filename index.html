@@ -1494,7 +1494,7 @@ function drawTreemap() {
       var rowH=Math.max(labelH, 44);
       return{site:s, lines:lines, rowH:rowH};
     });
-    var HEADER_H=44;
+    var HEADER_H=58;
     var naturalH=d3.sum(rowData,function(d){return d.rowH;});
     var containerH=el.clientHeight||400;
     if(naturalH>0&&naturalH<containerH-HEADER_H){
@@ -1508,10 +1508,15 @@ function drawTreemap() {
       .style("font-family","'Roboto',sans-serif")
       .style("display","block");
 
+    // SVG layers: paint order = backgrounds -> gridlines -> bars/labels
+    var bgLayer=svg.append("g");
+    var gridLayer=svg.append("g");
+    var barLayer=svg.append("g");
+
     var xScale=d3.scaleLinear().domain([0,maxTotal]).range([0,BAR_W]);
 
-    // ── Column headers ────────────────────────────────────────────────────────
-    var hY=20;
+    // Column headers (row 1)
+    var hY=18;
     svg.append("text").attr("x",8).attr("y",hY)
       .attr("font-size",FONT).attr("font-weight","700").attr("fill","#475569")
       .text("Site");
@@ -1522,30 +1527,42 @@ function drawTreemap() {
       .attr("text-anchor","middle").attr("font-size",FONT).attr("font-weight","700").attr("fill","#475569")
       .text("Total");
 
-    // Vertical grid lines at fixed $200K intervals, drawn under bars
+    // Dollar tick labels (row 2 of header, below column names, drawn once)
     var INTERVAL=200000;
     var gridTicks=[];
     for(var gt=INTERVAL; gt<=maxTotal*1.05; gt+=INTERVAL) gridTicks.push(gt);
-    // Draw lines first (behind everything) — will redraw after rows to ensure they sit on top
-    // Store for redraw after rows are drawn
-    function drawGridLines(){
-      gridTicks.forEach(function(t){
-        if(xScale(t)>BAR_W)return;
-        var tx=LABEL_W+xScale(t);
-        svg.append("line").attr("x1",tx).attr("x2",tx)
-          .attr("y1",30).attr("y2",TOTAL_H-4)
-          .attr("stroke","#475569").attr("stroke-width",1.5)
-          .attr("stroke-dasharray","none");
-        svg.append("text").attr("x",tx).attr("y",hY-2)
-          .attr("text-anchor","middle")
-          .attr("font-size",Math.max(11,FONT-1)).attr("font-weight","600")
-          .attr("fill","#475569").text(fmt$(t));
-      });
-    }
-    drawGridLines();
+    var tickY=HEADER_H-6;
+    gridTicks.forEach(function(t){
+      if(xScale(t)>BAR_W)return;
+      var tx=LABEL_W+xScale(t);
+      svg.append("text").attr("x",tx).attr("y",tickY)
+        .attr("text-anchor","middle")
+        .attr("font-size",Math.max(10,FONT-2)).attr("font-weight","500")
+        .attr("fill","#94a3b8").text(fmt$(t));
+    });
 
-    // ── Rows ──────────────────────────────────────────────────────────────────
-    var curY=32;
+    // Pass 1: row backgrounds into bgLayer
+    var _curY=HEADER_H;
+    rowData.forEach(function(rd,ri){
+      rd.rowY=_curY;
+      bgLayer.append("rect").attr("x",0).attr("y",_curY)
+        .attr("width",W).attr("height",rd.rowH)
+        .attr("fill",ri%2===0?"#f8fafc":"white");
+      _curY+=rd.rowH;
+    });
+
+    // Gridlines into gridLayer (after backgrounds, before bars)
+    gridTicks.forEach(function(t){
+      if(xScale(t)>BAR_W)return;
+      var tx=LABEL_W+xScale(t);
+      gridLayer.append("line").attr("x1",tx).attr("x2",tx)
+        .attr("y1",HEADER_H).attr("y2",TOTAL_H-4)
+        .attr("stroke","#cbd5e1").attr("stroke-width",1)
+        .attr("stroke-dasharray","4,3");
+    });
+
+    // Pass 2: bars, labels, dividers into barLayer
+    var curY=HEADER_H;
     var lastOrg=null;
     rowData.forEach(function(rd,ri){
       // When sorted by org, insert a group header when org changes
@@ -1553,10 +1570,10 @@ function drawTreemap() {
         lastOrg=rd.site.leadOrg;
         var orgLabel=rd.site.leadOrg||"Unknown Organization";
         var orgH=26;
-        svg.append("rect").attr("x",0).attr("y",curY)
+        bgLayer.append("rect").attr("x",0).attr("y",curY)
           .attr("width",W).attr("height",orgH)
           .attr("fill","#e8f0fe");
-        svg.append("text").attr("x",10).attr("y",curY+orgH/2)
+        barLayer.append("text").attr("x",10).attr("y",curY+orgH/2)
           .attr("dominant-baseline","middle")
           .attr("font-size",Math.max(12,FONT-1)).attr("font-weight","700")
           .attr("fill","#1677bc").text(orgLabel);
@@ -1569,13 +1586,8 @@ function drawTreemap() {
       var barH=rowH*0.62;
       var barY=midY-barH/2;
 
-      // Alternating row background
-      svg.append("rect").attr("x",0).attr("y",rowY)
-        .attr("width",W).attr("height",rowH)
-        .attr("fill",ri%2===0?"#f8fafc":"white");
-
       // ── Site label: stacked via foreignObject ─────────────────────────────
-      var fo=svg.append("foreignObject")
+      var fo=barLayer.append("foreignObject")
         .attr("x",6).attr("y",rowY+2)
         .attr("width",LABEL_W-8).attr("height",rowH-4);
       var div=fo.append("xhtml:div")
@@ -1613,7 +1625,7 @@ function drawTreemap() {
               :"<span style='color:#fbbf24'>\u25a0 Restoration/Stewardship/Research</span>"))+
           (p.acres>0&&p.isLand?"<br>Approx. "+fmtAc(p.acres)+" protected":"");
 
-        var seg=svg.append("g").style("cursor","pointer")
+        var seg=barLayer.append("g").style("cursor","pointer")
           .on("mousemove",function(ev){showTooltip(ev,ttHtml);})
           .on("mouseleave",hideTooltip);
 
@@ -1635,7 +1647,7 @@ function drawTreemap() {
 
         // Project divider — bold white gap line between segments
         if(pi>0){
-          svg.append("line")
+          barLayer.append("line")
             .attr("x1",xOff).attr("x2",xOff)
             .attr("y1",barY-1).attr("y2",barY+barH+1)
             .attr("stroke","white").attr("stroke-width",2.5);
@@ -1645,27 +1657,25 @@ function drawTreemap() {
       });
 
       // Bar outline
-      svg.append("rect").attr("x",LABEL_W).attr("y",barY)
+      barLayer.append("rect").attr("x",LABEL_W).attr("y",barY)
         .attr("width",xScale(s.total)).attr("height",barH)
         .attr("fill","none").attr("stroke","rgba(255,255,255,0.3)").attr("stroke-width",1)
         .attr("rx",2).style("pointer-events","none");
 
       // Total label
-      svg.append("text").attr("x",W-TOTAL_W/2).attr("y",midY)
+      barLayer.append("text").attr("x",W-TOTAL_W/2).attr("y",midY)
         .attr("text-anchor","middle").attr("dominant-baseline","middle")
         .attr("font-size",FONT).attr("font-weight","700").attr("fill","#1e293b")
         .text(fmt$(s.total));
 
       // Row divider — heavier line between rows
-      svg.append("line").attr("x1",0).attr("x2",W)
+      barLayer.append("line").attr("x1",0).attr("x2",W)
         .attr("y1",rowY+rowH).attr("y2",rowY+rowH)
         .attr("stroke","#cbd5e1").attr("stroke-width",1.5);
 
       curY+=rowH;
     });
 
-    // Redraw grid lines on top of row backgrounds
-    drawGridLines();
   }
 
 </script>
