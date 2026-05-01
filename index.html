@@ -425,7 +425,7 @@ function drawTreemap() {
   var STAT_W   = availW >= 700 ? Math.round(Math.min(availW * 0.24, 300)) : 0;
   var chartW   = availW - STAT_W - (STAT_W > 0 ? 12 : 0);
   var GAP      = Math.max(6, Math.round(chartW * 0.007));
-  var Y_PAD    = 28; // left padding for y-axis labels
+  var Y_PAD    = 40; // left padding for y-axis labels
   var colW     = Math.floor((chartW - GAP*(N-1) - Y_PAD) / N);
 
   var nameFontPx = Math.max(12, Math.min(Math.round(colW*0.10), 16));
@@ -446,15 +446,15 @@ function drawTreemap() {
     "position:relative;width:"+chartW+"px;box-sizing:border-box;"+
     "padding-left:"+Y_PAD+"px;";
 
-  // Y-axis label — rotated, parallel to y-axis
+  // Y-axis label — vertical text using writing-mode (avoids bounding-box overflow from transform:rotate)
   var yAxisLabelEl = document.createElement("div");
   yAxisLabelEl.style.cssText =
     "position:absolute;left:0;top:0;bottom:0;width:"+Y_PAD+"px;"+
-    "display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;";
+    "display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;overflow:hidden;";
   var yAxisTextEl = document.createElement("div");
   yAxisTextEl.style.cssText =
-    "font-size:12px;font-weight:700;color:#475569;font-family:'Roboto',sans-serif;"+
-    "white-space:nowrap;transform:rotate(-90deg);letter-spacing:.02em;";
+    "font-size:11px;font-weight:700;color:#475569;font-family:'Roboto',sans-serif;"+
+    "writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.04em;white-space:nowrap;";
   yAxisTextEl.textContent = "% of Projects";
   yAxisLabelEl.appendChild(yAxisTextEl);
   chart.appendChild(yAxisLabelEl);
@@ -470,8 +470,8 @@ function drawTreemap() {
     var lbl = document.createElement("div");
     lbl.style.cssText =
       "position:absolute;left:0;bottom:"+(v/100*availH-7)+"px;"+
-      "font-size:12px;color:rgba(0,0,0,0.35);font-family:'Roboto',sans-serif;"+
-      "pointer-events:none;z-index:0;width:24px;text-align:right;";
+      "font-size:11px;color:rgba(0,0,0,0.35);font-family:'Roboto',sans-serif;"+
+      "pointer-events:none;z-index:2;width:"+(Y_PAD-2)+"px;text-align:right;padding-right:3px;";
     lbl.textContent = v+"%";
     chart.appendChild(lbl);
   });
