@@ -1,7 +1,7 @@
 """
 update_watershed_layer.py
 - First run: fetches watershed polygons from source layer, does spatial join
-  with Survey123 points, and ADDS all features (with geometry) to the new
+  with Survey123 polygons, and ADDS all features (with geometry) to the new
   hosted layer.
 - Subsequent runs: updates project_count on existing features by Name.
 
@@ -14,7 +14,7 @@ import json
 import os
 import datetime
 import requests
-from shapely.geometry import shape, Point
+from shapely.geometry import shape
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ARCGIS_ORG  = "https://www.arcgis.com"
@@ -98,19 +98,22 @@ def get_existing_count(service_url, token):
 
 
 def build_counts(survey_features, watershed_features):
-    points = []
+    # Build shapely geometries for every funded project polygon.
+    # shape() handles Polygon and MultiPolygon automatically — no special casing needed.
+    project_geoms = []
     for f in survey_features:
         geom = f.get("geometry")
         if not geom:
             continue
         try:
-            pt = shape(geom)
-            if pt.is_valid and not pt.is_empty:
-                points.append(pt)
+            g = shape(geom)
+            if g.is_valid and not g.is_empty:
+                project_geoms.append(g)
         except Exception:
             continue
-    print(f"  {len(points)} funded project points with geometry")
+    print(f"  {len(project_geoms)} funded project geometries loaded")
 
+    # Build shapely geometries for every watershed polygon.
     shapes = []
     for f in watershed_features:
         name = f["properties"].get("Name")
@@ -124,13 +127,20 @@ def build_counts(survey_features, watershed_features):
         except Exception:
             continue
 
+    # Spatial join: count every watershed each project polygon intersects.
+    # A project spanning N watersheds adds 1 to each — so the sum of all
+    # watershed counts will exceed the total project count. That is correct.
+    # No break. intersects() catches any overlap, including partial.
     counts = {w["name"]: 0 for w in shapes}
-    for pt in points:
+    for g in project_geoms:
         for w in shapes:
-            if w["shape"].contains(pt):
+            if w["shape"].intersects(g):
                 counts[w["name"]] += 1
-                break
 
+    assigned = sum(1 for c in counts.values() if c > 0)
+    total    = sum(counts.values())
+    print(f"  {assigned} watersheds have at least one project")
+    print(f"  {total} total project-watershed assignments")
     return shapes, counts
 
 
@@ -246,14 +256,15 @@ def main():
     service_url = get_service_url(token)
     print(f"Service URL: {service_url}")
 
-    print("Fetching Survey123 funded project points...")
+    print("Fetching Survey123 funded project polygons...")
     survey_features = fetch_all(SURVEY123_URL, {
         "where": "gbep_award_amount > 0",
         "outFields": "OBJECTID",
+        "returnGeometry": "true",
         "outSR": "4326",
         "f": "geojson",
     })
-    print(f"  {len(survey_features)} funded records")
+    print(f"  {len(survey_features)} funded records fetched")
 
     print("Fetching watershed polygons...")
     ws_features = fetch_all(WATERSHED_GEO_URL, {
@@ -262,12 +273,10 @@ def main():
         "outSR": "4326",
         "f": "geojson",
     })
-    print(f"  {len(ws_features)} watersheds")
+    print(f"  {len(ws_features)} watersheds fetched")
 
     print("Running spatial join...")
     shapes, counts = build_counts(survey_features, ws_features)
-    total = sum(counts.values())
-    print(f"  Total projects assigned to a watershed: {total}")
 
     existing_count = get_existing_count(service_url, token)
     print(f"  Existing features in hosted layer: {existing_count}")
@@ -277,7 +286,7 @@ def main():
     else:
         update_features(service_url, token, counts)
 
-    # Write watershed_counts.json for D3 map fallback
+    # Write watershed_counts.json for D3 map
     out = {
         "updated": datetime.datetime.utcnow().isoformat() + "Z",
         "watersheds": [
