@@ -1,33 +1,32 @@
 """
 update_watershed_layer.py
-- First run: fetches watershed polygons from source layer, does spatial join
-  with Survey123 polygons, and ADDS all features (with geometry) to the new
-  hosted layer.
-- Subsequent runs: updates project_count on existing features by Name.
+Geometry source: RMD_Watersheds (FeatureServer/1) — owned by HARC/Erin, public
+Count target:   GBEP_Watersheds_Summary_Stats (ITEM_ID) — owned by BCGIS
 
-GitHub secrets required:
-  ARCGIS_USERNAME
-  ARCGIS_PASSWORD
+Every run does a full upsert:
+  - Watersheds that already exist in the summary layer → update project_count
+  - Watersheds new in RMD_Watersheds → add with geometry + project_count
+  - New watersheds are picked up automatically on next run, no manual step needed.
+
+GitHub secrets required: ARCGIS_USERNAME, ARCGIS_PASSWORD
 """
 
-import json
-import os
-import datetime
-import requests
+import json, os, datetime, requests
 from shapely.geometry import shape
 
-# ── CONFIG ────────────────────────────────────────────────────────────────────
+# ── CONFIG ───────────────────────────────────────────────────────────────────
 ARCGIS_ORG  = "https://www.arcgis.com"
-ITEM_ID     = "f2417bfa0d0f4983900cc2a2c20a4146"
+ITEM_ID     = "f2417bfa0d0f4983900cc2a2c20a4146"  # GBEP_Watersheds_Summary_Stats
 LAYER_INDEX = 0
 
 SURVEY123_URL = (
     "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/"
     "survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0/query"
 )
+# RMD_Watersheds — layer index 1, Name field matches existing script
 WATERSHED_GEO_URL = (
     "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/"
-    "GBEP_Watersheds_Summary_Stats/FeatureServer/0/query"
+    "RMD_Watersheds/FeatureServer/1/query"
 )
 
 USERNAME = os.environ["ARCGIS_USERNAME"]
@@ -38,13 +37,8 @@ PASSWORD = os.environ["ARCGIS_PASSWORD"]
 def get_token():
     r = requests.post(
         "https://www.arcgis.com/sharing/rest/generateToken",
-        data={
-            "username": USERNAME,
-            "password": PASSWORD,
-            "referer": "https://www.arcgis.com",
-            "expiration": 120,
-            "f": "json",
-        },
+        data={"username": USERNAME, "password": PASSWORD,
+              "referer": "https://www.arcgis.com", "expiration": 120, "f": "json"},
         timeout=30,
     )
     r.raise_for_status()
@@ -58,8 +52,7 @@ def get_token():
 def get_service_url(token):
     r = requests.get(
         f"{ARCGIS_ORG}/sharing/rest/content/items/{ITEM_ID}",
-        params={"f": "json", "token": token},
-        timeout=30,
+        params={"f": "json", "token": token}, timeout=30,
     )
     r.raise_for_status()
     data = r.json()
@@ -70,16 +63,14 @@ def get_service_url(token):
 
 
 def fetch_all(url, params):
-    all_features = []
-    offset = 0
+    all_features, offset = [], 0
     while True:
         p = dict(params)
         p["resultOffset"] = offset
         p["resultRecordCount"] = 1000
         r = requests.get(url, params=p, timeout=60)
         r.raise_for_status()
-        data = r.json()
-        features = data.get("features", [])
+        features = r.json().get("features", [])
         all_features.extend(features)
         if len(features) < 1000:
             break
@@ -87,19 +78,7 @@ def fetch_all(url, params):
     return all_features
 
 
-def get_existing_count(service_url, token):
-    r = requests.get(
-        f"{service_url}/query",
-        params={"where": "1=1", "returnCountOnly": "true", "f": "json", "token": token},
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json().get("count", 0)
-
-
 def build_counts(survey_features, watershed_features):
-    # Build shapely geometries for every funded project polygon.
-    # shape() handles Polygon and MultiPolygon automatically — no special casing needed.
     project_geoms = []
     for f in survey_features:
         geom = f.get("geometry")
@@ -107,45 +86,51 @@ def build_counts(survey_features, watershed_features):
             continue
         try:
             g = shape(geom)
+            if not g.is_valid:
+                g = g.buffer(0)
             if g.is_valid and not g.is_empty:
                 project_geoms.append(g)
-        except Exception:
-            continue
+        except Exception as e:
+            print(f"  WARNING: skipping project geometry — {e}")
     print(f"  {len(project_geoms)} funded project geometries loaded")
 
-    # Build shapely geometries for every watershed polygon.
     shapes = []
     for f in watershed_features:
         name = f["properties"].get("Name")
         geom = f.get("geometry")
-        if not name or not geom:
+        if not name:
+            print(f"  WARNING: watershed with no Name — skipping. Properties: {f['properties']}")
+            continue
+        if not geom:
+            print(f"  WARNING: watershed '{name}' has no geometry — skipping")
             continue
         try:
             poly = shape(geom)
+            if not poly.is_valid:
+                print(f"  INFO: repairing geometry for '{name}'")
+                poly = poly.buffer(0)
             if poly.is_valid and not poly.is_empty:
                 shapes.append({"name": name, "shape": poly, "geom": geom})
-        except Exception:
-            continue
+            else:
+                print(f"  WARNING: '{name}' still invalid after repair — skipping")
+        except Exception as e:
+            print(f"  WARNING: skipping watershed '{name}' — {e}")
+    print(f"  {len(shapes)} watershed geometries loaded")
 
-    # Spatial join: count every watershed each project polygon intersects.
-    # A project spanning N watersheds adds 1 to each — so the sum of all
-    # watershed counts will exceed the total project count. That is correct.
-    # No break. intersects() catches any overlap, including partial.
+    # No break — project counts in every watershed it intersects.
     counts = {w["name"]: 0 for w in shapes}
     for g in project_geoms:
         for w in shapes:
             if w["shape"].intersects(g):
                 counts[w["name"]] += 1
 
-    assigned = sum(1 for c in counts.values() if c > 0)
-    total    = sum(counts.values())
-    print(f"  {assigned} watersheds have at least one project")
+    total = sum(counts.values())
+    print(f"  {sum(1 for c in counts.values() if c > 0)} watersheds with projects")
     print(f"  {total} total project-watershed assignments")
     return shapes, counts
 
 
 def geom_to_rings(geom):
-    """Convert GeoJSON geometry to ArcGIS rings format."""
     if geom["type"] == "Polygon":
         return geom["coordinates"]
     elif geom["type"] == "MultiPolygon":
@@ -156,99 +141,74 @@ def geom_to_rings(geom):
     return []
 
 
-def add_features(service_url, token, shapes, counts):
-    print(f"Adding {len(shapes)} features to hosted layer...")
-    features = []
-    for w in shapes:
-        rings = geom_to_rings(w["geom"])
-        features.append({
-            "geometry": {
-                "rings": rings,
-                "spatialReference": {"wkid": 4326}
-            },
-            "attributes": {
-                "Name": w["name"],
-                "project_count": counts.get(w["name"], 0),
-            }
-        })
-
-    batch_size = 20
-    for i in range(0, len(features), batch_size):
-        batch = features[i:i+batch_size]
-        r = requests.post(
-            f"{service_url}/addFeatures",
-            data={
-                "features": json.dumps(batch),
-                "rollbackOnFailure": "false",
-                "f": "json",
-                "token": token,
-            },
-            timeout=120,
-        )
-        r.raise_for_status()
-        result = r.json()
-        if "error" in result:
-            raise RuntimeError(f"addFeatures error: {result['error']}")
-        failed = [x for x in result.get("addResults", []) if not x.get("success")]
-        if failed:
-            print(f"  WARNING: {len(failed)} features failed in batch {i//batch_size+1}")
-            for ff in failed:
-                print(f"    {ff}")
-        else:
-            print(f"  Batch {i//batch_size+1}: {len(batch)} features added OK")
-
-
-def update_features(service_url, token, counts):
-    print("Fetching existing OBJECTIDs from hosted layer...")
+def upsert_features(service_url, token, shapes, counts):
+    """
+    Update project_count on existing watersheds by Name.
+    Add geometry + project_count for any watershed not yet in the hosted layer.
+    New watersheds added to RMD_Watersheds are picked up automatically.
+    """
     r = requests.get(
         f"{service_url}/query",
-        params={
-            "where": "1=1",
-            "outFields": "OBJECTID,Name",
-            "f": "json",
-            "token": token,
-            "resultRecordCount": 1000,
-        },
+        params={"where": "1=1", "outFields": "OBJECTID,Name",
+                "f": "json", "token": token, "resultRecordCount": 1000},
         timeout=60,
     )
     r.raise_for_status()
     existing = r.json().get("features", [])
+    existing_by_name = {
+        f["attributes"]["Name"]: f["attributes"]["OBJECTID"]
+        for f in existing if f["attributes"].get("Name")
+    }
+    print(f"  {len(existing_by_name)} watersheds currently in hosted layer")
 
-    updates = []
-    for f in existing:
-        name = f["attributes"].get("Name")
-        oid  = f["attributes"].get("OBJECTID")
-        if name and oid:
-            updates.append({
-                "attributes": {
-                    "OBJECTID": oid,
-                    "project_count": counts.get(name, 0),
-                }
-            })
-
-    print(f"Updating {len(updates)} features...")
-    batch_size = 100
-    for i in range(0, len(updates), batch_size):
-        batch = updates[i:i+batch_size]
-        r = requests.post(
-            f"{service_url}/updateFeatures",
-            data={
-                "features": json.dumps(batch),
-                "rollbackOnFailure": "true",
-                "f": "json",
-                "token": token,
-            },
-            timeout=60,
-        )
-        r.raise_for_status()
-        result = r.json()
-        if "error" in result:
-            raise RuntimeError(f"updateFeatures error: {result['error']}")
-        failed = [x for x in result.get("updateResults", []) if not x.get("success")]
-        if failed:
-            print(f"  WARNING: {len(failed)} failed in batch {i//batch_size+1}")
+    to_update, to_add = [], []
+    for w in shapes:
+        name  = w["name"]
+        count = counts.get(name, 0)
+        if name in existing_by_name:
+            to_update.append({"attributes": {
+                "OBJECTID": existing_by_name[name],
+                "project_count": count,
+            }})
         else:
-            print(f"  Batch {i//batch_size+1}: {len(batch)} updated OK")
+            to_add.append({
+                "geometry": {"rings": geom_to_rings(w["geom"]),
+                             "spatialReference": {"wkid": 4326}},
+                "attributes": {"Name": name, "project_count": count},
+            })
+    print(f"  {len(to_update)} to update, {len(to_add)} new to add")
+
+    if to_update:
+        for i in range(0, len(to_update), 100):
+            batch = to_update[i:i+100]
+            r = requests.post(f"{service_url}/updateFeatures",
+                data={"features": json.dumps(batch), "rollbackOnFailure": "true",
+                      "f": "json", "token": token}, timeout=60)
+            r.raise_for_status()
+            res = r.json()
+            if "error" in res:
+                raise RuntimeError(f"updateFeatures error: {res['error']}")
+            failed = [x for x in res.get("updateResults", []) if not x.get("success")]
+            if failed:
+                print(f"  WARNING: {len(failed)} updates failed")
+            else:
+                print(f"  Updated batch {i//100+1}: {len(batch)} OK")
+
+    if to_add:
+        for i in range(0, len(to_add), 20):
+            batch = to_add[i:i+20]
+            r = requests.post(f"{service_url}/addFeatures",
+                data={"features": json.dumps(batch), "rollbackOnFailure": "false",
+                      "f": "json", "token": token}, timeout=120)
+            r.raise_for_status()
+            res = r.json()
+            if "error" in res:
+                raise RuntimeError(f"addFeatures error: {res['error']}")
+            failed = [x for x in res.get("addResults", []) if not x.get("success")]
+            if failed:
+                print(f"  WARNING: {len(failed)} adds failed")
+            else:
+                print(f"  Added batch {i//20+1}: {len(batch)} OK")
 
 
 def main():
@@ -258,35 +218,24 @@ def main():
 
     print("Fetching Survey123 funded project polygons...")
     survey_features = fetch_all(SURVEY123_URL, {
-        "where": "gbep_award_amount > 0",
-        "outFields": "OBJECTID",
-        "returnGeometry": "true",
-        "outSR": "4326",
-        "f": "geojson",
+        "where": "gbep_award_amount > 0", "outFields": "OBJECTID",
+        "returnGeometry": "true", "outSR": "4326", "f": "geojson",
     })
     print(f"  {len(survey_features)} funded records fetched")
 
-    print("Fetching watershed polygons...")
+    print("Fetching RMD_Watersheds polygons...")
     ws_features = fetch_all(WATERSHED_GEO_URL, {
-        "where": "1=1",
-        "outFields": "Name",
-        "outSR": "4326",
-        "f": "geojson",
+        "where": "1=1", "outFields": "Name",
+        "outSR": "4326", "f": "geojson",
     })
     print(f"  {len(ws_features)} watersheds fetched")
 
     print("Running spatial join...")
     shapes, counts = build_counts(survey_features, ws_features)
 
-    existing_count = get_existing_count(service_url, token)
-    print(f"  Existing features in hosted layer: {existing_count}")
+    print("Upserting to hosted layer...")
+    upsert_features(service_url, token, shapes, counts)
 
-    if existing_count == 0:
-        add_features(service_url, token, shapes, counts)
-    else:
-        update_features(service_url, token, counts)
-
-    # Write watershed_counts.json for D3 map
     out = {
         "updated": datetime.datetime.utcnow().isoformat() + "Z",
         "watersheds": [
@@ -296,8 +245,7 @@ def main():
     }
     with open("watershed_counts.json", "w") as f:
         json.dump(out, f, indent=2)
-    print("watershed_counts.json updated.")
-    print("Done.")
+    print("watershed_counts.json updated. Done.")
 
 
 if __name__ == "__main__":
