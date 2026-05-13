@@ -234,7 +234,16 @@ function classifyGoals(editedGoals, broadGoals, otherGoals, capProgram){
   function applyYearFilter(){var from=parseInt(document.getElementById("year-from").value)||null;var to=parseInt(document.getElementById("year-to").value)||null;filteredData=allData.filter(function(d){var y=getYear(d);if(!y)return true;if(from&&y<from)return false;if(to&&y>to)return false;return true;});document.getElementById("filter-count").textContent=filteredData.filter(function(d){return d.gbep_award_amount;}).length+" funded projects";redrawAll();}
   function clearYearFilter(){document.getElementById("year-from").value="";document.getElementById("year-to").value="";filteredData=allData.slice();document.getElementById("filter-count").textContent="";redrawAll();}
   function redrawAll(){chartDrawn=[false,false,false,false,false,false,false,false];var active=document.querySelector(".chart-panel.active");if(active){var idx=parseInt(active.id.replace("panel-",""));chartDrawn[idx]=false;showChart(idx);}}
-  function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.pageX+14)+"px";tooltip.style.top=(evt.pageY-32)+"px";}
+  function showTooltip(evt,html){
+    tooltip.innerHTML=html;
+    tooltip.style.opacity=1;
+    tooltip.style.left=(evt.pageX+14)+"px";
+    tooltip.style.top=(evt.pageY-32)+"px";
+    // Clamp to viewport so tooltip never falls off bottom or right edge
+    var r=tooltip.getBoundingClientRect();
+    if(r.bottom>window.innerHeight-8) tooltip.style.top=(evt.pageY-r.height-10)+"px";
+    if(r.right>window.innerWidth-8)   tooltip.style.left=(evt.pageX-r.width-14)+"px";
+  }
   function hideTooltip(){tooltip.style.opacity=0;}
   function isYes(v){if(v===null||v===undefined)return false;if(v===true||v===1)return true;var s=String(v).toLowerCase().trim();return s==="1"||s==="true"||s==="yes"||s==="y";}
   // ── HABITAT DEFINITIONS ──────────────────────────────────────────────────
@@ -257,7 +266,8 @@ function classifyGoals(editedGoals, broadGoals, otherGoals, capProgram){
     "rookery":      "An island or isolated land feature used as a communal nesting colony by colonial waterbirds.",
     "submerged":    "Vascular plants rooted in bottom sediments and fully submerged in estuarine or freshwater, providing nursery habitat and sediment stabilization.",
     "sav":          "Vascular plants rooted in bottom sediments and fully submerged in estuarine or freshwater, providing nursery habitat and sediment stabilization.",
-    "urban":        "Managed green space within developed areas that provides variable wildlife habitat value depending on native plantings and connectivity, primarily serving ecological function for generalist species."
+    "urban":        "Managed green space within developed areas that provides variable wildlife habitat value depending on native plantings and connectivity, primarily serving ecological function for generalist species.",
+    "other":        "Habitat type either not directly attributable to defined types or unavailable."
   };
 
   function getHabDef(name) {
@@ -621,16 +631,14 @@ function drawTreemap() {
       fill.appendChild(iconWrap);
     }
 
-    if (!d.isOther) {
-      (function(hab){
-        fill.addEventListener("mousemove",function(evt){
-          var def = getHabDef(hab.name);
-          var defHtml = def ? "<div style='margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.85;line-height:1.5;max-width:260px;'>"+def+"</div>" : "";
-          showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":"")+defHtml);
-        });
-        fill.addEventListener("mouseleave",hideTooltip);
-      })(d);
-    }
+    (function(hab){
+      fill.addEventListener("mousemove",function(evt){
+        var def = getHabDef(hab.name);
+        var defHtml = def ? "<div style='margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.85;line-height:1.5;max-width:260px;'>"+def+"</div>" : "";
+        showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":"")+defHtml);
+      });
+      fill.addEventListener("mouseleave",hideTooltip);
+    })(d);
 
     col.appendChild(emptyArea);
     col.appendChild(fill);
