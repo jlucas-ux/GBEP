@@ -112,10 +112,10 @@
       <div class="chart-subtitle">All of the projects featured in this database support Plan Priority 2 through the NRU subcommittee. Many projects support more than one priority through their associated action plans. This graphic illustrates the action plans also supported by the NRU projects and can be filtered by fiscal year at the top.</div>
       <div class="chart-area" style="padding:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;">
         <div class="grid-2x2">
-          <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Ensure Safe Human &amp; Aquatic Life Use</div><div class="grid-chart" id="pp1-chart"></div></div>
-          <div class="grid-cell"><div class="grid-cell-title" style="color:#2e7d32">Plan Priority 2 — Protect &amp; Sustain Living Resources</div><div class="grid-chart" id="pp2-chart"></div></div>
-          <div class="grid-cell"><div class="grid-cell-title" style="color:#6a1b9a">Plan Priority 3 — Engage Communities</div><div class="grid-chart" id="pp3-chart"></div></div>
-          <div class="grid-cell"><div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Inform Science-Based Decision Making</div><div class="grid-chart" id="pp4-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#1565c0">Plan Priority 1 — Watershed &amp; Planning Foundations</div><div class="grid-chart" id="pp1-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#2e7d32">Plan Priority 2 — Habitat, Stewardship &amp; Field Work</div><div class="grid-chart" id="pp2-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#6a1b9a">Plan Priority 3 — Outreach, Education &amp; Partnerships</div><div class="grid-chart" id="pp3-chart"></div></div>
+          <div class="grid-cell"><div class="grid-cell-title" style="color:#e65100">Plan Priority 4 — Restoration, Sustainability &amp; Capacity</div><div class="grid-chart" id="pp4-chart"></div></div>
         </div>
         <div id="pp-definitions" style="background:white;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.07);padding:clamp(8px,0.8vw,14px) clamp(10px,1.2vw,20px);margin-top:8px;font-family:'Roboto',sans-serif;flex-shrink:0;">
           <div class="pp-def-title" style="font-weight:700;color:#333;margin-bottom:6px;">Category Definitions</div>
@@ -237,6 +237,39 @@ function classifyGoals(editedGoals, broadGoals, otherGoals, capProgram){
   function showTooltip(evt,html){tooltip.innerHTML=html;tooltip.style.opacity=1;tooltip.style.left=(evt.pageX+14)+"px";tooltip.style.top=(evt.pageY-32)+"px";}
   function hideTooltip(){tooltip.style.opacity=0;}
   function isYes(v){if(v===null||v===undefined)return false;if(v===true||v===1)return true;var s=String(v).toLowerCase().trim();return s==="1"||s==="true"||s==="yes"||s==="y";}
+  // ── HABITAT DEFINITIONS ──────────────────────────────────────────────────
+  var HAB_DEFS = {
+    "agriculture":  "Land actively managed for crop production or livestock grazing, retaining limited native ecological function but potentially supporting marginal habitat in remnant vegetation areas.",
+    "beach":        "Accumulation of unconsolidated sediment along the shoreline, shaped by wave and tidal action, and serving as nesting and foraging habitat for shorebirds, sea turtles, and beach-dependent invertebrates.",
+    "coastal prai": "A native grassland ecosystem of the Gulf Coast Plain, dominated by salt-tolerant grasses and forbs on poorly drained soils.",
+    "dune":         "Wind-deposited sand ridges along the coastline, stabilized by pioneer vegetation, that buffer inland areas from storm surge and provide specialized nesting and foraging habitat for coastal species.",
+    "estuarine sho":"The intertidal fringe along the edges of bays and tidal creeks, where land and estuary meet, providing erosion buffering, detrital input, and nursery habitat for estuarine species.",
+    "estuarine wat":"The open water of bays and estuaries where ocean and freshwater mix, supporting phytoplankton, zooplankton, fish, and invertebrate communities through the full water column.",
+    "estuarine wet":"Tidal wetlands in brackish to saline water, dominated by salt-adapted emergent plants or unvegetated mudflats, providing critical nursery, feeding, and carbon storage functions.",
+    "forest/woodla":"Upland areas dominated by tree canopy cover, providing carbon sequestration, wildlife habitat, stormwater interception, and shade buffering.",
+    "forested wetl":"Wetlands dominated by trees growing in seasonally or permanently saturated soils, including bottomland hardwoods and cypress swamps.",
+    "freshwater ma":"Non-tidal wetlands dominated by emergent herbaceous plants in freshwater, providing critical waterfowl habitat, flood control, nutrient filtration, and carbon storage.",
+    "in-stream":    "The aquatic habitat within a stream or river channel, including pools, riffles, and substrate, where water quality, fish passage, and benthic invertebrate communities are directly supported.",
+    "intertidal":   "Hard substrate in the intertidal zone — natural rock, shell, or biogenic reef (especially oyster) — that is alternately submerged and exposed by tidal cycles, supporting dense invertebrate and fish communities.",
+    "lake":         "Enclosed standing bodies of freshwater supporting stratified aquatic communities, including fish, amphibians, waterfowl, and aquatic invertebrates, across open water and littoral zones.",
+    "living shore": "A shoreline using natural elements such as oyster shell, marsh plants, and SAV to reduce erosion while maintaining or restoring ecological function.",
+    "riparian":     "The vegetated transition zone along stream and river banks where terrestrial and aquatic systems meet, filtering runoff, stabilizing banks, moderating temperature, and supporting high biodiversity.",
+    "rookery":      "An island or isolated land feature used as a communal nesting colony by colonial waterbirds.",
+    "submerged":    "Vascular plants rooted in bottom sediments and fully submerged in estuarine or freshwater, providing nursery habitat and sediment stabilization.",
+    "sav":          "Vascular plants rooted in bottom sediments and fully submerged in estuarine or freshwater, providing nursery habitat and sediment stabilization.",
+    "urban":        "Managed green space within developed areas that provides variable wildlife habitat value depending on native plantings and connectivity, primarily serving ecological function for generalist species."
+  };
+
+  function getHabDef(name) {
+    if (!name) return null;
+    var key = name.toLowerCase().replace(/[^a-z0-9\-\/\s]/g,"").trim();
+    for (var k in HAB_DEFS) {
+      if (key.indexOf(k) === 0 || k.indexOf(key) === 0) return HAB_DEFS[k];
+    }
+    return null;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   function fmtDollars(v){if(v>=1e6)return "$"+(v/1e6).toFixed(1)+"M";if(v>=1e3)return "$"+(v/1e3).toFixed(0)+"K";return "$"+Math.round(v);}
 
   function showChart(i){
@@ -536,7 +569,9 @@ function drawTreemap() {
         }
         (function(s){
           segDiv.addEventListener("mousemove",function(evt){
-            showTooltip(evt,"<strong>"+s.name+"</strong><br>"+s.pct+"% of projects<br>"+s.count+" project"+(s.count!==1?"s":""));
+            var def = getHabDef(s.name);
+            var defHtml = def ? "<div style='margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.85;line-height:1.5;max-width:260px;'>"+def+"</div>" : "";
+            showTooltip(evt,"<strong>"+s.name+"</strong><br>"+s.pct+"% of projects<br>"+s.count+" project"+(s.count!==1?"s":"")+defHtml);
           });
           segDiv.addEventListener("mouseleave",hideTooltip);
         })(seg);
@@ -589,7 +624,9 @@ function drawTreemap() {
     if (!d.isOther) {
       (function(hab){
         fill.addEventListener("mousemove",function(evt){
-          showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":""));
+          var def = getHabDef(hab.name);
+          var defHtml = def ? "<div style='margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.85;line-height:1.5;max-width:260px;'>"+def+"</div>" : "";
+          showTooltip(evt,"<strong>"+hab.name+"</strong><br>"+hab.pct+"% of projects<br>"+hab.count+" project"+(hab.count!==1?"s":"")+defHtml);
         });
         fill.addEventListener("mouseleave",hideTooltip);
       })(d);
@@ -658,10 +695,11 @@ function drawTreemap() {
       "font-size:13px;color:rgba(0,0,0,0.65);"+
       "line-height:1.6;font-family:'Roboto',sans-serif;";
     guide.innerHTML =
-      "<strong style='color:#1677bc;'>How to read:</strong> "+
-      "Each bar = % of "+totalProjects+" projects in that habitat. "+
-      "Bars are <strong>independent</strong> — they won't add to 100% because "+
-      "projects average "+avgPerProj+" habitats each.";
+      "Percent of <strong>"+totalProjects+" GBEP-funded projects</strong> that included each habitat type, 2005\u20132026. "+
+      "Values are independent \u2014 one project may count toward multiple habitats. "+
+      "<a href='https://experience.arcgis.com/experience/177ddb6fd0ce4dd7b8eebfb2938ede6d/page/FAQ' "+
+      "target='_top' style='color:#1677bc;font-weight:600;text-decoration:underline;'>"+
+      "Habitat type definitions are on the FAQ page.</a>";
     panel.appendChild(guide);
 
     wrapper.appendChild(panel);
@@ -671,10 +709,11 @@ function drawTreemap() {
     noteEl.style.cssText =
       "font-size:13px;color:rgba(0,0,0,0.65);margin-top:6px;"+
       "font-family:'Roboto',sans-serif;line-height:1.4;";
-    noteEl.textContent =
-      totalProjects+" funded projects · "+uniqueTypes+" habitat types · "+
-      totalTags+" total tags · "+avgPerProj+" habitats per project on average. "+
-      "Bars are independent — values won't add to 100%.";
+    noteEl.innerHTML =
+      "Percent of <strong>"+totalProjects+" GBEP-funded projects</strong> that included each habitat type, 2005\u20132026. "+
+      "Values are independent \u2014 one project may count toward multiple habitats. "+
+      "<a href='https://experience.arcgis.com/experience/177ddb6fd0ce4dd7b8eebfb2938ede6d/page/FAQ' "+
+      "target='_top' style='color:#1677bc;font-weight:600;'>Habitat type definitions are on the FAQ page.</a>";
     el.appendChild(wrapper);
     el.appendChild(noteEl);
     return;
