@@ -1,13 +1,19 @@
 """
 apply_symbology.py
-Applies three-category project goal symbology by patching the webmap JSON.
-Updates the renderer override on the NRU Projects layer inside the webmap
-so it takes effect immediately without affecting other maps.
+
+Two-step approach:
+  Step 1 — updateDefinition on the feature service to set drawingInfo at the
+            service level. AGOL respects service-level renderers more reliably
+            than webmap-level overrides for Arcade-driven unique value renderers.
+
+  Step 2 — Patch the webmap to REMOVE any layerDefinition.drawingInfo override
+            on the NRU Projects layer, so the map falls back to the service
+            default set in Step 1.
 
 Categories:
-  Land Acquisition                       -> solid red  #B03A3A
+  Land Acquisition                       -> solid red    #B03A3A
   Restoration, Stewardship & Research    -> solid orange #F0910C
-  Land Acquisition with Additional Goals -> diagonal red/orange stripe
+  Land Acquisition with Additional Goals -> solid teal   #2d5f6b
 
 GitHub secrets required: ARCGIS_USERNAME, ARCGIS_PASSWORD
 """
@@ -15,11 +21,15 @@ GitHub secrets required: ARCGIS_USERNAME, ARCGIS_PASSWORD
 import os, json, requests
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-WEBMAP_ITEM_ID  = "3504d4f140f74acc8fe02c9231143709"
-NRU_ITEM_ID     = "92bcdb290d7143d893b105f121c87ee7"
-USERNAME        = os.environ["ARCGIS_USERNAME"]
-PASSWORD        = os.environ["ARCGIS_PASSWORD"]
-AGOL            = "https://www.arcgis.com"
+LAYER_URL      = (
+    "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/arcgis/rest/services/"
+    "survey123_6ce0c22f05d74de6bd806994a23cbc63_results/FeatureServer/0"
+)
+WEBMAP_ITEM_ID = "3504d4f140f74acc8fe02c9231143709"
+NRU_ITEM_ID    = "92bcdb290d7143d893b105f121c87ee7"
+USERNAME       = os.environ["ARCGIS_USERNAME"]
+PASSWORD       = os.environ["ARCGIS_PASSWORD"]
+AGOL           = "https://www.arcgis.com"
 # ──────────────────────────────────────────────────────────────────────────────
 
 ARCADE = (
@@ -34,7 +44,6 @@ ARCADE = (
     "if (hasLA) return 'Land Acquisition'; "
     "return 'Restoration, Stewardship, and Research';"
 )
-
 
 RENDERER = {
     "type": "uniqueValue",
@@ -97,24 +106,48 @@ def get_token():
     return data["token"]
 
 
-def get_webmap(token):
+# ── STEP 1: Update service drawingInfo ───────────────────────────────────────
+def update_service_renderer(token):
+    print("\nStep 1 — Applying renderer to feature service...")
+    r = requests.post(
+        f"{LAYER_URL}/updateDefinition",
+        data={
+            "updateDefinition": json.dumps({"drawingInfo": {"renderer": RENDERER}}),
+            "f": "json",
+            "token": token,
+        },
+        timeout=60,
+    )
+    r.raise_for_status()
+    result = r.json()
+    if "error" in result:
+        print(f"  WARNING: updateDefinition returned error: {result['error']}")
+        print("  The service may not support drawingInfo updates.")
+        print("  Continuing to Step 2 anyway.")
+    else:
+        print("  Service renderer updated successfully.")
+
+
+# ── STEP 2: Remove webmap renderer override ──────────────────────────────────
+def clear_webmap_override(token):
+    print("\nStep 2 — Removing webmap renderer override...")
+
+    # Fetch current webmap JSON
     r = requests.get(
         f"{AGOL}/sharing/rest/content/items/{WEBMAP_ITEM_ID}/data",
         params={"f": "json", "token": token},
         timeout=30,
     )
     r.raise_for_status()
-    data = r.json()
-    if "error" in data:
-        raise RuntimeError(f"Could not fetch webmap: {data['error']}")
-    layers = data.get("operationalLayers", [])
-    print(f"Webmap fetched. Operational layers: {len(layers)}")
+    webmap = r.json()
+    if "error" in webmap:
+        raise RuntimeError(f"Could not fetch webmap: {webmap['error']}")
+
+    layers = webmap.get("operationalLayers", [])
+    print(f"  Webmap has {len(layers)} top-level layers:")
     for lyr in layers:
-        print(f"  - {lyr.get('title','(no title)')}  itemId={lyr.get('itemId','')}")
-    return data
+        print(f"    - {lyr.get('title','(no title)')}  itemId={lyr.get('itemId','')}  url={lyr.get('url','')[:60]}")
 
-
-def patch_renderer(webmap):
     patched = False
 
     def walk(layer_list):
@@ -125,27 +158,25 @@ def patch_renderer(webmap):
                 or "survey123_6ce0c22f" in layer.get("url", "")
             )
             if match:
-                layer.setdefault("layerDefinition", {})
-                layer["layerDefinition"].setdefault("drawingInfo", {})
-                layer["layerDefinition"]["drawingInfo"]["renderer"] = RENDERER
-                print(f"  Patched: {layer.get('title', layer.get('url','unknown'))}")
+                title = layer.get("title", layer.get("url", "unknown"))
+                if "layerDefinition" in layer and "drawingInfo" in layer["layerDefinition"]:
+                    del layer["layerDefinition"]["drawingInfo"]
+                    print(f"  Cleared drawingInfo override on: {title}")
+                else:
+                    print(f"  No override found on: {title} (already clean)")
                 patched = True
             for key in ("layers", "operationalLayers"):
                 if key in layer:
                     walk(layer[key])
 
-    walk(webmap.get("operationalLayers", []))
+    walk(layers)
 
     if not patched:
-        raise RuntimeError(
-            f"NRU Projects layer not found in webmap.\n"
-            f"Expected itemId={NRU_ITEM_ID} or URL containing 'survey123_6ce0c22f'.\n"
-            "Check the layer list printed above."
-        )
-    return webmap
+        print("  WARNING: NRU Projects layer not found in webmap by itemId or URL.")
+        print("  Step 1 service update still applies — check if map shows correct colors.")
+        return
 
-
-def save_webmap(token, webmap):
+    # Save webmap
     r = requests.post(
         f"{AGOL}/sharing/rest/content/users/{USERNAME}/items/{WEBMAP_ITEM_ID}/update",
         data={"text": json.dumps(webmap), "f": "json", "token": token},
@@ -154,17 +185,17 @@ def save_webmap(token, webmap):
     r.raise_for_status()
     result = r.json()
     if result.get("success"):
-        print("Webmap updated successfully.")
+        print("  Webmap saved — override cleared.")
     else:
-        raise RuntimeError(f"Webmap update failed: {result}")
+        raise RuntimeError(f"Webmap save failed: {result}")
 
 
 def main():
-    token  = get_token()
-    webmap = get_webmap(token)
-    webmap = patch_renderer(webmap)
-    save_webmap(token, webmap)
-    print("Done. Reload the Explore map in ArcGIS Online to see the new symbology.")
+    token = get_token()
+    update_service_renderer(token)
+    clear_webmap_override(token)
+    print("\nDone. Hard-refresh the Explore map (Ctrl+Shift+R) to see the updated symbology.")
+    print("Do not open the Style panel in Map Viewer — it will overwrite the renderer.")
 
 
 if __name__ == "__main__":
