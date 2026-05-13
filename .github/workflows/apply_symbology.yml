@@ -1,0 +1,25 @@
+name: Apply NRU Projects Symbology
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Apply symbology to NRU Projects layer
+        env:
+          ARCGIS_USERNAME: ${{ secrets.ARCGIS_USERNAME }}
+          ARCGIS_PASSWORD: ${{ secrets.ARCGIS_PASSWORD }}
+        run: python scripts/apply_symbology.py
